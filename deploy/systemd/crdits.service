@@ -1,0 +1,38 @@
+[Unit]
+Description=crdits private API
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=crdits
+Group=crdits
+WorkingDirectory=/srv/crdits
+Environment=NODE_ENV=production
+Environment=CRDITS_ROOT=/srv/crdits
+Environment=CRDITS_DB_PATH=/var/lib/crdits/crdits.sqlite
+Environment=CRDITS_API_TOKEN_FILE=/etc/crdits/api-token
+EnvironmentFile=-/etc/crdits/crdits.env
+ExecStart=/usr/local/bin/node /srv/crdits/server/index.mjs
+Restart=on-failure
+RestartSec=3s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+IPAddressAllow=100.64.0.0/10
+ReadWritePaths=/var/lib/crdits /srv/crdits/catalog/cards
+MemoryMax=512M
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target

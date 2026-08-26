@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "slug": "marriott-bonvoy-boundless-credit-card",
+  "name": "Marriott Bonvoy Boundless Credit Card",
+  "short_name": "Chase Marriott",
+  "issuer": "Chase",
+  "verification_status": "CONFIRMED",
+  "annual_fee_usd": 95,
+  "foreign_transaction_fee": "0%",
+  "reward_currency": {
+    "name": "Marriott Bonvoy points",
+    "point_value_cents": 0.75,
+    "cash_floor_cents": null,
+    "valuation_basis": "TPG editorial valuation; not guaranteed cash value",
+    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+  },
+  "base_reward": {
+    "id": "other-1",
+    "category": "other",
+    "label": "2X Marriott Bonvoy points on other purchases",
+    "match_terms": [],
+    "rate": 2,
+    "rate_type": "points_multiplier",
+    "activation_required": false,
+    "cap_usd": null,
+    "conditional": false,
+    "valid_from": "2026-08-25",
+    "valid_to": null
+  },
+  "reward_rules": [
+    {
+      "id": "travel-1",
+      "category": "travel",
+      "label": "6X at participating Marriott Bonvoy hotels",
+      "match_terms": [
+        "hotel",
+        "hotels"
+      ],
+      "rate": 6,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "dining-2",
+      "category": "dining",
+      "label": "3X on first $6,000 combined annual spend at grocery stores, gas stations, and dining",
+      "match_terms": [
+        "dining",
+        "grocery",
+        "gas"
+      ],
+      "rate": 3,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    }
+  ],
+  "benefits": [
+    {
+      "id": "temporary-airline-statement-credit-promotion-up-to-100-total",
+      "title": "Temporary airline statement-credit promotion: up to $100 total",
+      "kind": "statement_credit",
+      "amount_usd": 50,
+      "cadence": "one_time",
+      "interval_years": null,
+      "description": "Temporary airline statement-credit promotion: up to $100 total through 2027, split into two $50 credits after qualifying airline spend",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": "2027-12-31",
+      "source_group": "recurring"
+    },
+    {
+      "id": "1-free-night-award-up-to-35-000-points",
+      "title": "1 Free Night Award up to 35,000 points",
+      "kind": "certificate",
+      "amount_usd": null,
+      "cadence": "anniversary",
+      "interval_years": null,
+      "description": "1 Free Night Award up to 35,000 points after each account anniversary",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "annual_or_anniversary"
+    },
+    {
+      "id": "15-elite-night-credits-annually",
+      "title": "15 Elite Night Credits annually",
+      "kind": "statement_credit",
+      "amount_usd": null,
+      "cadence": "annual",
+      "interval_years": null,
+      "description": "15 Elite Night Credits annually",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "annual_or_anniversary"
+    },
+    {
+      "id": "automatic-silver-elite",
+      "title": "automatic Silver Elite",
+      "kind": "statement_credit",
+      "amount_usd": null,
+      "cadence": "one_time",
+      "interval_years": null,
+      "description": "automatic Silver Elite",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "annual_or_anniversary"
+    }
+  ],
+  "spend_threshold_benefits": [
+    "1 Elite Night Credit per $5,000 spend",
+    "Gold Elite after $35,000 calendar-year spend"
+  ],
+  "offer_ecosystem": "Chase Offers (targeted merchant statement-credit offers; availability varies by account)",
+  "other_key_benefits": [
+    "Marriott status/elite-night benefits",
+    "travel protections subject to guide to benefits"
+  ],
+  "notes": "Temporary airline-credit promotion runs across 2026-2027 and should be modeled with effective dates rather than as a permanent benefit",
+  "valid_from": "2026-08-25",
+  "valid_to": null,
+  "verified_at": "2026-08-25",
+  "sources": [
+    {
+      "kind": "primary",
+      "url": "https://creditcards.chase.com/travel-credit-cards/marriott-bonvoy/boundless"
+    },
+    {
+      "kind": "benefits",
+      "url": "https://marriott.chase.com/boundless"
+    },
+    {
+      "kind": "valuation",
+      "url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+    }
+  ],
+  "history": [],
+  "raw_source_fields": {
+    "base_earn": "2X Marriott Bonvoy points on other purchases",
+    "bonus_categories": "6X at participating Marriott Bonvoy hotels; 3X on first $6,000 combined annual spend at grocery stores, gas stations, and dining",
+    "recurring_credits": "Temporary airline statement-credit promotion: up to $100 total through 2027, split into two $50 credits after qualifying airline spend; see terms",
+    "annual_or_anniversary_benefits": "1 Free Night Award up to 35,000 points after each account anniversary; 15 Elite Night Credits annually; automatic Silver Elite",
+    "spend_threshold_benefits": "1 Elite Night Credit per $5,000 spend; Gold Elite after $35,000 calendar-year spend"
+  }
+}

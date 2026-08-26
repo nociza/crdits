@@ -1,0 +1,14 @@
+services:
+  crdits:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3010:3000"
+    environment:
+      CRDITS_API_TOKEN: "${CRDITS_API_TOKEN:-}"
+    volumes:
+      - crdits-data:/data
+      - ./catalog:/app/catalog
+
+volumes:
+  crdits-data:

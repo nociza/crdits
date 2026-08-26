@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "slug": "discover-it-cash-back-assumed",
+  "name": "Discover it Cash Back (assumed)",
+  "short_name": "Discover",
+  "issuer": "Discover",
+  "verification_status": "ASSUMED_NEEDS_CONFIRMATION",
+  "annual_fee_usd": 0,
+  "foreign_transaction_fee": "0%",
+  "reward_currency": {
+    "name": "Cash back",
+    "point_value_cents": 1,
+    "cash_floor_cents": 1,
+    "valuation_basis": "Cash back at face value",
+    "valuation_source_url": null
+  },
+  "base_reward": {
+    "id": "other-1",
+    "category": "other",
+    "label": "1% cash back on other purchases",
+    "match_terms": [],
+    "rate": 1,
+    "rate_type": "cashback_percent",
+    "activation_required": false,
+    "cap_usd": null,
+    "conditional": false,
+    "valid_from": "2026-08-25",
+    "valid_to": null
+  },
+  "reward_rules": [
+    {
+      "id": "housing-1",
+      "category": "housing",
+      "label": "5% cash back in rotating quarterly categories after activation, up to the quarterly spending cap in current terms",
+      "match_terms": [
+        "rent"
+      ],
+      "rate": 5,
+      "rate_type": "cashback_percent",
+      "activation_required": true,
+      "cap_usd": null,
+      "conditional": true,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    }
+  ],
+  "benefits": [],
+  "spend_threshold_benefits": [],
+  "offer_ecosystem": "Discover merchant promotions may appear from time to time; no universal Amex/Chase-style offer catalog assumed here",
+  "other_key_benefits": [
+    "Cashback Match is generally a first-year/new-cardmember feature, not an ongoing annual benefit"
+  ],
+  "notes": "Screenshot only says 'Discover'. This row assumes Discover it Cash Back; replace if the actual product is different. Quarterly categories change and should be stored as time-versioned data",
+  "valid_from": "2026-08-25",
+  "valid_to": null,
+  "verified_at": "2026-08-25",
+  "sources": [
+    {
+      "kind": "primary",
+      "url": "https://www.discover.com/credit-cards/cash-back/it-card/"
+    },
+    {
+      "kind": "benefits",
+      "url": "https://www.discover.com/credit-cards/cash-back/it-card/"
+    }
+  ],
+  "history": [],
+  "raw_source_fields": {
+    "base_earn": "1% cash back on other purchases",
+    "bonus_categories": "5% cash back in rotating quarterly categories after activation, up to the quarterly spending cap in current terms",
+    "recurring_credits": "",
+    "annual_or_anniversary_benefits": "",
+    "spend_threshold_benefits": ""
+  }
+}

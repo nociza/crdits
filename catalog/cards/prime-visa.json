@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "slug": "prime-visa",
+  "name": "Prime Visa",
+  "short_name": "Chase Amazon Prime",
+  "issuer": "Chase",
+  "verification_status": "CONFIRMED",
+  "annual_fee_usd": 0,
+  "foreign_transaction_fee": "0%",
+  "reward_currency": {
+    "name": "Cash back / points",
+    "point_value_cents": 1,
+    "cash_floor_cents": 1,
+    "valuation_basis": "Cash-back equivalent",
+    "valuation_source_url": null
+  },
+  "base_reward": {
+    "id": "other-1",
+    "category": "other",
+    "label": "1% back on other purchases",
+    "match_terms": [],
+    "rate": 1,
+    "rate_type": "cashback_percent",
+    "activation_required": false,
+    "cap_usd": null,
+    "conditional": false,
+    "valid_from": "2026-08-25",
+    "valid_to": null
+  },
+  "reward_rules": [
+    {
+      "id": "groceries-1",
+      "category": "groceries",
+      "label": "5% back at Amazon.com, Audible.com, Whole Foods Market and Chase Travel with eligible Prime membership",
+      "match_terms": [
+        "whole foods",
+        "travel",
+        "amazon",
+        "audible"
+      ],
+      "rate": 5,
+      "rate_type": "cashback_percent",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": true,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "dining-2",
+      "category": "dining",
+      "label": "2% back at gas stations, restaurants and local transit/commuting including rideshare",
+      "match_terms": [
+        "restaurant",
+        "restaurants",
+        "gas",
+        "transit",
+        "commuting",
+        "rideshare"
+      ],
+      "rate": 2,
+      "rate_type": "cashback_percent",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    }
+  ],
+  "benefits": [],
+  "spend_threshold_benefits": [],
+  "offer_ecosystem": "Chase Offers; Amazon/Prime-specific promotions may also appear but should be stored as targeted/temporary promotions",
+  "other_key_benefits": [
+    "5% earn rate depends on maintaining eligible Prime membership"
+  ],
+  "notes": "Do not treat welcome Amazon gift cards as recurring value. Prime membership cost is external to the card and can be modeled separately if desired",
+  "valid_from": "2026-08-25",
+  "valid_to": null,
+  "verified_at": "2026-08-25",
+  "sources": [
+    {
+      "kind": "primary",
+      "url": "https://creditcards.chase.com/cash-back-credit-cards/amazon-prime-rewards"
+    },
+    {
+      "kind": "benefits",
+      "url": "https://www.chase.com/personal/merchant-offers"
+    }
+  ],
+  "history": [],
+  "raw_source_fields": {
+    "base_earn": "1% back on other purchases",
+    "bonus_categories": "5% back at Amazon.com, Audible.com, Whole Foods Market and Chase Travel with eligible Prime membership; 2% back at gas stations, restaurants and local transit/commuting including rideshare",
+    "recurring_credits": "",
+    "annual_or_anniversary_benefits": "",
+    "spend_threshold_benefits": ""
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "slug": "world-of-hyatt-credit-card",
+  "name": "World of Hyatt Credit Card",
+  "short_name": "Chase Hyatt",
+  "issuer": "Chase",
+  "verification_status": "CONFIRMED",
+  "annual_fee_usd": 95,
+  "foreign_transaction_fee": "0%",
+  "reward_currency": {
+    "name": "World of Hyatt points",
+    "point_value_cents": 1.6,
+    "cash_floor_cents": null,
+    "valuation_basis": "TPG editorial valuation; not guaranteed cash value",
+    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+  },
+  "base_reward": {
+    "id": "other-1",
+    "category": "other",
+    "label": "1X World of Hyatt point on other purchases",
+    "match_terms": [],
+    "rate": 1,
+    "rate_type": "points_multiplier",
+    "activation_required": false,
+    "cap_usd": null,
+    "conditional": false,
+    "valid_from": "2026-08-25",
+    "valid_to": null
+  },
+  "reward_rules": [
+    {
+      "id": "other-1",
+      "category": "other",
+      "label": "4X Hyatt purchases",
+      "match_terms": [],
+      "rate": 4,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "dining-2",
+      "category": "dining",
+      "label": "2X restaurants",
+      "match_terms": [
+        "restaurant",
+        "restaurants"
+      ],
+      "rate": 2,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "travel-3",
+      "category": "travel",
+      "label": "2X airline tickets purchased directly",
+      "match_terms": [
+        "airline"
+      ],
+      "rate": 2,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "transit-4",
+      "category": "transit",
+      "label": "2X local transit/commuting",
+      "match_terms": [
+        "transit",
+        "commuting"
+      ],
+      "rate": 2,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "fitness-5",
+      "category": "fitness",
+      "label": "2X fitness clubs/gym memberships",
+      "match_terms": [
+        "fitness",
+        "gym"
+      ],
+      "rate": 2,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "fitness-6",
+      "category": "fitness",
+      "label": "eligible Peloton purchases may earn 2X",
+      "match_terms": [
+        "peloton"
+      ],
+      "rate": 2,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": true,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    }
+  ],
+  "benefits": [
+    {
+      "id": "1-category-1-4-free-night-award",
+      "title": "1 Category 1-4 Free Night Award",
+      "kind": "certificate",
+      "amount_usd": null,
+      "cadence": "anniversary",
+      "interval_years": null,
+      "description": "1 Category 1-4 Free Night Award after each cardmember anniversary",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "annual_or_anniversary"
+    },
+    {
+      "id": "discoverist-status",
+      "title": "Discoverist status",
+      "kind": "membership",
+      "amount_usd": null,
+      "cadence": "one_time",
+      "interval_years": null,
+      "description": "Discoverist status",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "annual_or_anniversary"
+    },
+    {
+      "id": "5-qualifying-night-credits-each-year",
+      "title": "5 qualifying night credits each year",
+      "kind": "statement_credit",
+      "amount_usd": null,
+      "cadence": "annual",
+      "interval_years": null,
+      "description": "5 qualifying night credits each year",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "annual_or_anniversary"
+    }
+  ],
+  "spend_threshold_benefits": [
+    "Additional Category 1-4 Free Night Award after $15,000 calendar-year spend",
+    "2 qualifying night credits per $5,000 spend"
+  ],
+  "offer_ecosystem": "Chase Offers",
+  "other_key_benefits": [
+    "Up to 9X total Hyatt points at Hyatt when combining card earnings with standard World of Hyatt base points"
+  ],
+  "notes": "Free-night awards and status benefits should be represented as non-cash benefits with user-specific valuations",
+  "valid_from": "2026-08-25",
+  "valid_to": null,
+  "verified_at": "2026-08-25",
+  "sources": [
+    {
+      "kind": "primary",
+      "url": "https://creditcards.chase.com/travel-credit-cards/world-of-hyatt"
+    },
+    {
+      "kind": "benefits",
+      "url": "https://www.chase.com/personal/credit-cards/hyatt/world-hyatt/earn-points"
+    },
+    {
+      "kind": "valuation",
+      "url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+    }
+  ],
+  "history": [],
+  "raw_source_fields": {
+    "base_earn": "1X World of Hyatt point on other purchases",
+    "bonus_categories": "4X Hyatt purchases; 2X restaurants; 2X airline tickets purchased directly; 2X local transit/commuting; 2X fitness clubs/gym memberships; eligible Peloton purchases may earn 2X",
+    "recurring_credits": "",
+    "annual_or_anniversary_benefits": "1 Category 1-4 Free Night Award after each cardmember anniversary; Discoverist status; 5 qualifying night credits each year",
+    "spend_threshold_benefits": "Additional Category 1-4 Free Night Award after $15,000 calendar-year spend; 2 qualifying night credits per $5,000 spend"
+  }
+}

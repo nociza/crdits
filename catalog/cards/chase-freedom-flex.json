@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "slug": "chase-freedom-flex",
+  "name": "Chase Freedom Flex",
+  "short_name": "Chase Freedom Flex",
+  "issuer": "Chase",
+  "verification_status": "CONFIRMED_FROM_SCREENSHOT_LABEL",
+  "annual_fee_usd": 0,
+  "foreign_transaction_fee": "3% (typical current product terms; verify current cardmember agreement)",
+  "reward_currency": {
+    "name": "Chase Ultimate Rewards points / cash back",
+    "point_value_cents": 2.05,
+    "cash_floor_cents": 1,
+    "valuation_basis": "TPG transferable-points valuation if points are pooled with an eligible premium Chase card; standalone cash redemption floor is about 1 cpp",
+    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+  },
+  "base_reward": {
+    "id": "other-1",
+    "category": "other",
+    "label": "1X / 1% on other purchases",
+    "match_terms": [],
+    "rate": 1,
+    "rate_type": "points_multiplier",
+    "activation_required": false,
+    "cap_usd": null,
+    "conditional": false,
+    "valid_from": "2026-08-25",
+    "valid_to": null
+  },
+  "reward_rules": [
+    {
+      "id": "other-1",
+      "category": "other",
+      "label": "5X / 5% on up to $1,500 combined purchases in rotating quarterly categories after activation",
+      "match_terms": [],
+      "rate": 5,
+      "rate_type": "points_multiplier",
+      "activation_required": true,
+      "cap_usd": 1500,
+      "conditional": true,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "travel-2",
+      "category": "travel",
+      "label": "5X Chase Travel",
+      "match_terms": [
+        "travel"
+      ],
+      "rate": 5,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "dining-3",
+      "category": "dining",
+      "label": "3X dining",
+      "match_terms": [
+        "dining"
+      ],
+      "rate": 3,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "drugstores-4",
+      "category": "drugstores",
+      "label": "3X drugstores",
+      "match_terms": [
+        "drugstore",
+        "drugstores"
+      ],
+      "rate": 3,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    }
+  ],
+  "benefits": [],
+  "spend_threshold_benefits": [],
+  "offer_ecosystem": "Chase Offers",
+  "other_key_benefits": [
+    "Can combine Ultimate Rewards points with eligible Sapphire/Ink cards for transfer-partner access"
+  ],
+  "notes": "2026 rotating categories change quarterly. Q3 includes gas stations, public transit, EV charging, select live entertainment, and United Way. Treat categories as dated records, not static card fields",
+  "valid_from": "2026-08-25",
+  "valid_to": null,
+  "verified_at": "2026-08-25",
+  "sources": [
+    {
+      "kind": "primary",
+      "url": "https://creditcards.chase.com/cash-back-credit-cards/freedom/flex"
+    },
+    {
+      "kind": "benefits",
+      "url": "https://www.chase.com/personal/merchant-offers"
+    },
+    {
+      "kind": "valuation",
+      "url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+    }
+  ],
+  "history": [],
+  "raw_source_fields": {
+    "base_earn": "1X / 1% on other purchases",
+    "bonus_categories": "5X / 5% on up to $1,500 combined purchases in rotating quarterly categories after activation; 5X Chase Travel; 3X dining; 3X drugstores",
+    "recurring_credits": "",
+    "annual_or_anniversary_benefits": "",
+    "spend_threshold_benefits": ""
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "slug": "hilton-honors-american-express-aspire-card",
+  "name": "Hilton Honors American Express Aspire Card",
+  "short_name": "Amex Hilton Aspire",
+  "issuer": "American Express",
+  "verification_status": "CONFIRMED_FROM_SCREENSHOT_LABEL",
+  "annual_fee_usd": 550,
+  "foreign_transaction_fee": "0%",
+  "reward_currency": {
+    "name": "Hilton Honors points",
+    "point_value_cents": 0.4,
+    "cash_floor_cents": null,
+    "valuation_basis": "TPG editorial valuation; not guaranteed cash value",
+    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+  },
+  "base_reward": {
+    "id": "other-1",
+    "category": "other",
+    "label": "3X Hilton Honors points on other eligible purchases",
+    "match_terms": [],
+    "rate": 3,
+    "rate_type": "points_multiplier",
+    "activation_required": false,
+    "cap_usd": null,
+    "conditional": true,
+    "valid_from": "2026-08-25",
+    "valid_to": null
+  },
+  "reward_rules": [
+    {
+      "id": "other-1",
+      "category": "other",
+      "label": "14X eligible Hilton portfolio purchases",
+      "match_terms": [],
+      "rate": 14,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": true,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "travel-2",
+      "category": "travel",
+      "label": "7X flights booked directly with airlines or Amex Travel",
+      "match_terms": [
+        "travel",
+        "flight",
+        "flights",
+        "airline",
+        "airlines"
+      ],
+      "rate": 7,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "housing-3",
+      "category": "housing",
+      "label": "7X select car rentals",
+      "match_terms": [
+        "rent"
+      ],
+      "rate": 7,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": true,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "dining-4",
+      "category": "dining",
+      "label": "7X U.S. restaurants",
+      "match_terms": [
+        "restaurant",
+        "restaurants"
+      ],
+      "rate": 7,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    }
+  ],
+  "benefits": [
+    {
+      "id": "hilton-resort-credit",
+      "title": "Hilton Resort Credit",
+      "kind": "statement_credit",
+      "amount_usd": 200,
+      "cadence": "semiannual",
+      "interval_years": null,
+      "description": "$400 Hilton Resort Credit ($200 Jan-Jun + $200 Jul-Dec)",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "recurring"
+    },
+    {
+      "id": "flight-credit",
+      "title": "Flight Credit",
+      "kind": "statement_credit",
+      "amount_usd": 50,
+      "cadence": "quarterly",
+      "interval_years": null,
+      "description": "$200 Flight Credit ($50 per quarter)",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "recurring"
+    },
+    {
+      "id": "clear-credit-per-calendar-year",
+      "title": "CLEAR+ credit per calendar year",
+      "kind": "statement_credit",
+      "amount_usd": 219,
+      "cadence": "annual",
+      "interval_years": null,
+      "description": "up to $219 CLEAR+ credit per calendar year",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "recurring"
+    },
+    {
+      "id": "1-hilton-free-night-reward-on-opening-and-each-renewal",
+      "title": "1 Hilton Free Night Reward on opening and each renewal",
+      "kind": "certificate",
+      "amount_usd": null,
+      "cadence": "anniversary",
+      "interval_years": null,
+      "description": "1 Hilton Free Night Reward on opening and each renewal",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "annual_or_anniversary"
+    },
+    {
+      "id": "complimentary-hilton-honors-diamond-status",
+      "title": "complimentary Hilton Honors Diamond status",
+      "kind": "membership",
+      "amount_usd": null,
+      "cadence": "one_time",
+      "interval_years": null,
+      "description": "complimentary Hilton Honors Diamond status",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "annual_or_anniversary"
+    },
+    {
+      "id": "property-credit-on-qualifying-2-night-waldorf-astoria-conrad-stays-booked-under-",
+      "title": "property credit on qualifying 2-night Waldorf Astoria/Conrad stays booked under eligible r",
+      "kind": "statement_credit",
+      "amount_usd": 100,
+      "cadence": "one_time",
+      "interval_years": null,
+      "description": "up to $100 property credit on qualifying 2-night Waldorf Astoria/Conrad stays booked under eligible rate",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "annual_or_anniversary"
+    }
+  ],
+  "spend_threshold_benefits": [
+    "Additional Free Night Reward after $30,000 calendar-year spend",
+    "another after $60,000 total calendar-year spend"
+  ],
+  "offer_ecosystem": "Amex Offers (targeted merchant offers requiring enrollment; rewards may be statement credits or points)",
+  "other_key_benefits": [
+    "National Emerald Club Executive status after enrollment",
+    "select venue benefits",
+    "Amex protections subject to terms"
+  ],
+  "notes": "Some benefits require enrollment and have merchant/channel restrictions. Amex Venue Collection may include 10% back on eligible concessions up to $250/year after enrollment; verify current terms before treating as universal value",
+  "valid_from": "2026-08-25",
+  "valid_to": null,
+  "verified_at": "2026-08-25",
+  "sources": [
+    {
+      "kind": "primary",
+      "url": "https://www.americanexpress.com/us/credit-cards/card/hilton-honors-aspire/"
+    },
+    {
+      "kind": "benefits",
+      "url": "https://www.americanexpress.com/en-us/benefits/offers/"
+    },
+    {
+      "kind": "valuation",
+      "url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+    }
+  ],
+  "history": [],
+  "raw_source_fields": {
+    "base_earn": "3X Hilton Honors points on other eligible purchases",
+    "bonus_categories": "14X eligible Hilton portfolio purchases; 7X flights booked directly with airlines or Amex Travel; 7X select car rentals; 7X U.S. restaurants",
+    "recurring_credits": "$400 Hilton Resort Credit ($200 Jan-Jun + $200 Jul-Dec); $200 Flight Credit ($50 per quarter); up to $219 CLEAR+ credit per calendar year",
+    "annual_or_anniversary_benefits": "1 Hilton Free Night Reward on opening and each renewal; complimentary Hilton Honors Diamond status; up to $100 property credit on qualifying 2-night Waldorf Astoria/Conrad stays booked under eligible rate",
+    "spend_threshold_benefits": "Additional Free Night Reward after $30,000 calendar-year spend; another after $60,000 total calendar-year spend"
+  }
+}

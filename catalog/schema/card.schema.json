@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://crdits.dev/schema/card.schema.json",
+  "title": "crdits card catalog entry",
+  "type": "object",
+  "required": ["schema_version", "slug", "name", "issuer", "reward_currency", "reward_rules", "benefits", "sources", "history"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "name": { "type": "string", "minLength": 1 },
+    "issuer": { "type": "string", "minLength": 1 },
+    "annual_fee_usd": { "type": ["number", "null"], "minimum": 0 },
+    "verified_at": { "type": ["string", "null"], "format": "date" },
+    "reward_currency": {
+      "type": "object",
+      "required": ["name", "point_value_cents", "cash_floor_cents"],
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "point_value_cents": { "type": ["number", "null"], "minimum": 0 },
+        "cash_floor_cents": { "type": ["number", "null"], "minimum": 0 }
+      }
+    },
+    "reward_rules": { "type": "array", "items": { "$ref": "#/$defs/rewardRule" } },
+    "benefits": { "type": "array", "items": { "$ref": "#/$defs/benefit" } },
+    "sources": { "type": "array" },
+    "history": { "type": "array" }
+  },
+  "$defs": {
+    "rewardRule": {
+      "type": "object",
+      "required": ["id", "category", "label", "rate", "rate_type", "valid_from"],
+      "properties": {
+        "id": { "type": "string" },
+        "rate": { "type": ["number", "null"] },
+        "rate_type": { "enum": ["points_multiplier", "cashback_percent", "text_only"] },
+        "valid_from": { "type": ["string", "null"], "format": "date" },
+        "valid_to": { "type": ["string", "null"], "format": "date" }
+      }
+    },
+    "benefit": {
+      "type": "object",
+      "required": ["id", "title", "kind", "amount_usd", "cadence", "valid_from"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "kind": { "enum": ["statement_credit", "certificate", "membership"] },
+        "amount_usd": { "type": ["number", "null"], "minimum": 0 },
+        "cadence": { "enum": ["monthly", "quarterly", "semiannual", "annual", "anniversary", "every_n_years", "one_time"] },
+        "valid_from": { "type": ["string", "null"], "format": "date" },
+        "valid_to": { "type": ["string", "null"], "format": "date" }
+      }
+    }
+  }
+}

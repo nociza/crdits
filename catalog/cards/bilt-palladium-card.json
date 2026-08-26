@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "slug": "bilt-palladium-card",
+  "name": "Bilt Palladium Card",
+  "short_name": "Bilt",
+  "issuer": "Bilt",
+  "verification_status": "CONFIRMED",
+  "annual_fee_usd": 495,
+  "foreign_transaction_fee": "0% (verify current card terms)",
+  "reward_currency": {
+    "name": "Bilt Points",
+    "point_value_cents": 2.2,
+    "cash_floor_cents": null,
+    "valuation_basis": "TPG editorial transfer-partner valuation; not guaranteed cash value",
+    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+  },
+  "base_reward": {
+    "id": "other-1",
+    "category": "other",
+    "label": "2X Bilt Points on everyday purchases",
+    "match_terms": [],
+    "rate": 2,
+    "rate_type": "points_multiplier",
+    "activation_required": false,
+    "cap_usd": null,
+    "conditional": false,
+    "valid_from": "2026-08-25",
+    "valid_to": null
+  },
+  "reward_rules": [
+    {
+      "id": "travel-1",
+      "category": "travel",
+      "label": "4X hotels through Bilt Travel",
+      "match_terms": [
+        "travel",
+        "hotel",
+        "hotels"
+      ],
+      "rate": 4,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "travel-2",
+      "category": "travel",
+      "label": "3X flights through Bilt Travel",
+      "match_terms": [
+        "travel",
+        "flight",
+        "flights"
+      ],
+      "rate": 3,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "transit-3",
+      "category": "transit",
+      "label": "4X Lyft",
+      "match_terms": [
+        "lyft"
+      ],
+      "rate": 4,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    },
+    {
+      "id": "dining-4",
+      "category": "dining",
+      "label": "up to 5X Bilt Dining depending on partner bonus structure",
+      "match_terms": [
+        "dining"
+      ],
+      "rate": 5,
+      "rate_type": "points_multiplier",
+      "activation_required": false,
+      "cap_usd": null,
+      "conditional": true,
+      "valid_from": "2026-08-25",
+      "valid_to": null
+    }
+  ],
+  "benefits": [
+    {
+      "id": "bilt-cash-annually",
+      "title": "Bilt Cash annually",
+      "kind": "statement_credit",
+      "amount_usd": 200,
+      "cadence": "annual",
+      "interval_years": null,
+      "description": "$200 Bilt Cash annually",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "recurring"
+    },
+    {
+      "id": "annual-bilt-travel-hotel-credit",
+      "title": "annual Bilt Travel Hotel Credit",
+      "kind": "statement_credit",
+      "amount_usd": 200,
+      "cadence": "semiannual",
+      "interval_years": null,
+      "description": "$400 annual Bilt Travel Hotel Credit split $200 Jan-Jun and $200 Jul-Dec, subject to portal and stay requirements",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "recurring"
+    },
+    {
+      "id": "priority-pass-access",
+      "title": "Priority Pass access",
+      "kind": "membership",
+      "amount_usd": null,
+      "cadence": "one_time",
+      "interval_years": null,
+      "description": "Priority Pass access subject to current terms",
+      "eligibility": null,
+      "enrollment_required": false,
+      "valid_from": "2026-08-25",
+      "valid_to": null,
+      "source_group": "annual_or_anniversary"
+    }
+  ],
+  "spend_threshold_benefits": [
+    "Point Accelerator can exchange eligible Bilt Cash for +1X on the next $5,000 of spend, up to stated annual limits"
+  ],
+  "offer_ecosystem": "Bilt neighborhood/dining and app promotions; merchant opportunities vary",
+  "other_key_benefits": [
+    "Up to 1.25X on rent/mortgage/HOA with no transaction fee when qualifying housing-only rewards option is selected, subject to Bilt program terms"
+  ],
+  "notes": "Bilt Cash and hotel credits have distinct expiration/reset rules. Hotel credit requires eligible Bilt Travel bookings and minimum-stay terms; model each half-year as a separate benefit cycle",
+  "valid_from": "2026-08-25",
+  "valid_to": null,
+  "verified_at": "2026-08-25",
+  "sources": [
+    {
+      "kind": "primary",
+      "url": "https://www.bilt.com/card/palladium"
+    },
+    {
+      "kind": "benefits",
+      "url": "https://www.bilt.com/terms/bilt-card-offer-terms"
+    },
+    {
+      "kind": "valuation",
+      "url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+    }
+  ],
+  "history": [],
+  "raw_source_fields": {
+    "base_earn": "2X Bilt Points on everyday purchases",
+    "bonus_categories": "4X hotels through Bilt Travel; 3X flights through Bilt Travel; 4X Lyft; up to 5X Bilt Dining depending on partner bonus structure",
+    "recurring_credits": "$200 Bilt Cash annually; $400 annual Bilt Travel Hotel Credit split $200 Jan-Jun and $200 Jul-Dec, subject to portal and stay requirements",
+    "annual_or_anniversary_benefits": "Priority Pass access subject to current terms",
+    "spend_threshold_benefits": "Point Accelerator can exchange eligible Bilt Cash for +1X on the next $5,000 of spend, up to stated annual limits"
+  }
+}

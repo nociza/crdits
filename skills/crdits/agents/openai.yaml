@@ -1,0 +1,4 @@
+interface:
+  display_name: "crdits"
+  short_description: "Track card credits and choose the best card"
+  default_prompt: "Use $crdits to show my expiring credits and recommend the best card for dining."

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "slug": "cal-alumni-association-visa-platinum-plus",
+  "name": "Cal Alumni Association Visa Platinum Plus",
+  "short_name": "Bank of America",
+  "issuer": "Bank of America",
+  "verification_status": "CONFIRMED_PRODUCT_LEGACY_TERMS_UNVERIFIED",
+  "annual_fee_usd": null,
+  "foreign_transaction_fee": null,
+  "reward_currency": {
+    "name": null,
+    "point_value_cents": null,
+    "cash_floor_cents": null,
+    "valuation_basis": null,
+    "valuation_source_url": null
+  },
+  "base_reward": {
+    "id": "other-1",
+    "category": "other",
+    "label": "",
+    "match_terms": [],
+    "rate": null,
+    "rate_type": "text_only",
+    "activation_required": false,
+    "cap_usd": null,
+    "conditional": false,
+    "valid_from": "2026-08-25",
+    "valid_to": null
+  },
+  "reward_rules": [],
+  "benefits": [],
+  "spend_threshold_benefits": [],
+  "offer_ecosystem": "BankAmeriDeals (targeted cash-back deals, coupons, promo codes, discounts and other merchant offers; availability varies)",
+  "other_key_benefits": [],
+  "notes": "This appears to be a legacy Cal Alumni Association Visa Platinum Plus product. Current public product-specific fee/reward terms were not reliably available, so fields are intentionally blank rather than guessed. Verify against the current cardmember agreement or statement",
+  "valid_from": "2026-08-25",
+  "valid_to": null,
+  "verified_at": "2026-08-25",
+  "sources": [
+    {
+      "kind": "benefits",
+      "url": "https://promotions.bankofamerica.com/en/deals"
+    }
+  ],
+  "history": [],
+  "raw_source_fields": {
+    "base_earn": "",
+    "bonus_categories": "",
+    "recurring_credits": "",
+    "annual_or_anniversary_benefits": "",
+    "spend_threshold_benefits": ""
+  }
+}

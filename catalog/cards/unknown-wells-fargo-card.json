@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "slug": "unknown-wells-fargo-card",
+  "name": "Unknown Wells Fargo card",
+  "short_name": "Wells Fargo",
+  "issuer": "Wells Fargo",
+  "verification_status": "NEEDS_CONFIRMATION",
+  "annual_fee_usd": null,
+  "foreign_transaction_fee": null,
+  "reward_currency": {
+    "name": null,
+    "point_value_cents": 1.75,
+    "cash_floor_cents": null,
+    "valuation_basis": "TPG Wells Fargo Rewards valuation; only relevant if this is a Wells Fargo Rewards-earning card",
+    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+  },
+  "base_reward": {
+    "id": "other-1",
+    "category": "other",
+    "label": "",
+    "match_terms": [],
+    "rate": null,
+    "rate_type": "text_only",
+    "activation_required": false,
+    "cap_usd": null,
+    "conditional": false,
+    "valid_from": "2026-08-25",
+    "valid_to": null
+  },
+  "reward_rules": [],
+  "benefits": [],
+  "spend_threshold_benefits": [],
+  "offer_ecosystem": "My Wells Fargo Deals (targeted cash-back deals; activation/eligibility vary)",
+  "other_key_benefits": [],
+  "notes": "Screenshot does not identify the Wells Fargo product. Candidate if you meant Autograph Visa: $0 annual fee; 3X restaurants, travel, transit, gas/EV charging, popular streaming and phone plans; 1X other; no foreign transaction fee. Do not import those candidate terms as confirmed card data until product is verified",
+  "valid_from": "2026-08-25",
+  "valid_to": null,
+  "verified_at": "2026-08-25",
+  "sources": [
+    {
+      "kind": "primary",
+      "url": "https://www.wellsfargo.com/credit-cards/"
+    },
+    {
+      "kind": "benefits",
+      "url": "https://www.wellsfargo.com/credit-cards/autograph-visa/terms/"
+    },
+    {
+      "kind": "valuation",
+      "url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+    }
+  ],
+  "history": [],
+  "raw_source_fields": {
+    "base_earn": "",
+    "bonus_categories": "",
+    "recurring_credits": "",
+    "annual_or_anniversary_benefits": "",
+    "spend_threshold_benefits": ""
+  }
+}
