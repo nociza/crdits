@@ -151,7 +151,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .credit-periods { grid-column: 1 / -1; display: grid; gap: 6px; }
 .credit-periods.has-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .credit-periods.has-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.credit-period { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: #eeede5; }
+.credit-period { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; color: inherit; background: #eeede5; text-align: left; cursor: pointer; }
+.credit-period:not(:disabled):hover { border-color: var(--green); transform: translateY(-1px); }
+.credit-period:disabled { cursor: default; }
 .credit-period small, .credit-period strong, .credit-period i { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .credit-period small { color: var(--muted); font: 700 9px var(--font-geist-mono), monospace; }
 .credit-period strong { margin-top: 5px; font-size: 10px; }
@@ -170,6 +172,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .behavior-label { text-transform: uppercase; letter-spacing: .08em; color: var(--green) !important; }
 .inline-editor { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 14px; background: #eeede5; border-radius: 10px; }
 .inline-editor .wide { grid-column: 1 / -1; }
+.inline-editor .usage-period-note { margin: 0; padding: 9px 10px; border-radius: 8px; color: var(--green-dark); background: rgba(184,225,203,.34); font-size: 10px; line-height: 1.45; }
 .inline-editor button { background: var(--green); color: white; }
 .inline-editor .ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
 

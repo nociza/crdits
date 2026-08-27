@@ -21,7 +21,7 @@ import {
   setWalletCardStatus,
   updateWalletCard,
 } from "./db.mjs";
-import { buildDashboard, recommendCard } from "./engine.mjs";
+import { buildDashboard, enumerateCycles, recommendCard } from "./engine.mjs";
 import { readFile, readdir } from "node:fs/promises";
 
 export function projectPaths(root = process.env.CRDITS_ROOT || process.cwd()) {
@@ -80,7 +80,18 @@ export function createService(options = {}) {
       const benefit = card?.benefits.find((item) => item.id === input.benefit_id);
       if (!benefit) throw new Error("benefit not found for wallet card");
       if ((benefit.tracking_type || "spend") !== "spend") throw new Error("this benefit does not use the spend ledger");
-      return addUsage(db, { ...input, wallet_card_id: wallet.id });
+      const usedAt = input.used_at || today();
+      const parsedUsedAt = new Date(`${usedAt}T00:00:00Z`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(usedAt) || Number.isNaN(parsedUsedAt.getTime()) || parsedUsedAt.toISOString().slice(0, 10) !== usedAt) {
+        throw new Error("used_at must be a valid YYYY-MM-DD date");
+      }
+      if (usedAt > today()) throw new Error("usage cannot be recorded in a future period");
+      if (input.period_key) {
+        if (!["quarterly", "semiannual"].includes(benefit.cadence)) throw new Error("period_key is only valid for quarterly or semiannual credits");
+        const matchingPeriod = enumerateCycles(benefit, wallet, usedAt, usedAt).find((period) => period.key === input.period_key);
+        if (!matchingPeriod) throw new Error(`usage date ${usedAt} does not fall inside ${input.period_key}`);
+      }
+      return addUsage(db, { ...input, used_at: usedAt, wallet_card_id: wallet.id });
     },
 
     async setBenefitStatus(input) {

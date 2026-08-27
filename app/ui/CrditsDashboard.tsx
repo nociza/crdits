@@ -130,6 +130,10 @@ type Recommendation = {
   }>;
 };
 
+type BenefitEditor =
+  | { mode: "usage"; card: WalletCard; benefit: Benefit; periodKey: string | null }
+  | { mode: "value"; card: WalletCard; benefit: Benefit };
+
 const usd = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -168,10 +172,11 @@ function Progress({ used, total }: { used: number; total: number | null }) {
   return <span className="progress-track" aria-label={`${Math.round(percent)} percent used`}><i style={{ width: `${percent}%` }} /></span>;
 }
 
-function CreditPeriods({ periods }: { periods: BenefitPeriod[] }) {
+function CreditPeriods({ periods, asOf, onSelect }: { periods: BenefitPeriod[]; asOf: string; onSelect: (period: BenefitPeriod) => void }) {
   return (
     <div className={`credit-periods has-${periods.length}`} aria-label="Credit periods">
       {periods.map((period) => {
+        const selectable = period.start <= asOf;
         const detail = period.status === "used"
           ? `${usd.format(period.amount_usd)} used`
           : period.status === "partial"
@@ -182,12 +187,47 @@ function CreditPeriods({ periods }: { periods: BenefitPeriod[] }) {
                 ? `${usd.format(period.amount_usd)} next`
                 : `${usd.format(period.remaining_usd)} left`;
         return (
-          <span className={`credit-period is-${period.status} ${period.is_current ? "is-current" : ""}`} key={period.key} aria-current={period.is_current ? "true" : undefined} title={`${period.start} through ${period.end}`}>
+          <button type="button" className={`credit-period is-${period.status} ${period.is_current ? "is-current" : ""}`} key={period.key} aria-current={period.is_current ? "true" : undefined} disabled={!selectable} onClick={() => onSelect(period)} title={selectable ? `Bookkeep usage from ${period.start} through ${period.end}` : `Upcoming period: ${period.start} through ${period.end}`}>
             <small>{period.label}</small><strong>{detail}</strong><i>{period.is_current ? "Current" : period.status}</i>
-          </span>
+          </button>
         );
       })}
     </div>
+  );
+}
+
+function UsageEditor({ benefit, asOf, initialPeriodKey, onSubmit, onCancel }: {
+  benefit: Benefit;
+  asOf: string;
+  initialPeriodKey: string | null;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onCancel: () => void;
+}) {
+  const selectablePeriods = benefit.periods.filter((period) => period.start <= asOf);
+  const initialPeriod = selectablePeriods.find((period) => period.key === initialPeriodKey)
+    || selectablePeriods.find((period) => period.is_current)
+    || selectablePeriods.at(-1);
+  const [periodKey, setPeriodKey] = useState(initialPeriod?.key || "");
+  const selectedPeriod = selectablePeriods.find((period) => period.key === periodKey);
+  const defaultDate = selectedPeriod ? selectedPeriod.is_current ? asOf : "" : asOf;
+  const maxDate = selectedPeriod && selectedPeriod.end < asOf ? selectedPeriod.end : asOf;
+  const defaultAmount = selectedPeriod?.remaining_usd ?? benefit.remaining_usd ?? 0;
+
+  return (
+    <form className="inline-editor" onSubmit={onSubmit}>
+      {selectablePeriods.length ? (
+        <label className="wide">Credit period
+          <select name="period_key" value={periodKey} onChange={(event) => setPeriodKey(event.target.value)}>
+            {selectablePeriods.map((period) => <option value={period.key} key={period.key}>{period.label} · {period.start} to {period.end} · {usd.format(period.used_usd)} used</option>)}
+          </select>
+        </label>
+      ) : null}
+      {selectedPeriod ? <p className="wide usage-period-note">This entry will update {selectedPeriod.label} only. {selectedPeriod.is_current ? "It is the current period." : `Use the actual date when known. Otherwise use ${selectedPeriod.end} as a period-end marker and explain that in the note.`}</p> : null}
+      <label key={`amount-${periodKey}`}>Amount<input name="amount_usd" type="number" step="0.01" min="0.01" defaultValue={defaultAmount || ""} required /></label>
+      <label key={`date-${periodKey}`}>Date<input name="used_at" type="date" min={selectedPeriod?.start} max={maxDate} defaultValue={defaultDate} required /></label>
+      <label className="wide">Note<input name="note" placeholder={selectedPeriod && !selectedPeriod.is_current ? `Optional historical ${selectedPeriod.label} note` : "Optional"} /></label>
+      <button>{selectedPeriod ? `Save ${selectedPeriod.label} usage` : "Save usage"}</button><button type="button" className="ghost" onClick={onCancel}>Cancel</button>
+    </form>
   );
 }
 
@@ -206,7 +246,7 @@ export function CrditsDashboard() {
   const [tab, setTab] = useState<"overview" | "wallet" | "catalog">("overview");
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [recommendBusy, setRecommendBusy] = useState(false);
-  const [edit, setEdit] = useState<{ mode: "usage" | "value"; card: WalletCard; benefit: Benefit } | null>(null);
+  const [edit, setEdit] = useState<BenefitEditor | null>(null);
   const [cardEdit, setCardEdit] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -305,6 +345,7 @@ export function CrditsDashboard() {
         benefit_id: edit.benefit.id,
         amount_usd: Number(data.get("amount_usd")),
         used_at: data.get("used_at"),
+        period_key: data.get("period_key") || null,
         note: data.get("note") || null,
       }) });
       setEdit(null);
@@ -375,6 +416,8 @@ export function CrditsDashboard() {
         <div className="benefit-list">
           {card.benefits.map((benefit) => {
             const currentPeriod = benefit.periods.find((period) => period.is_current);
+            const pastPeriods = benefit.periods.filter((period) => period.end < (dashboard?.as_of || ""));
+            const latestPastPeriod = pastPeriods.at(-1);
             const splitCadenceLabel = benefit.cadence === "quarterly" ? "Quarterly credit · each quarter resets" : "Semiannual credit · each half resets";
             const automaticLabel = benefit.points_amount
               ? `${benefit.points_amount.toLocaleString()} points · ${benefit.amount_usd == null ? "value not set" : `${usd.format(benefit.amount_usd)} estimated value`}`
@@ -386,20 +429,16 @@ export function CrditsDashboard() {
               <div className={`benefit tracking-${benefit.tracking_type}`} key={benefit.id}>
                 <div className="benefit-title"><strong>{benefit.title}</strong><small>{benefit.requires_membership_year ? "Set the membership-year date for a true countdown" : benefit.tracking_type === "spend" ? benefit.periods.length ? splitCadenceLabel : `${benefit.cadence.replaceAll("_", " ")} · expires ${benefit.expires_on}` : benefit.description}</small></div>
                 <div className="benefit-value"><strong>{benefit.requires_membership_year ? "Date needed" : benefit.tracking_type === "spend" ? `${usd.format(benefit.remaining_usd ?? 0)} left` : benefit.tracking_type === "automatic" ? automaticLabel : benefit.tracking_type === "enrollment" ? enrollmentLabel : "Reference benefit"}</strong>{benefit.tracking_type === "spend" ? <small>{usd.format(benefit.used_usd)} used</small> : <small className="behavior-label">{benefit.tracking_type}{benefit.counts_toward_value ? "" : " · not counted"}</small>}</div>
-                {benefit.periods.length ? <CreditPeriods periods={benefit.periods} /> : benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <Progress used={benefit.used_usd} total={benefit.amount_usd} /> : null}
+                {benefit.periods.length ? <CreditPeriods periods={benefit.periods} asOf={dashboard?.as_of || ""} onSelect={(period) => setEdit({ mode: "usage", card, benefit, periodKey: period.key })} /> : benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <Progress used={benefit.used_usd} total={benefit.amount_usd} /> : null}
                 <div className="benefit-actions">
-                  {benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <button type="button" className="is-primary" onClick={() => setEdit({ mode: "usage", card, benefit })}>Log {currentPeriod ? `${currentPeriod.label} use` : "use"}</button> : null}
+                  {benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <button type="button" className="is-primary" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: currentPeriod?.key || null })}>Log {currentPeriod ? `${currentPeriod.label} use` : "use"}</button> : null}
+                  {latestPastPeriod ? <button type="button" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: latestPastPeriod.key })}>Bookkeep past</button> : null}
                   {benefit.tracking_type === "enrollment" && benefit.status !== "active" ? <button type="button" onClick={() => void activateBenefit(card, benefit)}>Mark active once</button> : null}
                   {benefit.tracking_type === "spend" || benefit.counts_toward_value ? <button type="button" onClick={() => setEdit({ mode: "value", card, benefit })}>Value {Math.round(benefit.probability * benefit.personal_value_percent * 100)}%</button> : null}
                 </div>
                 {edit?.card.id === card.id && edit.benefit.id === benefit.id ? (
                   edit.mode === "usage" ? (
-                    <form className="inline-editor" onSubmit={recordUsage}>
-                      <label>Amount<input name="amount_usd" type="number" step="0.01" min="0" defaultValue={benefit.remaining_usd ?? 0} required /></label>
-                      <label>Date<input name="used_at" type="date" defaultValue={dashboard?.as_of} required /></label>
-                      <label className="wide">Note<input name="note" placeholder="Optional" /></label>
-                      <button>Save usage</button><button type="button" className="ghost" onClick={() => setEdit(null)}>Cancel</button>
-                    </form>
+                    <UsageEditor key={`${benefit.id}:${edit.periodKey || "open"}`} benefit={benefit} asOf={dashboard?.as_of || ""} initialPeriodKey={edit.periodKey} onSubmit={recordUsage} onCancel={() => setEdit(null)} />
                   ) : (
                     <form className="inline-editor" onSubmit={saveValue}>
                       <label>Chance of value %<input name="probability" type="number" min="0" max="100" defaultValue={Math.round(benefit.probability * 100)} /></label>

@@ -39,7 +39,7 @@ Record only spend benefits with:
 crdits use --card CARD --benefit BENEFIT_ID --amount USD --date YYYY-MM-DD --note TEXT
 ```
 
-Quarterly and semiannual credits are independent reset periods. Before recording one, inspect `summary --json`, find the benefit's current `periods` entry, and ensure the usage date falls between that entry's `start` and `end`. Never carry usage into a prior, future, or newly reset period. If the user names a past period such as H1 or Q2 but does not know the exact date, use that period's end date only after explicitly noting that it is a period-end marker rather than a known transaction date.
+Quarterly and semiannual credits are independent reset periods. Current and retrospective bookkeeping are both supported. Before recording one, inspect `summary --json`, select the exact current or past `periods` entry, and pass its key with `--period YYYY-QN` or `--period YYYY-HN`. Ensure `--date` falls between that entry's `start` and `end`; the service rejects mismatched and future periods. Never carry usage across a reset boundary. If the user names a past period such as H1 or Q2 but does not know the exact date, use that period's end date only after explicitly noting that it is a period-end bookkeeping marker rather than a known transaction date.
 
 For a confirmed one-time enrollment, run:
 
