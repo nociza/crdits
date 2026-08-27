@@ -66,6 +66,11 @@ npm run teleclaw:poll
 
 Run it daily from Teleclaw's existing gateway scheduler. It fetches the private reminder endpoint, prints one grouped message only when actionable state changes, and otherwise prints `NO_REPLY`. Configure `CRDITS_REMINDERS_URL`, `CRDITS_API_TOKEN_FILE`, and optionally `CRDITS_REMINDERS_DAYS` in host-local protected runtime settings—not Git. The low-frequency catalog review queue is:
 
+The same checkout can answer interactive wallet questions without creating a
+second SQLite database: set `CRDITS_API_URL` and `CRDITS_API_TOKEN_FILE`, and
+the CLI routes wallet reads and writes to the authenticated service while
+keeping public `catalog` mutations local for review and Git publication.
+
 ```bash
 npm run catalog:refresh-plan
 ```

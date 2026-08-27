@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
+import { createApiClient } from "../integrations/client.mjs";
 import { createService } from "../server/service.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const service = createService({ root });
+let localService;
+function local() {
+  localService ??= createService({ root });
+  return localService;
+}
+const wallet = process.env.CRDITS_API_URL ? createApiClient() : local();
 
 function parseArgs(args) {
   const positionals = [];
@@ -64,7 +70,7 @@ async function main() {
   if (!command || command === "help" || flags.help) return help();
 
   if (command === "summary") {
-    const dashboard = await service.dashboard();
+    const dashboard = await wallet.dashboard();
     if (json) return output(dashboard, { json });
     console.log(`As of ${dashboard.as_of}`);
     console.log(`Realized YTD:       ${money(dashboard.metrics.realized_ytd_usd)}`);
@@ -76,7 +82,7 @@ async function main() {
   }
 
   if (command === "due") {
-    const result = await service.reminders(flags.days || 30);
+    const result = await wallet.reminders(flags.days || 30);
     if (json) return output(result, { json });
     if (!result.reminders.length) return console.log(`No credits or renewals due in the next ${result.days} days.`);
     for (const item of result.reminders) console.log(`${item.expires_on}  ${item.title} — ${item.detail}`);
@@ -85,7 +91,7 @@ async function main() {
 
   if (command === "recommend") {
     const category = subcommand || flags.category || "";
-    const result = await service.recommend({ category, merchant: flags.merchant || "", amount: flags.amount || 100 });
+    const result = await wallet.recommend({ category, merchant: flags.merchant || "", amount: flags.amount || 100 });
     if (json) return output(result, { json });
     const best = result.recommendation[0];
     if (!best) return console.log("Add an active card to your wallet first.");
@@ -95,7 +101,7 @@ async function main() {
   }
 
   if (command === "use") {
-    const item = service.addUsage({
+    const item = await wallet.addUsage({
       card: flags.card,
       benefit_id: flags.benefit,
       amount_usd: flags.amount,
@@ -106,7 +112,7 @@ async function main() {
   }
 
   if (command === "offer" && subcommand === "add") {
-    const item = service.addOffer({
+    const item = await wallet.addOffer({
       card: flags.card,
       merchant: flags.merchant,
       title: flags.title,
@@ -122,14 +128,14 @@ async function main() {
   }
 
   if (command === "wallet" && subcommand === "list") {
-    const cards = service.walletCards();
+    const cards = await wallet.walletCards();
     if (json) return output(cards, { json });
     for (const card of cards) console.log(`${card.id}  ${card.nickname}  ${card.catalog_slug}  ${card.status}`);
     return;
   }
 
   if (command === "wallet" && subcommand === "add") {
-    const item = await service.addWalletCard({
+    const item = await wallet.addWalletCard({
       catalog_slug: flags["catalog-slug"] || rest[0],
       nickname: flags.nickname,
       last_four: flags["last-four"],
@@ -143,25 +149,26 @@ async function main() {
   if (command === "wallet" && subcommand === "import-csv") {
     const file = rest[0] || flags.file;
     if (!file) throw new Error("CSV path is required");
-    const cards = await service.importWalletCsv(file);
+    if (process.env.CRDITS_API_URL) throw new Error("wallet CSV import must run on the database host");
+    const cards = await local().importWalletCsv(file);
     return output(json ? cards : `Imported ${cards.length} wallet cards into local SQLite.`, { json });
   }
 
   if (command === "catalog" && subcommand === "import-csv") {
     const file = rest[0] || flags.file;
     if (!file) throw new Error("CSV path is required");
-    const cards = await service.importCatalogCsv(file);
+    const cards = await local().importCatalogCsv(file);
     return output(json ? cards : `Wrote ${cards.length} versioned catalog cards.`, { json });
   }
 
   if (command === "catalog" && subcommand === "validate") {
-    const result = await service.validateCatalog();
+    const result = await local().validateCatalog();
     if (!result.valid) process.exitCode = 1;
     return output(json ? result : `${result.valid ? "Valid" : "Invalid"}: ${result.cards} catalog cards checked.`, { json });
   }
 
   if (command === "catalog" && subcommand === "stale") {
-    const cards = await service.staleCatalog(flags.days || 45);
+    const cards = await local().staleCatalog(flags.days || 45);
     if (json) return output(cards, { json });
     for (const card of cards) console.log(`${card.slug}  ${card.verification_status}  ${card.verified_at || "never"}`);
     return;
@@ -169,19 +176,19 @@ async function main() {
 
   if (command === "catalog" && subcommand === "upsert-benefit") {
     const input = inputFromFlags(flags);
-    const card = await service.upsertBenefit(flags.card, input);
+    const card = await local().upsertBenefit(flags.card, input);
     return output(json ? card : `Updated ${input.title} on ${card.name}.`, { json });
   }
 
   if (command === "catalog" && subcommand === "upsert-reward") {
     const input = inputFromFlags(flags);
-    const card = await service.upsertRewardRule(flags.card, input);
+    const card = await local().upsertRewardRule(flags.card, input);
     return output(json ? card : `Updated ${input.category} rewards on ${card.name}.`, { json });
   }
 
   if (command === "catalog" && subcommand === "patch-card") {
     const input = inputFromFlags(flags);
-    const card = await service.patchCardFacts(flags.card, input);
+    const card = await local().patchCardFacts(flags.card, input);
     return output(json ? card : `Updated facts for ${card.name}.`, { json });
   }
 
@@ -191,4 +198,4 @@ async function main() {
 main().catch((error) => {
   console.error(`crdits: ${error.message}`);
   process.exitCode = 1;
-}).finally(() => service.db.close());
+}).finally(() => localService?.db.close());

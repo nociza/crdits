@@ -5,7 +5,7 @@ description: Manage a local credit-card wallet, track recurring credits and targ
 
 # crdits
 
-Use the deterministic `crdits` CLI for wallet state and calculations. Treat the repository catalog as public data and the SQLite wallet as private data.
+Use the deterministic `crdits` CLI for wallet state and calculations. Treat the repository catalog as public data and the SQLite wallet as private data. When `CRDITS_API_URL` and `CRDITS_API_TOKEN_FILE` are configured, wallet reads and writes go to that authenticated service while catalog commands continue to edit the local Git checkout.
 
 ## Locate the CLI
 

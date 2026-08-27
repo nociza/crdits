@@ -30,7 +30,7 @@
     "catalog:refresh-plan": "node scripts/teleclaw-refresh.mjs",
     "teleclaw:poll": "node integrations/teleclaw/crdits-reminders.mjs",
     "skill:install": "node scripts/install-skill.mjs",
-    "test:unit": "node --test tests/catalog.test.mjs tests/db.test.mjs tests/engine.test.mjs tests/teleclaw.test.mjs",
+    "test:unit": "node --test tests/catalog.test.mjs tests/client.test.mjs tests/db.test.mjs tests/engine.test.mjs tests/teleclaw.test.mjs",
     "test:render": "node --test tests/rendered-html.test.mjs",
     "test": "npm run test:unit && npm run catalog:validate && npm run build && npm run test:render",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
