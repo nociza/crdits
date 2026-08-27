@@ -23,6 +23,7 @@ type Benefit = {
   status: string | null;
   activated_on: string | null;
   requires_membership_year: boolean;
+  counts_toward_value: boolean;
   is_actionable: boolean;
 };
 
@@ -346,12 +347,12 @@ export function CrditsDashboard() {
             return (
               <div className={`benefit tracking-${benefit.tracking_type}`} key={benefit.id}>
                 <div className="benefit-title"><strong>{benefit.title}</strong><small>{benefit.requires_membership_year ? "Set the membership-year date for a true countdown" : benefit.tracking_type === "spend" ? `${benefit.cadence} · expires ${benefit.expires_on}` : benefit.description}</small></div>
-                <div className="benefit-value"><strong>{benefit.requires_membership_year ? "Date needed" : benefit.tracking_type === "spend" ? `${usd.format(benefit.remaining_usd ?? 0)} left` : benefit.tracking_type === "automatic" ? automaticLabel : benefit.tracking_type === "enrollment" ? enrollmentLabel : "Reference benefit"}</strong>{benefit.tracking_type === "spend" ? <small>{usd.format(benefit.used_usd)} used</small> : <small className="behavior-label">{benefit.tracking_type}</small>}</div>
+                <div className="benefit-value"><strong>{benefit.requires_membership_year ? "Date needed" : benefit.tracking_type === "spend" ? `${usd.format(benefit.remaining_usd ?? 0)} left` : benefit.tracking_type === "automatic" ? automaticLabel : benefit.tracking_type === "enrollment" ? enrollmentLabel : "Reference benefit"}</strong>{benefit.tracking_type === "spend" ? <small>{usd.format(benefit.used_usd)} used</small> : <small className="behavior-label">{benefit.tracking_type}{benefit.counts_toward_value ? "" : " · not counted"}</small>}</div>
                 {benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <Progress used={benefit.used_usd} total={benefit.amount_usd} /> : null}
                 <div className="benefit-actions">
                   {benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <button type="button" onClick={() => setEdit({ mode: "usage", card, benefit })}>Log use</button> : null}
                   {benefit.tracking_type === "enrollment" && benefit.status !== "active" ? <button type="button" onClick={() => void activateBenefit(card, benefit)}>Mark active once</button> : null}
-                  {benefit.tracking_type !== "reference" ? <button type="button" onClick={() => setEdit({ mode: "value", card, benefit })}>Value {Math.round(benefit.probability * benefit.personal_value_percent * 100)}%</button> : null}
+                  {benefit.tracking_type === "spend" || benefit.counts_toward_value ? <button type="button" onClick={() => setEdit({ mode: "value", card, benefit })}>Value {Math.round(benefit.probability * benefit.personal_value_percent * 100)}%</button> : null}
                 </div>
                 {edit?.card.id === card.id && edit.benefit.id === benefit.id ? (
                   edit.mode === "usage" ? (

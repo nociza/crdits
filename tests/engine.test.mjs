@@ -66,6 +66,7 @@ test("automatic and enrollment benefits never behave like spend credits", () => 
     benefits: [
       { id: "anniversary-points", title: "10,000 anniversary points", kind: "anniversary_bonus", tracking_type: "automatic", points_amount: 10_000, amount_usd: null, cadence: "anniversary", valid_from: "2025-01-01", valid_to: null },
       { id: "membership", title: "Partner membership", kind: "membership", tracking_type: "enrollment", enrollment_required: true, amount_usd: 50, cadence: "one_time", valid_from: "2025-01-01", valid_to: null },
+      { id: "status", title: "Hotel status", kind: "membership", tracking_type: "automatic", amount_usd: 300, cadence: "one_time", valid_from: "2025-01-01", valid_to: null },
     ],
   };
   const wallet = addWalletCard(db, { catalog_slug: behaviorCard.slug, nickname: "Behaviors" });
@@ -79,13 +80,18 @@ test("automatic and enrollment benefits never behave like spend credits", () => 
   dashboard = buildDashboard({ catalog: [behaviorCard], db, asOf: "2026-08-26", reminderDays: 30 });
   const points = dashboard.cards[0].benefits.find((item) => item.id === "anniversary-points");
   const membership = dashboard.cards[0].benefits.find((item) => item.id === "membership");
+  const status = dashboard.cards[0].benefits.find((item) => item.id === "status");
   assert.equal(points.tracking_type, "automatic");
   assert.equal(points.amount_usd, 200);
   assert.equal(points.used_usd, 0);
   assert.equal(points.remaining_usd, 0);
   assert.equal(points.is_actionable, false);
+  assert.equal(points.counts_toward_value, true);
   assert.equal(membership.status, "active");
   assert.equal(membership.is_actionable, false);
+  assert.equal(membership.counts_toward_value, false);
+  assert.equal(status.counts_toward_value, false);
+  assert.equal(status.expected_value_usd, null);
   assert.equal(dashboard.cards[0].needs_attention, false);
   assert.equal(dashboard.metrics.realized_ytd_usd, 200);
   db.close();

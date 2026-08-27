@@ -22,3 +22,5 @@ Never migrate local fields into the public catalog. Never overwrite a historical
 Editorial point valuations are assumptions. Preserve the valuation basis and source, and distinguish them from cash floors.
 
 Tracking behavior is a public product fact, but whether a holder activated a benefit is private. Automatic bonuses and statuses must never require usage entries. Anniversary benefits must not receive a calendar-year fallback when the private membership-year anchor is absent.
+
+Activation and entitlement do not imply financial value. Enrollment benefits, lounge access, hotel status, and elite-night credits contribute zero dollars to projected net value. Automatic point currency may contribute value only when `points_amount` and the card's public point valuation are both present.

@@ -29,7 +29,7 @@ State the point-value assumption when it changes the recommendation. Do not desc
 First inspect the benefit's `tracking_type` in `crdits summary --json`. Its behavior is deterministic:
 
 - `spend`: a finite credit or balance. Confirm the card, benefit, amount, and date, then record usage.
-- `automatic`: an issuer-applied bonus or included status. Never ask the user to log it and never write usage.
+- `automatic`: an issuer-applied bonus or included status. Never ask the user to log it and never write usage. Count only explicit point currency with a catalog point valuation; never let lounge access, memberships, elite-night credits, or status offset an annual fee automatically.
 - `enrollment`: a one-time activation such as DashPass or Priority Pass. Mark it active once; the state persists.
 - `reference`: an informational or conditional perk. Do not invent a usage balance.
 
@@ -52,6 +52,8 @@ crdits wallet update --card CARD --membership-year-start YYYY-MM-DD
 ```
 
 Do not substitute a calendar-year countdown when the membership-year date is unknown. Report that the date is needed.
+
+Activation is state, not value. Marking DashPass, Priority Pass, or a status active must not add realized or expected dollars. Do not assign a cash value to a service or status unless a future user explicitly asks for a separate manual valuation feature.
 
 Add targeted issuer offers with `crdits offer add`. Keep merchant offers, activation state, card nicknames, last four digits, usage, and notes in SQLite. Never place them in `catalog/`.
 

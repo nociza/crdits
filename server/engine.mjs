@@ -117,6 +117,11 @@ function faceValue(benefit, card, preference) {
   return null;
 }
 
+function countsTowardValue(benefit) {
+  const behavior = trackingType(benefit);
+  return behavior === "spend" || (behavior === "automatic" && Number(benefit.points_amount) > 0);
+}
+
 function preferenceFor(map, walletCardId, benefit) {
   const stored = map.get(`${walletCardId}:${benefit.id}`);
   if (stored) return stored;
@@ -165,6 +170,7 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
       status: savedStatus?.status || null,
       activated_on: savedStatus?.activated_on || null,
       requires_membership_year: true,
+      counts_toward_value: countsTowardValue(benefit),
       is_actionable: true,
     };
   }
@@ -175,7 +181,7 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
   const remaining = behavior === "spend" && face != null ? Math.max(0, Number(face) - used) : behavior === "automatic" ? 0 : null;
   const expected = behavior === "spend" && remaining != null
     ? remaining * preference.probability * preference.personal_value_percent
-    : behavior === "automatic" && face != null
+    : behavior === "automatic" && countsTowardValue(benefit) && face != null
       ? face * preference.probability * preference.personal_value_percent
       : null;
   const status = behavior === "automatic" ? "automatic" : savedStatus?.status || (behavior === "enrollment" ? "inactive" : null);
@@ -200,6 +206,7 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
     status,
     activated_on: savedStatus?.activated_on || null,
     requires_membership_year: false,
+    counts_toward_value: countsTowardValue(benefit),
     is_actionable: (behavior === "spend" && remaining > 0) || (behavior === "enrollment" && status !== "active"),
   };
 }
@@ -223,7 +230,7 @@ function annualProjection(benefit, card, wallet, preference, usage, year, asOf) 
 }
 
 function automaticProjection(benefit, card, wallet, preference, year, asOf) {
-  if (trackingType(benefit) !== "automatic") return { realized: 0, expected: 0 };
+  if (trackingType(benefit) !== "automatic" || !countsTowardValue(benefit)) return { realized: 0, expected: 0 };
   const face = faceValue(benefit, card, preference);
   if (face == null) return { realized: 0, expected: 0 };
   const yearStart = `${year}-01-01`;
