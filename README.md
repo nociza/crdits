@@ -64,7 +64,7 @@ The safe reminder poll is:
 npm run teleclaw:poll
 ```
 
-Run it daily from Teleclaw's existing gateway scheduler. It fetches the private reminder endpoint, prints one grouped message only when actionable state changes, and otherwise prints `NO_REPLY`. Configure `CRDITS_REMINDERS_URL`, `CRDITS_API_TOKEN`, and optionally `CRDITS_REMINDERS_DAYS` in host-local protected runtime settings—not Git. The low-frequency catalog review queue is:
+Run it daily from Teleclaw's existing gateway scheduler. It fetches the private reminder endpoint, prints one grouped message only when actionable state changes, and otherwise prints `NO_REPLY`. Configure `CRDITS_REMINDERS_URL`, `CRDITS_API_TOKEN_FILE`, and optionally `CRDITS_REMINDERS_DAYS` in host-local protected runtime settings—not Git. The low-frequency catalog review queue is:
 
 ```bash
 npm run catalog:refresh-plan
@@ -109,7 +109,7 @@ Targeted offers are shown separately and never added automatically to expected v
 
 ## Private deployment
 
-`crdits` is intended to run as a separate service boundary, even when linked from an existing dashboard. Bind the API to loopback, use a dedicated service account and database, keep the catalog and encrypted database backups separate, and place external browser access behind its own Access policy.
+`crdits` is intended to run as a separate service boundary, even when linked from an existing dashboard. Use a dedicated service account, local SQLite path, API credential, port, and systemd sandbox. A trusted small-app guest may be shared, but SQLite must never be opened over a network mount. Keep the catalog and client-side encrypted database backups separate, and place external browser access behind its own Access policy.
 
 ```bash
 docker compose up --build

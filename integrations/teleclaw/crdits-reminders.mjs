@@ -128,9 +128,18 @@ async function saveState(statePath, state) {
   await chmod(statePath, 0o600);
 }
 
+async function resolveToken(token, tokenFile) {
+  if (token) return token;
+  if (!tokenFile) return null;
+  const value = (await readFile(tokenFile, "utf8")).trim();
+  if (!value || value.length > 4096) throw new Error("invalid CRDITS_API_TOKEN_FILE");
+  return value;
+}
+
 export async function pollReminders({
   url = process.env.CRDITS_REMINDERS_URL || DEFAULT_URL,
   token = process.env.CRDITS_API_TOKEN || null,
+  tokenFile = process.env.CRDITS_API_TOKEN_FILE || null,
   days = Number(process.env.CRDITS_REMINDERS_DAYS || 14),
   statePath = process.env.CRDITS_REMINDER_STATE_PATH || path.join(homedir(), ".local", "state", "crdits-reminders", "state.json"),
   fetchImpl = fetch,
@@ -139,13 +148,14 @@ export async function pollReminders({
   const endpoint = new URL(url);
   if (!new Set(["http:", "https:"]).has(endpoint.protocol)) throw new Error("CRDITS_REMINDERS_URL must use http or https");
   endpoint.searchParams.set("days", String(days));
+  const resolvedToken = await resolveToken(token, tokenFile);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
   let response;
   try {
     response = await fetchImpl(endpoint, {
-      headers: token ? { authorization: `Bearer ${token}`, accept: "application/json" } : { accept: "application/json" },
+      headers: resolvedToken ? { authorization: `Bearer ${resolvedToken}`, accept: "application/json" } : { accept: "application/json" },
       signal: controller.signal,
     });
   } finally {

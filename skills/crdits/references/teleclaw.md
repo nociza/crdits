@@ -8,7 +8,12 @@ Run once each morning:
 npm run teleclaw:poll
 ```
 
-Set `CRDITS_REMINDERS_URL` to the private `/v1/reminders` endpoint and put its bearer token in the host-local `CRDITS_API_TOKEN` environment. The poller validates a bounded response, groups urgent items first, and stores only a fingerprint under `~/.local/state/crdits-reminders`. It prints `NO_REPLY` when the result is empty or unchanged. Keep the scheduler definition, Telegram destination, and token out of Git.
+Set `CRDITS_REMINDERS_URL` to the private `/v1/reminders` endpoint and point
+`CRDITS_API_TOKEN_FILE` at its host-local protected bearer-token file. The
+poller validates a bounded response, groups urgent items first, and stores only
+a fingerprint under `~/.local/state/crdits-reminders`. It prints `NO_REPLY`
+when the result is empty or unchanged. Keep the scheduler definition, Telegram
+destination, and token out of Git.
 
 For a same-host installation, the default URL is `http://127.0.0.1:8788/v1/reminders`. `CRDITS_REMINDERS_DAYS` defaults to 14.
 

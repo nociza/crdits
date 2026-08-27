@@ -10,7 +10,7 @@ Provide these values through the gateway's protected host-local runtime configur
 
 ```text
 CRDITS_REMINDERS_URL=https://private-crdits-origin.example/v1/reminders
-CRDITS_API_TOKEN=host-local-bearer-token
+CRDITS_API_TOKEN_FILE=/protected/path/crdits-api-token
 CRDITS_REMINDERS_DAYS=14
 ```
 
@@ -18,4 +18,8 @@ The process prints either one bounded, grouped reminder message or the exact sen
 
 Run `npm run catalog:refresh-plan` monthly as a separate agent-enabled job. That command only identifies stale or unconfirmed public catalog entries; the agent must verify official issuer sources, make structured catalog edits, validate them, and present the Git diff. It must not read the private SQLite database or targeted offers.
 
-Do not commit the job definition, bearer token, Telegram destination, or poller state. The poller state defaults to `~/.local/state/crdits-reminders/state.json` with directory mode `0700` and file mode `0600`.
+`CRDITS_API_TOKEN` remains available for ephemeral use, but production should
+prefer the protected token file. Do not commit the job definition, bearer
+token, Telegram destination, or poller state. The poller state defaults to
+`~/.local/state/crdits-reminders/state.json` with directory mode `0700` and file
+mode `0600`.

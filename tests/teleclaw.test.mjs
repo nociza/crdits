@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -60,6 +60,22 @@ test("relative day wording alone does not repeat an alert", async () => {
   await pollReminders({ statePath, fetchImpl });
   title = "Rideshare credit expires in 3 days";
   assert.equal(await pollReminders({ statePath, fetchImpl }), "NO_REPLY");
+});
+
+test("poller reads a bearer token from a protected file", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "crdits-teleclaw-"));
+  const tokenFile = path.join(directory, "api-token");
+  await writeFile(tokenFile, "file-token\n", { mode: 0o600 });
+  let authorization;
+  await pollReminders({
+    tokenFile,
+    statePath: path.join(directory, "state.json"),
+    fetchImpl: async (_url, options) => {
+      authorization = options.headers.authorization;
+      return response(payload());
+    },
+  });
+  assert.equal(authorization, "Bearer file-token");
 });
 
 test("empty reminders are silent and invalid fields are rejected", async () => {

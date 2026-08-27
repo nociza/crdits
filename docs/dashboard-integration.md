@@ -4,7 +4,9 @@
 
 ## Recommended shape
 
-1. Run `crdits` in its own unprivileged guest or service boundary.
+1. Run `crdits` in its own service boundary inside an unprivileged guest. A
+   trusted small-app guest may be shared, but the Unix identity, SQLite path,
+   token, port, and systemd sandbox may not be shared.
 2. Bind its Node API to loopback and expose the web app only through a dedicated reverse-proxy origin.
 3. Give the browser origin its own Cloudflare Tunnel/Access application if off-tailnet access is required.
 4. Add a dashboard navigation link to that origin after deployment is verified.
@@ -27,6 +29,10 @@ It excludes card names, nicknames, last four digits, benefits, targeted offers, 
 
 The full `/v1/dashboard` API is intended only for the authenticated crdits web origin. When `CRDITS_API_TOKEN` is set, the same-origin web proxy injects it server-side.
 
-## Existing Fleet repository
+## Nexus Fleet deployment
 
-The Fleet repository currently contains unrelated, uncommitted dashboard remediation. Keep the crdits integration as a separate, reviewable change after the service origin and Access policy exist. This repository therefore ships the integration contract but does not mutate or deploy the Fleet worktree.
+The Nexus Fleet deployment uses LXC 112 `smoldb` on NW1. CardCredits remains a
+separate process and SQLite boundary inside that guest; `nw1-observe` owns only
+the authenticated presentation proxy. The deployment and encrypted backup
+worker are maintained in the private Fleet repository, not this public
+project.
