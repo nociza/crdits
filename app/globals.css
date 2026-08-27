@@ -120,7 +120,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .catalog-list .card-art.compact { width: 54px; margin: 0; }
 .card-topline { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
 .card-topline span { text-transform: uppercase; color: var(--green); font: 700 10px var(--font-geist-mono), monospace; letter-spacing: .12em; }
-.card-topline small { max-width: 55%; color: var(--muted); font-size: 8px; text-align: right; }
+.card-topline small { max-width: 55%; padding: 5px 8px; border-radius: 999px; color: var(--muted); background: #ecebe3; font-size: 8px; font-weight: 700; text-align: right; white-space: nowrap; }
+.card-topline small.needs-attention { color: #7f211b; background: #f6d7d2; }
+.card-topline small.is-caught-up { color: var(--green-dark); background: rgba(184,225,203,.48); }
 .wallet-card h2 { margin: 20px 0 4px; font-size: 28px; letter-spacing: -.05em; }
 .wallet-card h2 em { font-style: normal; color: var(--muted); font: 500 12px var(--font-geist-mono), monospace; margin-left: 8px; }
 .card-identity p { color: var(--muted); font-size: 12px; margin: 0; }
@@ -137,8 +139,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .card-values small, .card-values strong { display: block; }
 .card-values small { color: var(--muted); font-size: 9px; }
 .card-values strong { margin-top: 6px; font-size: 19px; }
-.benefit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 20px; padding: 15px 0; border-top: 1px solid var(--line); }
-.benefit:first-child { border-top: 0; }
+.benefit-list { display: grid; gap: 9px; }
+.benefit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 20px; padding: 15px 14px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.34); }
 .benefit-title strong, .benefit-title small, .benefit-value strong, .benefit-value small { display: block; }
 .benefit-title strong { font-size: 13px; }
 .benefit-title small, .benefit-value small { color: var(--muted); font-size: 10px; margin-top: 3px; }
@@ -146,9 +148,25 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .benefit-value strong { font-size: 13px; }
 .progress-track { grid-column: 1 / -1; display: block; height: 4px; background: #e5e4dc; border-radius: 99px; overflow: hidden; }
 .progress-track i { display: block; height: 100%; background: var(--green); border-radius: inherit; }
+.credit-periods { grid-column: 1 / -1; display: grid; gap: 6px; }
+.credit-periods.has-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.credit-periods.has-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.credit-period { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: #eeede5; }
+.credit-period small, .credit-period strong, .credit-period i { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.credit-period small { color: var(--muted); font: 700 9px var(--font-geist-mono), monospace; }
+.credit-period strong { margin-top: 5px; font-size: 10px; }
+.credit-period i { margin-top: 4px; color: var(--muted); font-size: 8px; font-style: normal; text-transform: capitalize; }
+.credit-period.is-current { border-color: var(--green); box-shadow: 0 0 0 2px rgba(13,113,76,.1); background: rgba(184,225,203,.27); }
+.credit-period.is-current i { color: var(--green-dark); font-weight: 700; }
+.credit-period.is-used { border-color: rgba(13,113,76,.25); background: rgba(184,225,203,.2); }
+.credit-period.is-used i { color: var(--green); }
+.credit-period.is-partial:not(.is-current) { border-color: rgba(217,131,36,.3); background: rgba(217,131,36,.08); }
+.credit-period.is-expired { opacity: .55; }
+.credit-period.is-upcoming { border-style: dashed; background: transparent; }
 .benefit-actions { grid-column: 1 / -1; display: flex; gap: 7px; }
-.benefit-actions button { border: 1px solid var(--line); background: transparent; border-radius: 7px; padding: 6px 9px; font-size: 10px; cursor: pointer; }
-.benefit.tracking-automatic, .benefit.tracking-enrollment { margin: 0 -10px; padding: 15px 10px; border-radius: 9px; background: rgba(184,225,203,.16); }
+.benefit-actions button { min-height: 31px; border: 1px solid var(--line); background: transparent; border-radius: 7px; padding: 6px 10px; font-size: 10px; cursor: pointer; }
+.benefit-actions button.is-primary { border-color: var(--green); color: white; background: var(--green); font-weight: 700; }
+.benefit.tracking-automatic, .benefit.tracking-enrollment { background: rgba(184,225,203,.16); }
 .behavior-label { text-transform: uppercase; letter-spacing: .08em; color: var(--green) !important; }
 .inline-editor { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 14px; background: #eeede5; border-radius: 10px; }
 .inline-editor .wide { grid-column: 1 / -1; }
@@ -232,6 +250,7 @@ footer small { justify-self: end; }
   .offer-table span, .offer-table small { grid-column: 1 / -1; }
   .catalog-list > div { grid-template-columns: 54px 1fr; }
   .catalog-list > div > span:last-child { grid-column: 2; }
+  .credit-periods.has-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   footer { padding-bottom: 76px; grid-template-columns: 1fr auto; }
   footer p { display: none; }
 }

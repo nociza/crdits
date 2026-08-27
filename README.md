@@ -106,6 +106,8 @@ The dashboard provides the same structured writer. Review and commit its catalog
 
 Each catalog benefit declares how it behaves: `spend` for finite credits, `automatic` for issuer-applied bonuses and included statuses, `enrollment` for activate-once memberships, or `reference` for informational perks. Only spend benefits create usage-ledger entries. Membership-year anchors remain private and drive true anniversary windows and annual-fee countdowns.
 
+Quarterly and semiannual spend credits are displayed as separate Q1–Q4 or H1–H2 periods, including expired, current, used, and upcoming states. Usage is applied only to its dated period and never carries across a reset boundary.
+
 Memberships, lounge access, hotel status, and elite-night credits are tracked as entitlements but contribute $0 to card ROI. Automatic point currency, such as anniversary miles, is valued only when the catalog has both a points amount and a point valuation.
 
 ## Expected value

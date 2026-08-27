@@ -145,6 +145,36 @@ function daysUntil(date, asOf) {
   return Math.ceil((utcDate(date).getTime() - utcDate(asOf).getTime()) / DAY_MS);
 }
 
+function splitPeriodStates(benefit, card, wallet, preference, usage, asOf) {
+  if (trackingType(benefit) !== "spend" || !["quarterly", "semiannual"].includes(benefit.cadence)) return [];
+  const face = faceValue(benefit, card, preference);
+  if (face == null) return [];
+  const year = utcDate(asOf).getUTCFullYear();
+  return enumerateCycles(benefit, wallet, `${year}-01-01`, `${year}-12-31`).map((window) => {
+    const used = usageFor(usage, wallet.id, benefit.id, window.start, window.end);
+    const remaining = Math.max(0, Number(face) - used);
+    const isCurrent = window.start <= asOf && window.end >= asOf;
+    const status = remaining <= 0
+      ? "used"
+      : window.end < asOf
+        ? used > 0 ? "partial" : "expired"
+        : window.start > asOf
+          ? "upcoming"
+          : used > 0 ? "partial" : "available";
+    return {
+      key: window.key,
+      label: window.key.split("-").at(-1),
+      start: window.start,
+      end: window.end,
+      amount_usd: round(face),
+      used_usd: round(used),
+      remaining_usd: round(remaining),
+      status,
+      is_current: isCurrent,
+    };
+  });
+}
+
 function currentCycleState(benefit, card, wallet, preference, usage, savedStatus, asOf) {
   const behavior = trackingType(benefit);
   const face = faceValue(benefit, card, preference);
@@ -171,6 +201,7 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
       activated_on: savedStatus?.activated_on || null,
       requires_membership_year: true,
       counts_toward_value: countsTowardValue(benefit),
+      periods: [],
       is_actionable: true,
     };
   }
@@ -207,6 +238,7 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
     activated_on: savedStatus?.activated_on || null,
     requires_membership_year: false,
     counts_toward_value: countsTowardValue(benefit),
+    periods: splitPeriodStates(benefit, card, wallet, preference, usage, asOf),
     is_actionable: (behavior === "spend" && remaining > 0) || (behavior === "enrollment" && status !== "active"),
   };
 }

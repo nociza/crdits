@@ -96,3 +96,32 @@ test("automatic and enrollment benefits never behave like spend credits", () => 
   assert.equal(dashboard.metrics.realized_ytd_usd, 200);
   db.close();
 });
+
+test("quarterly and semiannual credits expose independent period timelines", () => {
+  const db = openDatabase(":memory:");
+  const splitCard = {
+    ...card,
+    benefits: [
+      { id: "half-credit", title: "Resort credit", kind: "statement_credit", tracking_type: "spend", amount_usd: 200, cadence: "semiannual", valid_from: "2026-01-01", valid_to: null },
+      { id: "quarter-credit", title: "Flight credit", kind: "statement_credit", tracking_type: "spend", amount_usd: 50, cadence: "quarterly", valid_from: "2026-01-01", valid_to: null },
+    ],
+  };
+  const wallet = addWalletCard(db, { catalog_slug: splitCard.slug, nickname: "Split" });
+  addUsage(db, { wallet_card_id: wallet.id, benefit_id: "half-credit", amount_usd: 200, used_at: "2026-06-30" });
+  addUsage(db, { wallet_card_id: wallet.id, benefit_id: "quarter-credit", amount_usd: 20, used_at: "2026-08-20" });
+  const dashboard = buildDashboard({ catalog: [splitCard], db, asOf: "2026-08-26", reminderDays: 30 });
+  const half = dashboard.cards[0].benefits.find((item) => item.id === "half-credit");
+  const quarter = dashboard.cards[0].benefits.find((item) => item.id === "quarter-credit");
+  assert.deepEqual(half.periods.map((item) => [item.label, item.status, item.used_usd, item.is_current]), [
+    ["H1", "used", 200, false],
+    ["H2", "available", 0, true],
+  ]);
+  assert.deepEqual(quarter.periods.map((item) => [item.label, item.status, item.used_usd, item.is_current]), [
+    ["Q1", "expired", 0, false],
+    ["Q2", "expired", 0, false],
+    ["Q3", "partial", 20, true],
+    ["Q4", "upcoming", 0, false],
+  ]);
+  assert.equal(quarter.remaining_usd, 30);
+  db.close();
+});
