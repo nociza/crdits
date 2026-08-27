@@ -31,6 +31,8 @@ npm run crdits -- summary
 npm run crdits -- due --days 14
 npm run crdits -- recommend dining --amount 85 --merchant "Local restaurant"
 npm run crdits -- use --card "Amex Hilton Aspire" --benefit flight-credit --amount 35
+npm run crdits -- benefit activate --card "Sapphire Preferred" --benefit dashpass
+npm run crdits -- wallet update --card "Sapphire Preferred" --membership-year-start 2026-06-01
 ```
 
 Machine-readable output is available with `--json`. The dashboard uses the same service layer as the CLI, so calculations do not diverge between the website and Teleclaw.
@@ -102,6 +104,8 @@ npm run crdits -- catalog upsert-reward \
 
 The dashboard provides the same structured writer. Review and commit its catalog diff through the normal Git workflow.
 
+Each catalog benefit declares how it behaves: `spend` for finite credits, `automatic` for issuer-applied bonuses and included statuses, `enrollment` for activate-once memberships, or `reference` for informational perks. Only spend benefits create usage-ledger entries. Membership-year anchors remain private and drive true anniversary windows and annual-fee countdowns.
+
 ## Expected value
 
 For each current or future benefit cycle in the calendar year:
@@ -133,7 +137,7 @@ repository.
 npm run check
 ```
 
-Tests cover catalog import, recurring cycles, partial usage, expected value, recommendations, SQLite isolation, and the server-rendered application shell.
+Tests cover catalog import, recurring and anniversary cycles, automatic and enrollment behavior, partial usage, expected value, recommendations, SQLite isolation, and the server-rendered application shell.
 
 ## License
 

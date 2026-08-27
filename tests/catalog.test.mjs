@@ -30,12 +30,12 @@ test("catalog updates archive the previous definition", async () => {
       reward_currency: { name: "Points", point_value_cents: 1, cash_floor_cents: 1 },
       base_reward: { id: "base", label: "1X", rate: 1, rate_type: "points_multiplier" },
       reward_rules: [],
-      benefits: [{ id: "dining-credit", title: "Dining credit", kind: "statement_credit", amount_usd: 10, cadence: "monthly", valid_from: "2026-01-01", valid_to: null }],
+      benefits: [{ id: "dining-credit", title: "Dining credit", kind: "statement_credit", tracking_type: "spend", amount_usd: 10, cadence: "monthly", valid_from: "2026-01-01", valid_to: null }],
       sources: [],
       history: [],
     };
     await writeCard(directory, card);
-    await upsertBenefit(directory, "test-card", { title: "Dining credit", amount_usd: 15, cadence: "monthly", valid_from: "2026-09-01", source_url: "https://issuer.example/terms" });
+    await upsertBenefit(directory, "test-card", { title: "Dining credit", tracking_type: "spend", amount_usd: 15, cadence: "monthly", valid_from: "2026-09-01", source_url: "https://issuer.example/terms" });
     const updated = JSON.parse(await readFile(path.join(directory, "test-card.json"), "utf8"));
     assert.equal(updated.benefits[0].amount_usd, 15);
     assert.equal(updated.history.length, 1);

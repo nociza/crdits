@@ -49,14 +49,16 @@ Usage:
   crdits due [--days 30] [--json]
   crdits recommend <category> [--merchant NAME] [--amount 100] [--json]
   crdits use --card ID_OR_SLUG --benefit ID --amount USD [--date YYYY-MM-DD] [--note TEXT]
+  crdits benefit activate --card ID_OR_SLUG --benefit ID [--date YYYY-MM-DD] [--note TEXT]
   crdits offer add --card ID_OR_SLUG --merchant NAME --title TEXT [--reward-amount USD] [--expires YYYY-MM-DD] [--activated]
   crdits wallet list [--json]
-  crdits wallet add --catalog-slug SLUG [--nickname NAME] [--last-four 1234]
+  crdits wallet add --catalog-slug SLUG [--nickname NAME] [--last-four 1234] [--membership-year-start YYYY-MM-DD]
+  crdits wallet update --card ID_OR_SLUG [--membership-year-start YYYY-MM-DD] [--annual-fee-override USD]
   crdits wallet import-csv PATH
   crdits catalog import-csv PATH
   crdits catalog validate [--json]
   crdits catalog stale [--days 45] [--json]
-  crdits catalog upsert-benefit --card SLUG --title TITLE --amount-usd USD --cadence monthly|quarterly|semiannual|annual|anniversary
+  crdits catalog upsert-benefit --card SLUG --title TITLE --tracking-type spend|automatic|enrollment|reference --cadence monthly|quarterly|semiannual|annual|anniversary
   crdits catalog upsert-reward --card SLUG --category CATEGORY --rate N --rate-type points_multiplier|cashback_percent
   crdits catalog patch-card --card SLUG [--annual-fee-usd USD] [--point-value-cents CPP]
 `);
@@ -111,6 +113,17 @@ async function main() {
     return output(json ? item : `Recorded ${money(item.amount_usd)} of ${item.benefit_id} on ${item.used_at}.`, { json });
   }
 
+  if (command === "benefit" && subcommand === "activate") {
+    const item = await wallet.setBenefitStatus({
+      card: flags.card,
+      benefit_id: flags.benefit,
+      status: "active",
+      activated_on: flags.date,
+      note: flags.note,
+    });
+    return output(json ? item : `Marked ${item.benefit_id} active${item.activated_on ? ` on ${item.activated_on}` : ""}.`, { json });
+  }
+
   if (command === "offer" && subcommand === "add") {
     const item = await wallet.addOffer({
       card: flags.card,
@@ -141,9 +154,20 @@ async function main() {
       last_four: flags["last-four"],
       opened_on: flags["opened-on"],
       renewal_date: flags["renewal-date"],
+      membership_year_start: flags["membership-year-start"],
       annual_fee_override: flags["annual-fee-override"],
     });
     return output(json ? item : `Added ${item.nickname}.`, { json });
+  }
+
+  if (command === "wallet" && subcommand === "update") {
+    const identifier = flags.card || rest[0];
+    if (!identifier) throw new Error("--card is required");
+    const changes = inputFromFlags(flags);
+    delete changes.card;
+    delete changes.json;
+    const item = await wallet.updateWalletCard(identifier, changes);
+    return output(json ? item : `Updated ${item.nickname}; membership year starts ${item.membership_year_start || "not set"}.`, { json });
   }
 
   if (command === "wallet" && subcommand === "import-csv") {

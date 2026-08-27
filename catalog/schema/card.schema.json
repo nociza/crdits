@@ -9,6 +9,8 @@
     "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
     "name": { "type": "string", "minLength": 1 },
     "issuer": { "type": "string", "minLength": 1 },
+    "image_url": { "type": ["string", "null"], "format": "uri" },
+    "image_alt": { "type": ["string", "null"] },
     "annual_fee_usd": { "type": ["number", "null"], "minimum": 0 },
     "verified_at": { "type": ["string", "null"], "format": "date" },
     "reward_currency": {
@@ -44,7 +46,9 @@
         "id": { "type": "string" },
         "title": { "type": "string" },
         "kind": { "enum": ["statement_credit", "certificate", "membership"] },
+        "tracking_type": { "enum": ["spend", "automatic", "enrollment", "reference"] },
         "amount_usd": { "type": ["number", "null"], "minimum": 0 },
+        "points_amount": { "type": ["number", "null"], "minimum": 0 },
         "cadence": { "enum": ["monthly", "quarterly", "semiannual", "annual", "anniversary", "every_n_years", "one_time"] },
         "valid_from": { "type": ["string", "null"], "format": "date" },
         "valid_to": { "type": ["string", "null"], "format": "date" }

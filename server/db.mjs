@@ -26,6 +26,7 @@ function migrate(db) {
       last_four TEXT,
       opened_on TEXT,
       renewal_date TEXT,
+      membership_year_start TEXT,
       annual_fee_override REAL,
       status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'closed')),
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -52,6 +53,16 @@ function migrate(db) {
       used_at TEXT NOT NULL,
       note TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS benefit_statuses (
+      wallet_card_id INTEGER NOT NULL REFERENCES wallet_cards(id) ON DELETE CASCADE,
+      benefit_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+      activated_on TEXT,
+      note TEXT,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(wallet_card_id, benefit_id)
     );
 
     CREATE TABLE IF NOT EXISTS offers (
@@ -94,6 +105,11 @@ function migrate(db) {
       ON wallet_cards(status);
     PRAGMA optimize;
   `);
+
+  const walletColumns = new Set(db.prepare("PRAGMA table_info(wallet_cards)").all().map((column) => column.name));
+  if (!walletColumns.has("membership_year_start")) {
+    db.exec("ALTER TABLE wallet_cards ADD COLUMN membership_year_start TEXT");
+  }
 }
 
 export function listWalletCards(db, { includeClosed = false } = {}) {
@@ -108,13 +124,14 @@ export function addWalletCard(db, input) {
   const nickname = input.nickname || input.catalog_slug;
   const statement = db.prepare(`
     INSERT INTO wallet_cards (
-      catalog_slug, nickname, last_four, opened_on, renewal_date,
+      catalog_slug, nickname, last_four, opened_on, renewal_date, membership_year_start,
       annual_fee_override, status, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(catalog_slug, nickname) DO UPDATE SET
       last_four = excluded.last_four,
       opened_on = COALESCE(excluded.opened_on, wallet_cards.opened_on),
       renewal_date = COALESCE(excluded.renewal_date, wallet_cards.renewal_date),
+      membership_year_start = COALESCE(excluded.membership_year_start, wallet_cards.membership_year_start),
       annual_fee_override = COALESCE(excluded.annual_fee_override, wallet_cards.annual_fee_override),
       status = excluded.status,
       updated_at = CURRENT_TIMESTAMP
@@ -126,9 +143,53 @@ export function addWalletCard(db, input) {
     input.last_four || null,
     input.opened_on || null,
     input.renewal_date || null,
+    input.membership_year_start || null,
     input.annual_fee_override ?? null,
     input.status || "active",
   ));
+}
+
+function dateOrNull(value, field) {
+  if (value == null || value === "") return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) throw new Error(`${field} must use YYYY-MM-DD`);
+  return String(value);
+}
+
+export function updateWalletCard(db, identifier, input) {
+  const current = findWalletCard(db, identifier);
+  if (!current) throw new Error("wallet card not found");
+  const next = {
+    nickname: input.nickname ?? current.nickname,
+    last_four: Object.hasOwn(input, "last_four") ? (input.last_four || null) : current.last_four,
+    opened_on: Object.hasOwn(input, "opened_on") ? dateOrNull(input.opened_on, "opened_on") : current.opened_on,
+    renewal_date: Object.hasOwn(input, "renewal_date") ? dateOrNull(input.renewal_date, "renewal_date") : current.renewal_date,
+    membership_year_start: Object.hasOwn(input, "membership_year_start")
+      ? dateOrNull(input.membership_year_start, "membership_year_start")
+      : current.membership_year_start,
+    annual_fee_override: Object.hasOwn(input, "annual_fee_override")
+      ? (input.annual_fee_override == null || input.annual_fee_override === "" ? null : Number(input.annual_fee_override))
+      : current.annual_fee_override,
+  };
+  if (!next.nickname) throw new Error("nickname is required");
+  if (next.annual_fee_override != null && (!Number.isFinite(next.annual_fee_override) || next.annual_fee_override < 0)) {
+    throw new Error("annual_fee_override must be a non-negative number");
+  }
+  const row = db.prepare(`
+    UPDATE wallet_cards SET
+      nickname = ?, last_four = ?, opened_on = ?, renewal_date = ?,
+      membership_year_start = ?, annual_fee_override = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+    RETURNING *
+  `).get(
+    next.nickname,
+    next.last_four,
+    next.opened_on,
+    next.renewal_date,
+    next.membership_year_start,
+    next.annual_fee_override,
+    current.id,
+  );
+  return normalizeWalletCard(row);
 }
 
 export function setWalletCardStatus(db, id, status) {
@@ -155,9 +216,55 @@ function normalizeWalletCard(row) {
     last_four: row.last_four,
     opened_on: row.opened_on,
     renewal_date: row.renewal_date,
+    membership_year_start: row.membership_year_start,
     annual_fee_override: row.annual_fee_override == null ? null : Number(row.annual_fee_override),
     status: row.status,
     created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+export function listBenefitStatuses(db) {
+  return db.prepare("SELECT * FROM benefit_statuses").all().map((row) => ({
+    wallet_card_id: Number(row.wallet_card_id),
+    benefit_id: row.benefit_id,
+    status: row.status,
+    activated_on: row.activated_on,
+    note: row.note,
+    updated_at: row.updated_at,
+  }));
+}
+
+export function setBenefitStatus(db, input) {
+  if (!input.wallet_card_id || !input.benefit_id) throw new Error("wallet_card_id and benefit_id are required");
+  const status = input.status || "active";
+  if (!["active", "inactive"].includes(status)) throw new Error("status must be active or inactive");
+  const activatedOn = status === "active"
+    ? dateOrNull(input.activated_on || new Date().toISOString().slice(0, 10), "activated_on")
+    : null;
+  const row = db.prepare(`
+    INSERT INTO benefit_statuses (
+      wallet_card_id, benefit_id, status, activated_on, note, updated_at
+    ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(wallet_card_id, benefit_id) DO UPDATE SET
+      status = excluded.status,
+      activated_on = excluded.activated_on,
+      note = excluded.note,
+      updated_at = CURRENT_TIMESTAMP
+    RETURNING *
+  `).get(
+    input.wallet_card_id,
+    input.benefit_id,
+    status,
+    activatedOn,
+    input.note || null,
+  );
+  return {
+    wallet_card_id: Number(row.wallet_card_id),
+    benefit_id: row.benefit_id,
+    status: row.status,
+    activated_on: row.activated_on,
+    note: row.note,
     updated_at: row.updated_at,
   };
 }

@@ -51,8 +51,10 @@ export function createApiClient({
       return request(`v1/recommend?${query}`);
     },
     addUsage: (input) => request("v1/usage", { method: "POST", body: input }),
+    setBenefitStatus: (input) => request("v1/benefit-status", { method: "POST", body: input }),
     addOffer: (input) => request("v1/offers", { method: "POST", body: input }),
     addWalletCard: (input) => request("v1/wallet/cards", { method: "POST", body: input }),
+    updateWalletCard: (identifier, input) => request(`v1/wallet/cards/${encodeURIComponent(identifier)}`, { method: "PATCH", body: input }),
     async walletCards() {
       const dashboard = await request("v1/dashboard");
       return dashboard.cards;

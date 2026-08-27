@@ -16,8 +16,10 @@ import {
   findWalletCard,
   listWalletCards,
   openDatabase,
+  setBenefitStatus,
   setPreference,
   setWalletCardStatus,
+  updateWalletCard,
 } from "./db.mjs";
 import { buildDashboard, recommendCard } from "./engine.mjs";
 import { readFile, readdir } from "node:fs/promises";
@@ -63,14 +65,32 @@ export function createService(options = {}) {
       return addWalletCard(db, input);
     },
 
+    updateWalletCard(identifier, input) {
+      return updateWalletCard(db, identifier, input);
+    },
+
     closeWalletCard(id) {
       return setWalletCardStatus(db, id, "closed");
     },
 
-    addUsage(input) {
+    async addUsage(input) {
       const wallet = findWalletCard(db, input.wallet_card_id || input.card);
       if (!wallet) throw new Error("wallet card not found");
+      const card = (await catalog()).find((item) => item.slug === wallet.catalog_slug);
+      const benefit = card?.benefits.find((item) => item.id === input.benefit_id);
+      if (!benefit) throw new Error("benefit not found for wallet card");
+      if ((benefit.tracking_type || "spend") !== "spend") throw new Error("this benefit does not use the spend ledger");
       return addUsage(db, { ...input, wallet_card_id: wallet.id });
+    },
+
+    async setBenefitStatus(input) {
+      const wallet = findWalletCard(db, input.wallet_card_id || input.card);
+      if (!wallet) throw new Error("wallet card not found");
+      const card = (await catalog()).find((item) => item.slug === wallet.catalog_slug);
+      const benefit = card?.benefits.find((item) => item.id === input.benefit_id);
+      if (!benefit) throw new Error("benefit not found for wallet card");
+      if ((benefit.tracking_type || "spend") !== "enrollment") throw new Error("only enrollment benefits have persistent status");
+      return setBenefitStatus(db, { ...input, wallet_card_id: wallet.id });
     },
 
     setPreference(input) {

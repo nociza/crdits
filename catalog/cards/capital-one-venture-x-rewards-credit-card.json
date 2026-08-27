@@ -4,6 +4,8 @@
   "name": "Capital One Venture X Rewards Credit Card",
   "short_name": "Venture X",
   "issuer": "Capital One",
+  "image_url": "https://ecm.capitalone.com/WCM/card/pages/open-graph/venture-x.png",
+  "image_alt": "Capital One Venture X Rewards Credit Card",
   "verification_status": "CONFIRMED",
   "annual_fee_usd": 395,
   "foreign_transaction_fee": "0%",
@@ -72,8 +74,9 @@
       "id": "annual-capital-one-travel-credit",
       "title": "annual Capital One Travel credit",
       "kind": "statement_credit",
+      "tracking_type": "spend",
       "amount_usd": 300,
-      "cadence": "annual",
+      "cadence": "anniversary",
       "interval_years": null,
       "description": "$300 annual Capital One Travel credit",
       "eligibility": null,
@@ -86,7 +89,9 @@
       "id": "10-000-anniversary-miles-each-year",
       "title": "10,000 anniversary miles each year",
       "kind": "statement_credit",
+      "tracking_type": "automatic",
       "amount_usd": null,
+      "points_amount": 10000,
       "cadence": "anniversary",
       "interval_years": null,
       "description": "10,000 anniversary miles each year",
@@ -100,9 +105,10 @@
       "id": "global-entry-tsa-precheck-credit-per-eligible-period",
       "title": "Global Entry/TSA PreCheck credit per eligible period",
       "kind": "statement_credit",
+      "tracking_type": "spend",
       "amount_usd": 120,
-      "cadence": "one_time",
-      "interval_years": null,
+      "cadence": "every_n_years",
+      "interval_years": 4,
       "description": "up to $120 Global Entry/TSA PreCheck credit per eligible period",
       "eligibility": null,
       "enrollment_required": false,
@@ -136,7 +142,44 @@
       "url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
     }
   ],
-  "history": [],
+  "history": [
+    {
+      "type": "benefit",
+      "superseded_at": "2026-08-27T22:57:49Z",
+      "value": {
+        "id": "annual-capital-one-travel-credit",
+        "title": "annual Capital One Travel credit",
+        "kind": "statement_credit",
+        "amount_usd": 300,
+        "cadence": "annual",
+        "interval_years": null,
+        "description": "$300 annual Capital One Travel credit",
+        "eligibility": null,
+        "enrollment_required": false,
+        "valid_from": "2026-08-25",
+        "valid_to": null,
+        "source_group": "recurring"
+      }
+    },
+    {
+      "type": "benefit",
+      "superseded_at": "2026-08-27T22:57:49Z",
+      "value": {
+        "id": "global-entry-tsa-precheck-credit-per-eligible-period",
+        "title": "Global Entry/TSA PreCheck credit per eligible period",
+        "kind": "statement_credit",
+        "amount_usd": 120,
+        "cadence": "one_time",
+        "interval_years": null,
+        "description": "up to $120 Global Entry/TSA PreCheck credit per eligible period",
+        "eligibility": null,
+        "enrollment_required": false,
+        "valid_from": "2026-08-25",
+        "valid_to": null,
+        "source_group": "annual_or_anniversary"
+      }
+    }
+  ],
   "raw_source_fields": {
     "base_earn": "2X miles on every purchase",
     "bonus_categories": "10X hotels and rental cars booked through Capital One Travel; 5X flights and vacation rentals booked through Capital One Travel",

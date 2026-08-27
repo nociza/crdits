@@ -133,6 +133,15 @@ function benefitTitle(text) {
     .slice(0, 90) || "Card benefit";
 }
 
+function trackingTypeFor(text, kind, amount) {
+  const lower = text.toLowerCase();
+  if (/automatically|automatic|anniversary miles|elite night credits/.test(lower)) return "automatic";
+  if (kind === "membership" && /enroll|activation|activate/.test(lower)) return "enrollment";
+  if (kind === "membership") return "automatic";
+  if (amount == null) return "reference";
+  return "spend";
+}
+
 function effectiveTo(text) {
   const year = text.match(/through\s+(20\d{2})/i)?.[1];
   return year ? `${year}-12-31` : null;
@@ -146,14 +155,17 @@ export function parseBenefits(recurring, annual, researchAsOf) {
   const ids = new Map();
   return entries.map(({ text, sourceGroup }) => {
     const schedule = cadenceFor(text);
+    const kind = benefitKind(text);
+    const amount = cycleAmount(text, schedule.cadence);
     const baseId = slugify(benefitTitle(text)) || "benefit";
     const seen = ids.get(baseId) ?? 0;
     ids.set(baseId, seen + 1);
     return {
       id: seen ? `${baseId}-${seen + 1}` : baseId,
       title: benefitTitle(text),
-      kind: benefitKind(text),
-      amount_usd: cycleAmount(text, schedule.cadence),
+      kind,
+      tracking_type: trackingTypeFor(text, kind, amount),
+      amount_usd: amount,
       cadence: schedule.cadence,
       interval_years: schedule.interval_years ?? null,
       description: text,
@@ -264,6 +276,9 @@ export function validateCard(card) {
     benefitIds.add(benefit.id);
     if (!benefit.title) errors.push(`benefit ${benefit.id ?? "unknown"} needs a title`);
     if (!benefit.cadence) errors.push(`benefit ${benefit.id ?? "unknown"} needs a cadence`);
+    if (!["spend", "automatic", "enrollment", "reference"].includes(benefit.tracking_type)) {
+      errors.push(`benefit ${benefit.id ?? "unknown"} needs a valid tracking_type`);
+    }
   }
   return errors;
 }
@@ -328,7 +343,9 @@ export async function upsertBenefit(catalogDir, cardSlug, input) {
       id,
       title: input.title,
       kind: input.kind || "statement_credit",
+      tracking_type: input.tracking_type || (input.enrollment_required ? "enrollment" : numberOrNull(input.amount_usd) == null ? "reference" : "spend"),
       amount_usd: numberOrNull(input.amount_usd),
+      points_amount: numberOrNull(input.points_amount),
       cadence: input.cadence || "annual",
       interval_years: numberOrNull(input.interval_years),
       description: input.description || input.title,

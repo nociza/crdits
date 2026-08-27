@@ -97,10 +97,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .portfolio-strip .eyebrow { color: var(--acid); }
 .portfolio-strip h2 { margin: 0; font-size: clamp(28px, 4vw, 50px); line-height: 1; letter-spacing: -.055em; max-width: 430px; }
 .mini-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.mini-cards button { min-height: 142px; border: 1px solid rgba(255,255,255,.18); border-radius: 12px; background: rgba(255,255,255,.07); color: white; text-align: left; padding: 16px; cursor: pointer; }
-.mini-cards button span, .mini-cards button strong, .mini-cards button small { display: block; }
-.mini-cards button span { color: var(--mint); font-size: 9px; text-transform: uppercase; letter-spacing: .09em; }
-.mini-cards button strong { margin: 28px 0 13px; font-size: 15px; }
+.mini-cards button { min-height: 190px; border: 1px solid rgba(255,255,255,.18); border-radius: 12px; background: rgba(255,255,255,.07); color: white; text-align: left; padding: 13px; cursor: pointer; }
+.mini-cards button > span, .mini-cards button > strong, .mini-cards button > small { display: block; }
+.mini-cards button > span:not(.card-art) { color: var(--mint); font-size: 9px; text-transform: uppercase; letter-spacing: .09em; }
+.mini-cards button strong { margin: 8px 0 8px; font-size: 15px; }
 .positive { color: var(--green) !important; }
 .mini-cards .positive { color: var(--acid) !important; }
 .negative { color: var(--red) !important; }
@@ -112,12 +112,24 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .section-title > span { padding: 8px 13px; background: var(--mint); border-radius: 999px; font: 700 11px var(--font-geist-mono), monospace; }
 .wallet-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
 .wallet-card { background: var(--panel); border: 1px solid var(--line); border-radius: 17px; padding: 25px; box-shadow: var(--shadow); }
+.card-identity { display: grid; grid-template-columns: minmax(150px, .75fr) minmax(0, 1.25fr); gap: 22px; align-items: center; }
+.card-art { display: grid; place-items: center; aspect-ratio: 1.586; min-width: 0; overflow: hidden; border-radius: 10px; background: linear-gradient(145deg, #22352e, #101a16); box-shadow: 0 16px 30px rgba(19,35,29,.16); }
+.card-art img { width: 100%; height: 100%; object-fit: contain; }
+.card-art b { color: var(--acid); font-size: 26px; }
+.card-art.compact { width: 100%; max-width: 150px; margin-bottom: 11px; border-radius: 7px; box-shadow: 0 8px 18px rgba(0,0,0,.16); }
+.catalog-list .card-art.compact { width: 54px; margin: 0; }
 .card-topline { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
 .card-topline span { text-transform: uppercase; color: var(--green); font: 700 10px var(--font-geist-mono), monospace; letter-spacing: .12em; }
 .card-topline small { max-width: 55%; color: var(--muted); font-size: 8px; text-align: right; }
-.wallet-card h2 { margin: 28px 0 4px; font-size: 28px; letter-spacing: -.05em; }
+.wallet-card h2 { margin: 20px 0 4px; font-size: 28px; letter-spacing: -.05em; }
 .wallet-card h2 em { font-style: normal; color: var(--muted); font: 500 12px var(--font-geist-mono), monospace; margin-left: 8px; }
-.wallet-card > p { color: var(--muted); font-size: 12px; margin: 0; }
+.card-identity p { color: var(--muted); font-size: 12px; margin: 0; }
+.membership-year { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 22px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #eeede5; }
+.membership-year small, .membership-year strong { display: block; }
+.membership-year small { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+.membership-year strong { margin-top: 3px; font-size: 12px; }
+.membership-year button { border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; background: var(--panel); font-size: 10px; cursor: pointer; }
+.membership-editor { margin-top: 9px; }
 .card-values { display: grid; grid-template-columns: repeat(3, 1fr); margin: 24px 0; padding: 16px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .card-values span { border-right: 1px solid var(--line); padding: 0 13px; }
 .card-values span:first-child { padding-left: 0; }
@@ -136,6 +148,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .progress-track i { display: block; height: 100%; background: var(--green); border-radius: inherit; }
 .benefit-actions { grid-column: 1 / -1; display: flex; gap: 7px; }
 .benefit-actions button { border: 1px solid var(--line); background: transparent; border-radius: 7px; padding: 6px 9px; font-size: 10px; cursor: pointer; }
+.benefit.tracking-automatic, .benefit.tracking-enrollment { margin: 0 -10px; padding: 15px 10px; border-radius: 9px; background: rgba(184,225,203,.16); }
+.behavior-label { text-transform: uppercase; letter-spacing: .08em; color: var(--green) !important; }
 .inline-editor { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 14px; background: #eeede5; border-radius: 10px; }
 .inline-editor .wide { grid-column: 1 / -1; }
 .inline-editor button { background: var(--green); color: white; }
@@ -156,7 +170,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 
 .catalog-layout { display: grid; grid-template-columns: 1.18fr .82fr; gap: 18px; align-items: start; }
 .catalog-list { padding: 12px 24px; }
-.catalog-list > div { display: grid; grid-template-columns: 37px 1fr auto; gap: 14px; align-items: center; padding: 17px 0; border-top: 1px solid var(--line); }
+.catalog-list > div { display: grid; grid-template-columns: 54px 1fr auto; gap: 14px; align-items: center; padding: 17px 0; border-top: 1px solid var(--line); }
 .catalog-list > div:first-child { border-top: 0; }
 .issuer-dot { width: 34px; height: 34px; display: grid; place-items: center; background: var(--ink); color: var(--acid); border-radius: 9px; font-weight: 700; }
 .catalog-list strong, .catalog-list small { display: block; }
@@ -164,6 +178,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .catalog-list small { color: var(--muted); margin-top: 4px; font-size: 10px; }
 .catalog-list > div > span:last-child { font-size: 11px; color: var(--green); }
 .catalog-editor { position: sticky; top: 92px; }
+.quiet-cards { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line); }
+.quiet-cards summary { margin-bottom: 18px; color: var(--muted); font-size: 12px; font-weight: 650; cursor: pointer; }
 
 .empty-state { max-width: 760px; margin: 110px auto; padding: 50px; text-align: center; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
 .empty-state small { color: var(--red); letter-spacing: .14em; }
@@ -205,6 +221,7 @@ footer small { justify-self: end; }
   .reminder > i { display: none; }
   .mini-cards { grid-template-columns: repeat(2, 1fr); }
   .wallet-grid, .forms-grid { grid-template-columns: 1fr; }
+  .card-identity { grid-template-columns: 130px minmax(0,1fr); }
   .section-title { align-items: flex-start; }
   .section-title > span { display: none; }
   .section-title h1 { font-size: 51px; }
@@ -213,10 +230,15 @@ footer small { justify-self: end; }
   .card-values span:nth-child(3) { grid-column: 1 / -1; border-top: 1px solid var(--line); border-right: 0; padding: 12px 0 0; margin-top: 12px; }
   .offer-table > div:not(.panel-heading) { grid-template-columns: 1fr auto; }
   .offer-table span, .offer-table small { grid-column: 1 / -1; }
-  .catalog-list > div { grid-template-columns: 37px 1fr; }
+  .catalog-list > div { grid-template-columns: 54px 1fr; }
   .catalog-list > div > span:last-child { grid-column: 2; }
   footer { padding-bottom: 76px; grid-template-columns: 1fr auto; }
   footer p { display: none; }
+}
+
+@media (max-width: 520px) {
+  .card-identity { grid-template-columns: 1fr; }
+  .card-art { max-width: 250px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

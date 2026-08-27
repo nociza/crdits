@@ -26,11 +26,32 @@ State the point-value assumption when it changes the recommendation. Do not desc
 
 ## Record private activity
 
-Confirm the card, benefit, amount, and date from the user's message, then run:
+First inspect the benefit's `tracking_type` in `crdits summary --json`. Its behavior is deterministic:
+
+- `spend`: a finite credit or balance. Confirm the card, benefit, amount, and date, then record usage.
+- `automatic`: an issuer-applied bonus or included status. Never ask the user to log it and never write usage.
+- `enrollment`: a one-time activation such as DashPass or Priority Pass. Mark it active once; the state persists.
+- `reference`: an informational or conditional perk. Do not invent a usage balance.
+
+Record only spend benefits with:
 
 ```text
 crdits use --card CARD --benefit BENEFIT_ID --amount USD --date YYYY-MM-DD --note TEXT
 ```
+
+For a confirmed one-time enrollment, run:
+
+```text
+crdits benefit activate --card CARD --benefit BENEFIT_ID --date YYYY-MM-DD --note TEXT
+```
+
+When a benefit or fee follows an account-anniversary year, use the annual-fee/opening record to set its anchor:
+
+```text
+crdits wallet update --card CARD --membership-year-start YYYY-MM-DD
+```
+
+Do not substitute a calendar-year countdown when the membership-year date is unknown. Report that the date is needed.
 
 Add targeted issuer offers with `crdits offer add`. Keep merchant offers, activation state, card nicknames, last four digits, usage, and notes in SQLite. Never place them in `catalog/`.
 
@@ -40,7 +61,7 @@ Do not request or store full card numbers, issuer credentials, MFA data, session
 
 Use an official issuer page first. Record the source URL and effective date. Choose one structured mutation:
 
-- Credit or benefit: `catalog upsert-benefit`
+- Credit or benefit: `catalog upsert-benefit` with an explicit `tracking_type`
 - Reward category or multiplier: `catalog upsert-reward`
 - Annual fee or point valuation: `catalog patch-card`
 

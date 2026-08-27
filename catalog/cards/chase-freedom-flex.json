@@ -4,6 +4,8 @@
   "name": "Chase Freedom Flex",
   "short_name": "Chase Freedom Flex",
   "issuer": "Chase",
+  "image_url": "https://creditcards.chase.com/content/dam/jpmc-marketplace/card-art/freedom_flex_card_alt.png",
+  "image_alt": "Chase Freedom Flex Credit Card",
   "verification_status": "CONFIRMED_FROM_SCREENSHOT_LABEL",
   "annual_fee_usd": 0,
   "foreign_transaction_fee": "3% (typical current product terms; verify current cardmember agreement)",

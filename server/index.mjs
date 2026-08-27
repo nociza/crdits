@@ -82,7 +82,10 @@ async function route(request, response) {
     });
   }
   if (request.method === "POST" && url.pathname === "/v1/wallet/cards") return json(response, 201, await service.addWalletCard(await body(request)));
-  if (request.method === "POST" && url.pathname === "/v1/usage") return json(response, 201, service.addUsage(await body(request)));
+  const walletCardParams = pathMatch(url.pathname, "/v1/wallet/cards/:id");
+  if (request.method === "PATCH" && walletCardParams) return json(response, 200, service.updateWalletCard(walletCardParams.id, await body(request)));
+  if (request.method === "POST" && url.pathname === "/v1/usage") return json(response, 201, await service.addUsage(await body(request)));
+  if (request.method === "POST" && url.pathname === "/v1/benefit-status") return json(response, 200, await service.setBenefitStatus(await body(request)));
   if (request.method === "POST" && url.pathname === "/v1/preferences") return json(response, 200, service.setPreference(await body(request)));
   if (request.method === "POST" && url.pathname === "/v1/offers") return json(response, 201, service.addOffer(await body(request)));
 

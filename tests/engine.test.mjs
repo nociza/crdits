@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { addUsage, addWalletCard, openDatabase, setPreference } from "../server/db.mjs";
+import { addUsage, addWalletCard, openDatabase, setBenefitStatus, setPreference, updateWalletCard } from "../server/db.mjs";
 import { buildDashboard, enumerateCycles, recommendCard } from "../server/engine.mjs";
 
 const card = {
@@ -13,7 +13,7 @@ const card = {
   reward_currency: { name: "Points", point_value_cents: 2, cash_floor_cents: 1 },
   base_reward: { id: "base", label: "1X everything", rate: 1, rate_type: "points_multiplier", valid_from: "2026-01-01", valid_to: null },
   reward_rules: [{ id: "dining", category: "dining", label: "3X dining", match_terms: ["dining", "restaurant"], rate: 3, rate_type: "points_multiplier", conditional: false, valid_from: "2026-01-01", valid_to: null }],
-  benefits: [{ id: "dining-credit", title: "Dining credit", kind: "statement_credit", amount_usd: 25, cadence: "monthly", valid_from: "2026-01-01", valid_to: null }],
+  benefits: [{ id: "dining-credit", title: "Dining credit", kind: "statement_credit", tracking_type: "spend", amount_usd: 25, cadence: "monthly", valid_from: "2026-01-01", valid_to: null }],
   sources: [],
   history: [],
 };
@@ -56,5 +56,37 @@ test("recommends by reward value and ignores conditional rules without a merchan
   const result = recommendCard({ catalog: [card, conditionalCard], db, category: "dining", amount: 100, asOf: "2026-08-26" });
   assert.equal(result.recommendation[0].nickname, "My Test");
   assert.equal(result.recommendation[0].total_value_usd, 6);
+  db.close();
+});
+
+test("automatic and enrollment benefits never behave like spend credits", () => {
+  const db = openDatabase(":memory:");
+  const behaviorCard = {
+    ...card,
+    benefits: [
+      { id: "anniversary-points", title: "10,000 anniversary points", kind: "anniversary_bonus", tracking_type: "automatic", points_amount: 10_000, amount_usd: null, cadence: "anniversary", valid_from: "2025-01-01", valid_to: null },
+      { id: "membership", title: "Partner membership", kind: "membership", tracking_type: "enrollment", enrollment_required: true, amount_usd: 50, cadence: "one_time", valid_from: "2025-01-01", valid_to: null },
+    ],
+  };
+  const wallet = addWalletCard(db, { catalog_slug: behaviorCard.slug, nickname: "Behaviors" });
+  let dashboard = buildDashboard({ catalog: [behaviorCard], db, asOf: "2026-08-26", reminderDays: 30 });
+  const missingAnchor = dashboard.cards[0].benefits.find((item) => item.id === "anniversary-points");
+  assert.equal(missingAnchor.requires_membership_year, true);
+  assert.equal(missingAnchor.remaining_usd, null);
+
+  updateWalletCard(db, wallet.id, { membership_year_start: "2026-06-01" });
+  setBenefitStatus(db, { wallet_card_id: wallet.id, benefit_id: "membership", status: "active", activated_on: "2026-08-01" });
+  dashboard = buildDashboard({ catalog: [behaviorCard], db, asOf: "2026-08-26", reminderDays: 30 });
+  const points = dashboard.cards[0].benefits.find((item) => item.id === "anniversary-points");
+  const membership = dashboard.cards[0].benefits.find((item) => item.id === "membership");
+  assert.equal(points.tracking_type, "automatic");
+  assert.equal(points.amount_usd, 200);
+  assert.equal(points.used_usd, 0);
+  assert.equal(points.remaining_usd, 0);
+  assert.equal(points.is_actionable, false);
+  assert.equal(membership.status, "active");
+  assert.equal(membership.is_actionable, false);
+  assert.equal(dashboard.cards[0].needs_attention, false);
+  assert.equal(dashboard.metrics.realized_ytd_usd, 200);
   db.close();
 });

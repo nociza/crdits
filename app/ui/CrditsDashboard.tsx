@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type Benefit = {
@@ -7,14 +9,21 @@ type Benefit = {
   title: string;
   kind: string;
   cadence: string;
+  description: string | null;
+  tracking_type: "spend" | "automatic" | "enrollment" | "reference";
   amount_usd: number | null;
+  points_amount: number | null;
   used_usd: number;
   remaining_usd: number | null;
   expected_value_usd: number | null;
   probability: number;
   personal_value_percent: number;
-  expires_on: string;
-  days_remaining: number;
+  expires_on: string | null;
+  days_remaining: number | null;
+  status: string | null;
+  activated_on: string | null;
+  requires_membership_year: boolean;
+  is_actionable: boolean;
 };
 
 type WalletCard = {
@@ -22,9 +31,12 @@ type WalletCard = {
   catalog_slug: string;
   nickname: string;
   last_four: string | null;
+  membership_year_start: string | null;
   name: string;
   short_name: string;
   issuer: string;
+  image_url: string | null;
+  image_alt: string;
   annual_fee_usd: number;
   verification_status: string;
   reward_currency: { name: string | null; point_value_cents: number | null };
@@ -32,6 +44,9 @@ type WalletCard = {
   remaining_usd: number;
   expected_remaining_usd: number;
   projected_net_usd: number;
+  actionable_benefits_count: number;
+  needs_attention: boolean;
+  next_action_date: string | null;
   benefits: Benefit[];
 };
 
@@ -40,6 +55,8 @@ type CatalogCard = {
   name: string;
   short_name: string;
   issuer: string;
+  image_url: string | null;
+  image_alt: string;
   annual_fee_usd: number | null;
   point_value_cents: number | null;
   verification_status: string;
@@ -137,6 +154,14 @@ function Progress({ used, total }: { used: number; total: number | null }) {
   return <span className="progress-track" aria-label={`${Math.round(percent)} percent used`}><i style={{ width: `${percent}%` }} /></span>;
 }
 
+function CardArtwork({ card, compact = false }: { card: Pick<WalletCard, "name" | "issuer" | "image_url" | "image_alt">; compact?: boolean }) {
+  return (
+    <span className={`card-art ${compact ? "compact" : ""}`}>
+      {card.image_url ? <img src={card.image_url} alt={card.image_alt} loading="lazy" referrerPolicy="no-referrer" /> : <b>{card.issuer.slice(0, 1)}</b>}
+    </span>
+  );
+}
+
 export function CrditsDashboard() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -145,6 +170,7 @@ export function CrditsDashboard() {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [recommendBusy, setRecommendBusy] = useState(false);
   const [edit, setEdit] = useState<{ mode: "usage" | "value"; card: WalletCard; benefit: Benefit } | null>(null);
+  const [cardEdit, setCardEdit] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
@@ -166,6 +192,8 @@ export function CrditsDashboard() {
 
   const urgent = dashboard?.reminders.filter((item) => item.severity === "urgent") ?? [];
   const walletById = useMemo(() => new Map((dashboard?.cards ?? []).map((card) => [card.id, card])), [dashboard]);
+  const attentionCards = dashboard?.cards.filter((card) => card.needs_attention) ?? [];
+  const otherCards = dashboard?.cards.filter((card) => !card.needs_attention) ?? [];
 
   async function mutate(message: string, work: () => Promise<unknown>) {
     try {
@@ -206,7 +234,7 @@ export function CrditsDashboard() {
         nickname: data.get("nickname") || undefined,
         last_four: data.get("last_four") || undefined,
         opened_on: data.get("opened_on") || undefined,
-        renewal_date: data.get("renewal_date") || undefined,
+        membership_year_start: data.get("membership_year_start") || undefined,
       }) });
       form.reset();
     });
@@ -246,6 +274,28 @@ export function CrditsDashboard() {
     });
   }
 
+  async function activateBenefit(card: WalletCard, benefit: Benefit) {
+    await mutate(`${benefit.title} marked active. You will not need to log it again.`, async () => {
+      await api("/v1/benefit-status", { method: "POST", body: JSON.stringify({
+        wallet_card_id: card.id,
+        benefit_id: benefit.id,
+        status: "active",
+        activated_on: dashboard?.as_of,
+      }) });
+    });
+  }
+
+  async function saveMembershipYear(event: FormEvent<HTMLFormElement>, card: WalletCard) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    await mutate("Membership-year start saved; anniversary countdowns were recalculated.", async () => {
+      await api(`/v1/wallet/cards/${card.id}`, { method: "PATCH", body: JSON.stringify({
+        membership_year_start: data.get("membership_year_start") || null,
+      }) });
+      setCardEdit(null);
+    });
+  }
+
   async function saveValue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!edit) return;
@@ -263,6 +313,72 @@ export function CrditsDashboard() {
     });
   }
 
+  function renderWalletCard(card: WalletCard) {
+    return (
+      <article className="wallet-card" key={card.id}>
+        <div className="card-identity">
+          <CardArtwork card={card} />
+          <div>
+            <div className="card-topline"><span>{card.issuer}</span><small>{card.verification_status.replaceAll("_", " ")}</small></div>
+            <h2>{card.nickname}{card.last_four ? <em>•• {card.last_four}</em> : null}</h2>
+            <p>{card.name}</p>
+          </div>
+        </div>
+        <div className="membership-year">
+          <span><small>Membership year starts</small><strong>{card.membership_year_start || "Not set"}</strong></span>
+          <button type="button" onClick={() => setCardEdit(cardEdit === card.id ? null : card.id)}>{card.membership_year_start ? "Change" : "Set date"}</button>
+        </div>
+        {cardEdit === card.id ? (
+          <form className="inline-editor membership-editor" onSubmit={(event) => saveMembershipYear(event, card)}>
+            <label className="wide">Start date from your annual-fee record<input name="membership_year_start" type="date" defaultValue={card.membership_year_start || ""} required /></label>
+            <button>Save membership year</button><button type="button" className="ghost" onClick={() => setCardEdit(null)}>Cancel</button>
+          </form>
+        ) : null}
+        <div className="card-values"><span><small>Expected left</small><strong>{usd.format(card.expected_remaining_usd)}</strong></span><span><small>Annual fee</small><strong>{usd.format(card.annual_fee_usd)}</strong></span><span><small>Projected net</small><strong className={card.projected_net_usd >= 0 ? "positive" : "negative"}>{usd.format(card.projected_net_usd)}</strong></span></div>
+        <div className="benefit-list">
+          {card.benefits.map((benefit) => {
+            const automaticLabel = benefit.points_amount
+              ? `${benefit.points_amount.toLocaleString()} points · ${benefit.amount_usd == null ? "value not set" : `${usd.format(benefit.amount_usd)} estimated value`}`
+              : benefit.amount_usd == null ? "Included automatically" : `${usd.format(benefit.amount_usd)} automatic value`;
+            const enrollmentLabel = benefit.status === "active"
+              ? `Active${benefit.activated_on ? ` since ${benefit.activated_on}` : ""}`
+              : "One-time activation";
+            return (
+              <div className={`benefit tracking-${benefit.tracking_type}`} key={benefit.id}>
+                <div className="benefit-title"><strong>{benefit.title}</strong><small>{benefit.requires_membership_year ? "Set the membership-year date for a true countdown" : benefit.tracking_type === "spend" ? `${benefit.cadence} · expires ${benefit.expires_on}` : benefit.description}</small></div>
+                <div className="benefit-value"><strong>{benefit.requires_membership_year ? "Date needed" : benefit.tracking_type === "spend" ? `${usd.format(benefit.remaining_usd ?? 0)} left` : benefit.tracking_type === "automatic" ? automaticLabel : benefit.tracking_type === "enrollment" ? enrollmentLabel : "Reference benefit"}</strong>{benefit.tracking_type === "spend" ? <small>{usd.format(benefit.used_usd)} used</small> : <small className="behavior-label">{benefit.tracking_type}</small>}</div>
+                {benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <Progress used={benefit.used_usd} total={benefit.amount_usd} /> : null}
+                <div className="benefit-actions">
+                  {benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <button type="button" onClick={() => setEdit({ mode: "usage", card, benefit })}>Log use</button> : null}
+                  {benefit.tracking_type === "enrollment" && benefit.status !== "active" ? <button type="button" onClick={() => void activateBenefit(card, benefit)}>Mark active once</button> : null}
+                  {benefit.tracking_type !== "reference" ? <button type="button" onClick={() => setEdit({ mode: "value", card, benefit })}>Value {Math.round(benefit.probability * benefit.personal_value_percent * 100)}%</button> : null}
+                </div>
+                {edit?.card.id === card.id && edit.benefit.id === benefit.id ? (
+                  edit.mode === "usage" ? (
+                    <form className="inline-editor" onSubmit={recordUsage}>
+                      <label>Amount<input name="amount_usd" type="number" step="0.01" min="0" defaultValue={benefit.remaining_usd ?? 0} required /></label>
+                      <label>Date<input name="used_at" type="date" defaultValue={dashboard?.as_of} required /></label>
+                      <label className="wide">Note<input name="note" placeholder="Optional" /></label>
+                      <button>Save usage</button><button type="button" className="ghost" onClick={() => setEdit(null)}>Cancel</button>
+                    </form>
+                  ) : (
+                    <form className="inline-editor" onSubmit={saveValue}>
+                      <label>Chance of value %<input name="probability" type="number" min="0" max="100" defaultValue={Math.round(benefit.probability * 100)} /></label>
+                      <label>Personal value %<input name="personal_value_percent" type="number" min="0" max="100" defaultValue={Math.round(benefit.personal_value_percent * 100)} /></label>
+                      <label>Face value override<input name="face_value_override" type="number" min="0" step="0.01" defaultValue={benefit.amount_usd ?? ""} /></label>
+                      <label>Remind days before<input name="reminder_days" type="number" min="0" defaultValue="30" /></label>
+                      <button>Save value</button><button type="button" className="ghost" onClick={() => setEdit(null)}>Cancel</button>
+                    </form>
+                  )
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </article>
+    );
+  }
+
   async function updateCatalog(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -270,6 +386,10 @@ export function CrditsDashboard() {
     const kind = String(data.get("update_kind"));
     const slug = String(data.get("card_slug"));
     const body = Object.fromEntries([...data.entries()].filter(([key, value]) => !["update_kind", "card_slug"].includes(key) && value !== ""));
+    if (kind !== "benefit") {
+      delete body.tracking_type;
+      delete body.points_amount;
+    }
     const route = kind === "benefit" ? "benefits" : kind === "reward" ? "rewards" : "";
     const method = kind === "facts" ? "PATCH" : "POST";
     const url = kind === "facts" ? `/v1/catalog/cards/${slug}` : `/v1/catalog/cards/${slug}/${route}`;
@@ -371,7 +491,7 @@ export function CrditsDashboard() {
             <div className="mini-cards">
               {dashboard?.cards.slice(0, 4).map((card) => (
                 <button key={card.id} onClick={() => setTab("wallet")}>
-                  <span>{card.issuer}</span><strong>{card.nickname}</strong><small className={card.projected_net_usd >= 0 ? "positive" : "negative"}>{card.projected_net_usd >= 0 ? "+" : ""}{usd.format(card.projected_net_usd)} projected</small>
+                  <CardArtwork card={card} compact /><span>{card.issuer}</span><strong>{card.nickname}</strong><small className={card.projected_net_usd >= 0 ? "positive" : "negative"}>{card.projected_net_usd >= 0 ? "+" : ""}{usd.format(card.projected_net_usd)} projected</small>
                 </button>
               ))}
             </div>
@@ -383,46 +503,13 @@ export function CrditsDashboard() {
         <section className="section-page">
           <div className="section-title"><div><p className="eyebrow">LOCAL SQLITE</p><h1>Your wallet</h1><p>Each physical card has its own usage ledger and assumptions.</p></div><span>{dashboard?.cards.length ?? 0} active</span></div>
           <div className="wallet-grid">
-            {dashboard?.cards.map((card) => (
-              <article className="wallet-card" key={card.id}>
-                <div className="card-topline"><span>{card.issuer}</span><small>{card.verification_status.replaceAll("_", " ")}</small></div>
-                <h2>{card.nickname}{card.last_four ? <em>•• {card.last_four}</em> : null}</h2>
-                <p>{card.name}</p>
-                <div className="card-values"><span><small>Expected left</small><strong>{usd.format(card.expected_remaining_usd)}</strong></span><span><small>Annual fee</small><strong>{usd.format(card.annual_fee_usd)}</strong></span><span><small>Projected net</small><strong className={card.projected_net_usd >= 0 ? "positive" : "negative"}>{usd.format(card.projected_net_usd)}</strong></span></div>
-                <div className="benefit-list">
-                  {card.benefits.map((benefit) => (
-                    <div className="benefit" key={benefit.id}>
-                      <div className="benefit-title"><strong>{benefit.title}</strong><small>{benefit.cadence} · expires {benefit.expires_on}</small></div>
-                      <div className="benefit-value"><strong>{benefit.remaining_usd == null ? "set value" : `${usd.format(benefit.remaining_usd)} left`}</strong><small>{usd.format(benefit.used_usd)} used</small></div>
-                      <Progress used={benefit.used_usd} total={benefit.amount_usd} />
-                      <div className="benefit-actions"><button onClick={() => setEdit({ mode: "usage", card, benefit })}>Log use</button><button onClick={() => setEdit({ mode: "value", card, benefit })}>Value {Math.round(benefit.probability * benefit.personal_value_percent * 100)}%</button></div>
-                      {edit?.card.id === card.id && edit.benefit.id === benefit.id ? (
-                        edit.mode === "usage" ? (
-                          <form className="inline-editor" onSubmit={recordUsage}>
-                            <label>Amount<input name="amount_usd" type="number" step="0.01" min="0" defaultValue={benefit.remaining_usd ?? 0} required /></label>
-                            <label>Date<input name="used_at" type="date" defaultValue={dashboard?.as_of} required /></label>
-                            <label className="wide">Note<input name="note" placeholder="Optional" /></label>
-                            <button>Save usage</button><button type="button" className="ghost" onClick={() => setEdit(null)}>Cancel</button>
-                          </form>
-                        ) : (
-                          <form className="inline-editor" onSubmit={saveValue}>
-                            <label>Chance of use %<input name="probability" type="number" min="0" max="100" defaultValue={Math.round(benefit.probability * 100)} /></label>
-                            <label>Personal value %<input name="personal_value_percent" type="number" min="0" max="100" defaultValue={Math.round(benefit.personal_value_percent * 100)} /></label>
-                            <label>Face value override<input name="face_value_override" type="number" min="0" step="0.01" defaultValue={benefit.amount_usd ?? ""} /></label>
-                            <label>Remind days before<input name="reminder_days" type="number" min="0" defaultValue="30" /></label>
-                            <button>Save value</button><button type="button" className="ghost" onClick={() => setEdit(null)}>Cancel</button>
-                          </form>
-                        )
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              </article>
-            ))}
+            {attentionCards.map(renderWalletCard)}
           </div>
 
+          {otherCards.length ? <details className="quiet-cards"><summary>{otherCards.length} card{otherCards.length === 1 ? "" : "s"} with no credits to use</summary><div className="wallet-grid">{otherCards.map(renderWalletCard)}</div></details> : null}
+
           <div className="forms-grid">
-            <article className="panel form-panel"><p className="eyebrow">WALLET</p><h2>Add a card</h2><form onSubmit={addWalletCard} className="stack-form"><label>Card product<select name="catalog_slug" required defaultValue=""><option value="" disabled>Choose from catalog</option>{dashboard?.catalog_cards.map((card) => <option key={card.slug} value={card.slug}>{card.issuer} · {card.short_name}</option>)}</select></label><label>Nickname<input name="nickname" placeholder="e.g. Aspire" /></label><label>Last four<input name="last_four" inputMode="numeric" maxLength={4} placeholder="Optional" /></label><div className="split-fields"><label>Opened<input name="opened_on" type="date" /></label><label>Renews<input name="renewal_date" type="date" /></label></div><button>Add to wallet</button></form></article>
+            <article className="panel form-panel"><p className="eyebrow">WALLET</p><h2>Add a card</h2><form onSubmit={addWalletCard} className="stack-form"><label>Card product<select name="catalog_slug" required defaultValue=""><option value="" disabled>Choose from catalog</option>{dashboard?.catalog_cards.map((card) => <option key={card.slug} value={card.slug}>{card.issuer} · {card.short_name}</option>)}</select></label><label>Nickname<input name="nickname" placeholder="e.g. Aspire" /></label><label>Last four<input name="last_four" inputMode="numeric" maxLength={4} placeholder="Optional" /></label><div className="split-fields"><label>Opened<input name="opened_on" type="date" /></label><label>Membership year starts<input name="membership_year_start" type="date" /></label></div><button>Add to wallet</button></form></article>
             <article className="panel form-panel"><p className="eyebrow">TARGETED · LOCAL ONLY</p><h2>Add an offer</h2><form onSubmit={addOffer} className="stack-form"><label>Card<select name="wallet_card_id" required>{dashboard?.cards.map((card) => <option key={card.id} value={card.id}>{card.nickname}</option>)}</select></label><div className="split-fields"><label>Merchant<input name="merchant" required /></label><label>Reward $<input name="reward_amount_usd" type="number" min="0" step="0.01" /></label></div><label>Offer<input name="title" placeholder="Spend $100, get $20" required /></label><div className="split-fields"><label>Spend requirement $<input name="spend_requirement_usd" type="number" min="0" /></label><label>Expires<input name="expires_on" type="date" /></label></div><label className="check"><input name="activated" type="checkbox" /> Activated</label><button>Save offer</button></form></article>
           </div>
           {dashboard?.offers.length ? <article className="panel offer-table"><div className="panel-heading"><div><p className="eyebrow">SAVED OFFERS</p><h2>Targeted coupons</h2></div></div>{dashboard.offers.map((offer) => <div key={offer.id}><strong>{offer.merchant}</strong><span>{offer.title}</span><small>{walletById.get(offer.wallet_card_id)?.nickname} · {offer.activated ? "activated" : "not activated"} · {offer.expires_on || "no expiry"}</small><b>{offer.reward_amount_usd ? usd.format(offer.reward_amount_usd) : "—"}</b></div>)}</article> : null}
@@ -435,7 +522,7 @@ export function CrditsDashboard() {
           <div className="catalog-layout">
             <article className="panel catalog-list">
               {dashboard?.catalog_cards.map((card) => (
-                <div key={card.slug}><span className="issuer-dot">{card.issuer.slice(0, 1)}</span><div><strong>{card.name}</strong><small>{card.benefits_count} benefits · {card.reward_rules_count} reward rules · verified {card.verified_at || "never"}</small></div><span>{card.point_value_cents == null ? "cash / unknown" : `${card.point_value_cents}¢ / point`}</span></div>
+                <div key={card.slug}><CardArtwork card={card} compact /><div><strong>{card.name}</strong><small>{card.benefits_count} benefits · {card.reward_rules_count} reward rules · verified {card.verified_at || "never"}</small></div><span>{card.point_value_cents == null ? "cash / unknown" : `${card.point_value_cents}¢ / point`}</span></div>
               ))}
             </article>
             <article className="panel form-panel catalog-editor">
@@ -445,7 +532,8 @@ export function CrditsDashboard() {
                 <label>Card<select name="card_slug" required>{dashboard?.catalog_cards.map((card) => <option key={card.slug} value={card.slug}>{card.short_name}</option>)}</select></label>
                 <label>Update type<select name="update_kind" defaultValue="benefit"><option value="benefit">Benefit / credit</option><option value="reward">Reward category</option><option value="facts">Fee or point value</option></select></label>
                 <label>Title or label<input name="title" placeholder="e.g. Dining credit" /></label>
-                <div className="split-fields"><label>Amount / rate<input name="amount_usd" placeholder="Benefit amount" type="number" step="0.01" /></label><label>Reward rate<input name="rate" placeholder="e.g. 4" type="number" step="0.01" /></label></div>
+                <div className="split-fields"><label>Benefit behavior<select name="tracking_type" defaultValue="spend"><option value="spend">Spendable credit</option><option value="automatic">Automatic</option><option value="enrollment">Activate once</option><option value="reference">Reference only</option></select></label><label>Points amount<input name="points_amount" placeholder="e.g. 10000" type="number" step="1" /></label></div>
+                <div className="split-fields"><label>Benefit amount<input name="amount_usd" placeholder="USD value" type="number" step="0.01" /></label><label>Reward rate<input name="rate" placeholder="e.g. 4" type="number" step="0.01" /></label></div>
                 <div className="split-fields"><label>Cadence<select name="cadence" defaultValue="annual"><option>monthly</option><option>quarterly</option><option>semiannual</option><option>annual</option><option>anniversary</option><option>one_time</option></select></label><label>Category<input name="category" placeholder="dining" /></label></div>
                 <div className="split-fields"><label>Rate type<select name="rate_type" defaultValue="points_multiplier"><option value="points_multiplier">Points multiplier</option><option value="cashback_percent">Cashback percent</option></select></label><label>Match terms<input name="match_terms" placeholder="dining, restaurants" /></label></div>
                 <div className="split-fields"><label>Annual fee<input name="annual_fee_usd" type="number" step="0.01" /></label><label>Point value ¢<input name="point_value_cents" type="number" step="0.01" /></label></div>

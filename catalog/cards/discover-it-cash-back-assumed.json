@@ -4,6 +4,8 @@
   "name": "Discover it Cash Back (assumed)",
   "short_name": "Discover",
   "issuer": "Discover",
+  "image_url": "https://ecm.capitalone.com/WCM/dfs-card/images/it-card-marquee.png",
+  "image_alt": "Discover it Cash Back Card",
   "verification_status": "ASSUMED_NEEDS_CONFIRMATION",
   "annual_fee_usd": 0,
   "foreign_transaction_fee": "0%",

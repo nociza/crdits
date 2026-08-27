@@ -4,6 +4,8 @@
   "name": "Prime Visa",
   "short_name": "Chase Amazon Prime",
   "issuer": "Chase",
+  "image_url": "https://creditcards.chase.com/content/dam/jpmc-marketplace/card-art/prime-visa.png",
+  "image_alt": "Prime Visa Card",
   "verification_status": "CONFIRMED",
   "annual_fee_usd": 0,
   "foreign_transaction_fee": "0%",
