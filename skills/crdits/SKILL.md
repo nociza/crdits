@@ -26,6 +26,8 @@ State the dated point-value assumption and source when it changes the recommenda
 
 For Bilt Palladium catch-all recommendations, preserve the catalog's full condition: 3.33X means 2X base points plus 1.33X derived from earning 4% Bilt Cash and redeeming it at $30 per 1,000 housing points. Apply it only under the Flexible Bilt Cash option while housing unlock capacity remains—approximately the first 75% of monthly rent or mortgage in everyday spend. State that cap whenever Bilt wins; do not present 3.33X as unconditional or uncapped.
 
+Treat usage amounts as nominal units but report realized dollars using the same sourced catalog ratio as expected value. For example, using all $200 nominal Bilt Cash realizes $66.67 under the conservative one-third valuation; never convert that ledger entry back to $200 of realized card value.
+
 ## Record private activity
 
 First inspect the benefit's `tracking_type` in `crdits summary --json`. Its behavior is deterministic:

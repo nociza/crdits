@@ -384,9 +384,18 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
       automaticRealized += automatic.realized;
       automaticExpected += automatic.expected;
     }
+    const benefitMap = new Map(card.benefits.map((benefit) => [benefit.id, benefit]));
     const loggedRealized = usage
       .filter((item) => item.wallet_card_id === walletCard.id && item.used_at >= yearStart && item.used_at <= asOf)
-      .reduce((sum, item) => sum + item.amount_usd, 0);
+      .reduce((sum, item) => {
+        const benefit = benefitMap.get(item.benefit_id);
+        if (!benefit || trackingType(benefit) !== "spend") return sum;
+        const preference = preferenceFor(preferenceMap, walletCard.id, benefit);
+        const nominalValue = cycleAmount(benefit, card, preference);
+        const sourcedValue = catalogValue(benefit, card, preference);
+        if (!(nominalValue > 0) || sourcedValue == null) return sum;
+        return sum + Number(item.amount_usd) * Number(sourcedValue) / Number(nominalValue);
+      }, 0);
     const realized = loggedRealized + automaticRealized;
     expected += automaticExpected;
     const annualFee = walletCard.annual_fee_override ?? card.annual_fee_usd ?? 0;

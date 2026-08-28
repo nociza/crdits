@@ -120,6 +120,7 @@ No valuation setup is required for a normal wallet. For each current or future b
 
 ```text
 expected value = sourced catalog value × remaining balance share
+realized value = sourced catalog value × used balance share
 ```
 
 Dollar statement credits default to 100% of issuer-stated face value. Editorial point valuations remain labeled estimates rather than guaranteed cash value. Existing local preference rows remain supported as optional advanced overrides, while targeted offers stay separate and are never added automatically to expected value.

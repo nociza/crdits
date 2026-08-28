@@ -77,7 +77,7 @@ test("recommends by reward value and ignores conditional rules without a merchan
 test("Bilt Palladium uses the sourced 3.33X catch-all strategy and conservative Bilt Cash value", async () => {
   const bilt = JSON.parse(await readFile(new URL("../catalog/cards/bilt-palladium-card.json", import.meta.url), "utf8"));
   const db = openDatabase(":memory:");
-  addWalletCard(db, { catalog_slug: bilt.slug, nickname: "My Bilt" });
+  const wallet = addWalletCard(db, { catalog_slug: bilt.slug, nickname: "My Bilt" });
   const result = recommendCard({ catalog: [bilt], db, category: "other", amount: 100, asOf: "2026-08-28" });
   assert.equal(result.recommendation[0].rate, 3.333333);
   assert.equal(result.recommendation[0].reward_value_usd, 7.33);
@@ -88,6 +88,14 @@ test("Bilt Palladium uses the sourced 3.33X catch-all strategy and conservative 
   assert.equal(annualBiltCash.amount_usd, 200);
   assert.equal(annualBiltCash.catalog_value_usd, 66.67);
   assert.equal(annualBiltCash.valuation_method, "market_estimate");
+
+  addUsage(db, { wallet_card_id: wallet.id, benefit_id: "bilt-cash-annually", amount_usd: 200, used_at: "2026-08-28" });
+  const usedDashboard = buildDashboard({ catalog: [bilt], db, asOf: "2026-08-28" });
+  const usedBiltCash = usedDashboard.cards[0].benefits.find((benefit) => benefit.id === "bilt-cash-annually");
+  assert.equal(usedBiltCash.remaining_usd, 0);
+  assert.equal(usedBiltCash.expected_value_usd, 0);
+  assert.equal(usedDashboard.cards[0].logged_realized_ytd_usd, 66.67);
+  assert.equal(usedDashboard.cards[0].realized_ytd_usd, 66.67);
   db.close();
 });
 
