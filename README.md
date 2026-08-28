@@ -121,9 +121,12 @@ No valuation setup is required for a normal wallet. For each current or future b
 ```text
 expected value = sourced catalog value × remaining balance share
 realized value = sourced catalog value × used balance share
+projected net = realized value used this year − annual fees
 ```
 
 Dollar statement credits default to 100% of issuer-stated face value. Editorial point valuations remain labeled estimates rather than guaranteed cash value. Existing local preference rows remain supported as optional advanced overrides, while targeted offers stay separate and are never added automatically to expected value.
+
+`projected_net_usd` deliberately excludes unused expected value. It answers whether value already realized this year has covered annual fees; remaining credits are reported separately as expected value.
 
 Derived earn rates retain their math and limits in the public catalog. For example, Bilt Palladium's conditional 3.33X catch-all combines 2X base points with 1.33X from 4% Bilt Cash redeemed toward housing points. It applies only under Flexible Bilt Cash while housing unlock capacity remains—about the first 75% of monthly housing spend. The annual $200 Bilt Cash allocation is conservatively valued at $66.67 using that redemption and a 1-cent-per-point cash floor.
 

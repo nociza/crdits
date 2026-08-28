@@ -438,7 +438,7 @@ export function CrditsDashboard() {
             <h2>{card.nickname}{card.last_four ? <em>•• {card.last_four}</em> : null}</h2>
             <p>{card.name}</p>
           </div>
-          <div className="card-net"><small>Projected net</small><strong className={card.projected_net_usd >= 0 ? "positive" : "negative"}>{card.projected_net_usd >= 0 ? "+" : ""}{usd.format(card.projected_net_usd)}</strong></div>
+          <div className="card-net"><small>Used value minus fee</small><strong className={card.projected_net_usd >= 0 ? "positive" : "negative"}>{card.projected_net_usd >= 0 ? "+" : ""}{usd.format(card.projected_net_usd)}</strong></div>
           <div className="card-values"><span><small>Expected left</small><strong>{usd.format(card.expected_remaining_usd)}</strong></span><span><small>Annual fee</small><strong>{usd.format(card.annual_fee_usd)}</strong></span></div>
           <div className="membership-year"><span><small>Membership year</small><strong>{card.membership_year_start || "Not set"}</strong></span><button type="button" onClick={() => setCardEdit(cardEdit === card.id ? null : card.id)}>{card.membership_year_start ? "Change" : "Set date"}</button></div>
           {cardEdit === card.id ? <form className="inline-editor membership-editor" onSubmit={(event) => saveMembershipYear(event, card)}><label className="wide">Start date from annual-fee record<input name="membership_year_start" type="date" defaultValue={card.membership_year_start || ""} required /></label><button>Save date</button><button type="button" className="ghost" onClick={() => setCardEdit(null)}>Cancel</button></form> : null}
@@ -517,7 +517,7 @@ export function CrditsDashboard() {
           <section className="metrics" aria-label="Portfolio metrics">
             <Metric label="Credits available" value={dashboard?.metrics.credits_remaining_usd ?? 0} detail={`${usd.format(dashboard?.metrics.expected_remaining_usd ?? 0)} using sourced catalog values`} />
             <Metric label="Used this year" value={dashboard?.metrics.realized_ytd_usd ?? 0} detail="Recorded in your private ledger" tone="good" />
-            <Metric label="Projected net" value={dashboard?.metrics.projected_net_usd ?? 0} detail={`Against ${usd.format(dashboard?.metrics.annual_fees_usd ?? 0)} in annual fees`} tone={(dashboard?.metrics.projected_net_usd ?? 0) >= 0 ? "good" : "warn"} />
+            <Metric label="Projected net" value={dashboard?.metrics.projected_net_usd ?? 0} detail={`Used value minus ${usd.format(dashboard?.metrics.annual_fees_usd ?? 0)} in annual fees`} tone={(dashboard?.metrics.projected_net_usd ?? 0) >= 0 ? "good" : "warn"} />
           </section>
 
           <section className="overview-grid">

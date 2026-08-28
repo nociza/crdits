@@ -25,6 +25,8 @@ The sanitized monitor response contains only:
 }
 ```
 
+`projected_net_usd` is realized value used in the current year minus annual fees. Unused expected value is returned separately and must not be added to this field.
+
 It excludes card names, nicknames, last four digits, benefits, targeted offers, usage, merchant names, and notes. Do not send those private fields to Netdata, VictoriaMetrics, Grafana, or the fleet monitor API.
 
 The full `/v1/dashboard` API is intended only for the authenticated crdits web origin. When `CRDITS_API_TOKEN` is set, the same-origin web proxy injects it server-side.

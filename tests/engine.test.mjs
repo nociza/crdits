@@ -39,6 +39,7 @@ test("partial usage and personal value drive annual projection", () => {
   assert.equal(dashboard.metrics.credits_remaining_usd, 107);
   assert.equal(dashboard.metrics.expected_remaining_usd, 44.94);
   assert.equal(dashboard.metrics.realized_ytd_usd, 18);
+  assert.equal(dashboard.metrics.projected_net_usd, -77);
   assert.equal(dashboard.reminders.length, 1);
   db.close();
 });
@@ -54,6 +55,7 @@ test("catalog values are used at 100% without asking for personal assumptions", 
   assert.equal(benefit.valuation_method, "face_value");
   assert.equal(dashboard.metrics.credits_remaining_usd, 125);
   assert.equal(dashboard.metrics.expected_remaining_usd, 125);
+  assert.equal(dashboard.metrics.projected_net_usd, -95);
   db.close();
 });
 
@@ -96,6 +98,8 @@ test("Bilt Palladium uses the sourced 3.33X catch-all strategy and conservative 
   assert.equal(usedBiltCash.expected_value_usd, 0);
   assert.equal(usedDashboard.cards[0].logged_realized_ytd_usd, 66.67);
   assert.equal(usedDashboard.cards[0].realized_ytd_usd, 66.67);
+  assert.equal(usedDashboard.cards[0].projected_net_usd, -428.33);
+  assert.equal(usedDashboard.metrics.projected_net_usd, -428.33);
   db.close();
 });
 

@@ -79,7 +79,7 @@ async function main() {
     console.log(`Credits remaining:  ${money(dashboard.metrics.credits_remaining_usd)}`);
     console.log(`Expected remaining: ${money(dashboard.metrics.expected_remaining_usd)}`);
     console.log(`Annual fees:        ${money(dashboard.metrics.annual_fees_usd)}`);
-    console.log(`Projected net:      ${money(dashboard.metrics.projected_net_usd)}`);
+    console.log(`Projected net:      ${money(dashboard.metrics.projected_net_usd)} (realized value minus annual fees)`);
     return;
   }
 

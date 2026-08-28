@@ -25,7 +25,7 @@ Run once weekly:
 crdits summary --json
 ```
 
-Notify only when projected net value crosses zero, an annual-fee reminder enters the configured window, or expected value materially changes.
+Notify only when projected net value (realized value minus annual fees) crosses zero, an annual-fee reminder enters the configured window, or expected value materially changes. Never add unused expected credits to projected net.
 
 ## Low-frequency catalog refresh
 

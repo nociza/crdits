@@ -28,6 +28,8 @@ For Bilt Palladium catch-all recommendations, preserve the catalog's full condit
 
 Treat usage amounts as nominal units but report realized dollars using the same sourced catalog ratio as expected value. For example, using all $200 nominal Bilt Cash realizes $66.67 under the conservative one-third valuation; never convert that ledger entry back to $200 of realized card value.
 
+Define projected net as realized value used in the current year minus annual fees. Never add unused expected credits to projected net; report expected remaining value separately.
+
 ## Record private activity
 
 First inspect the benefit's `tracking_type` in `crdits summary --json`. Its behavior is deterministic:

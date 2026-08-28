@@ -422,7 +422,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
       realized_ytd_usd: round(realized),
       remaining_usd: round(remaining),
       expected_remaining_usd: round(expected),
-      projected_net_usd: round(realized + expected - annualFee),
+      projected_net_usd: round(realized - annualFee),
       actionable_benefits_count: actionableStates.length,
       needs_attention: actionableStates.length > 0,
       next_action_date: nextAction,
@@ -463,7 +463,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
   const expectedRemaining = cards.reduce((sum, card) => sum + card.expected_remaining_usd, 0);
   const annualFees = cards.reduce((sum, card) => sum + card.annual_fee_usd, 0);
   const offersAvailable = offers.reduce((sum, offer) => sum + (offer.reward_amount_usd || 0), 0);
-  const projectedNet = realizedYtd + expectedRemaining - annualFees;
+  const projectedNet = realizedYtd - annualFees;
 
   return {
     as_of: asOf,
