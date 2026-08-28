@@ -20,15 +20,31 @@
   "base_reward": {
     "id": "other-1",
     "category": "other",
-    "label": "2X Bilt Points on everyday purchases",
+    "label": "Effective 3.33X catch-all: 2X Bilt Points plus 4% Bilt Cash converted to housing points; applies while Flexible Bilt Cash is selected and housing unlock capacity remains (about the first 75% of monthly housing spend)",
     "match_terms": [],
-    "rate": 2,
+    "rate": 3.333333,
     "rate_type": "points_multiplier",
-    "activation_required": false,
+    "activation_required": true,
     "cap_usd": null,
-    "conditional": false,
-    "valid_from": "2026-08-25",
-    "valid_to": null
+    "cap_formula": "eligible everyday spend <= 0.75 × monthly rent or mortgage payment",
+    "conditional": true,
+    "condition": "Flexible Bilt Cash rewards option is selected and the cardholder will redeem all earned Bilt Cash to unlock up to 1X Bilt Points on that billing cycle's housing payment",
+    "components": [
+      {
+        "label": "Palladium base earn",
+        "rate": 2,
+        "rate_type": "points_multiplier"
+      },
+      {
+        "label": "4% Bilt Cash converted at $0.03 per housing point",
+        "rate": 1.333333,
+        "rate_type": "points_multiplier"
+      }
+    ],
+    "valid_from": "2026-02-07",
+    "valid_to": null,
+    "source_url": "https://support.biltrewards.com/hc/en-us/articles/42897766682381-Bilt-Card-2-0-Program-Overview",
+    "as_of": "2026-08-28"
   },
   "reward_rules": [
     {
@@ -105,17 +121,19 @@
       "amount_usd": 200,
       "cadence": "annual",
       "interval_years": null,
-      "description": "$200 Bilt Cash annually",
+      "description": "$200 nominal Bilt Cash annually; valued conservatively through the housing-points redemption at one-third dollar per $1 Bilt Cash",
       "eligibility": null,
       "enrollment_required": false,
       "valid_from": "2026-08-25",
       "valid_to": null,
-      "source_url": "https://www.bilt.com/card/palladium",
+      "source_url": "https://support.biltrewards.com/hc/en-us/articles/40132420650509-Bilt-Cash",
       "valuation": {
-        "method": "face_value",
-        "value_usd": 200,
-        "basis": "Issuer-stated $200 of Bilt Cash per calendar year",
-        "source_url": "https://www.bilt.com/card/palladium",
+        "method": "market_estimate",
+        "value_usd": 66.67,
+        "unit": "$1 nominal Bilt Cash",
+        "unit_value_usd": 0.333333,
+        "basis": "$1 Bilt Cash unlocks 33.333 Bilt Points at Bilt's $30-to-1,000 housing-points rate; valued at the 1-cent-per-point cash floor, the $200 annual allocation is worth $66.67. This intentionally excludes Bilt's separate dollar-for-dollar partner redemptions.",
+        "source_url": "https://support.biltrewards.com/hc/en-us/articles/40132420650509-Bilt-Cash",
         "as_of": "2026-08-28"
       },
       "source_group": "recurring"
@@ -168,13 +186,14 @@
     }
   ],
   "spend_threshold_benefits": [
-    "Point Accelerator can exchange eligible Bilt Cash for +1X on the next $5,000 of spend, up to stated annual limits"
+    "Point Accelerator can exchange eligible Bilt Cash for +1X on the next $5,000 of spend, up to stated annual limits",
+    "Under Flexible Bilt Cash, Palladium's 2X base plus 4% Bilt Cash redeemed at $30 per 1,000 housing points is an effective 3.33X catch-all until earned Bilt Cash covers the monthly housing-points unlock; this occurs after everyday spend reaches about 75% of the monthly housing payment"
   ],
   "offer_ecosystem": "Bilt neighborhood/dining and app promotions; merchant opportunities vary",
   "other_key_benefits": [
     "Up to 1.25X on rent/mortgage/HOA with no transaction fee when qualifying housing-only rewards option is selected, subject to Bilt program terms"
   ],
-  "notes": "Bilt Cash and hotel credits have distinct expiration/reset rules. Hotel credit requires eligible Bilt Travel bookings and minimum-stay terms; model each half-year as a separate benefit cycle",
+  "notes": "Bilt Cash and hotel credits have distinct expiration/reset rules. The 3.33X catch-all model assumes Flexible Bilt Cash and housing-points redemption; it is capped by the holder's monthly housing payment and is not the Housing-only rewards option. Hotel credit requires eligible Bilt Travel bookings and minimum-stay terms; model each half-year as a separate benefit cycle",
   "valid_from": "2026-08-25",
   "valid_to": null,
   "verified_at": "2026-08-28",
@@ -188,11 +207,64 @@
       "url": "https://www.bilt.com/terms/bilt-card-offer-terms"
     },
     {
+      "kind": "rewards",
+      "url": "https://support.biltrewards.com/hc/en-us/articles/42897766682381-Bilt-Card-2-0-Program-Overview"
+    },
+    {
+      "kind": "valuation",
+      "url": "https://support.biltrewards.com/hc/en-us/articles/40132420650509-Bilt-Cash"
+    },
+    {
       "kind": "valuation",
       "url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
     }
   ],
-  "history": [],
+  "history": [
+    {
+      "type": "base_reward",
+      "superseded_at": "2026-08-28T22:15:19Z",
+      "value": {
+        "id": "other-1",
+        "category": "other",
+        "label": "2X Bilt Points on everyday purchases",
+        "match_terms": [],
+        "rate": 2,
+        "rate_type": "points_multiplier",
+        "activation_required": false,
+        "cap_usd": null,
+        "conditional": false,
+        "valid_from": "2026-08-25",
+        "valid_to": null
+      }
+    },
+    {
+      "type": "benefit",
+      "superseded_at": "2026-08-28T22:15:19Z",
+      "value": {
+        "id": "bilt-cash-annually",
+        "title": "Bilt Cash annually",
+        "kind": "statement_credit",
+        "tracking_type": "spend",
+        "amount_usd": 200,
+        "cadence": "annual",
+        "interval_years": null,
+        "description": "$200 Bilt Cash annually",
+        "eligibility": null,
+        "enrollment_required": false,
+        "valid_from": "2026-08-25",
+        "valid_to": null,
+        "source_url": "https://www.bilt.com/card/palladium",
+        "valuation": {
+          "method": "face_value",
+          "value_usd": 200,
+          "basis": "Issuer-stated $200 of Bilt Cash per calendar year",
+          "source_url": "https://www.bilt.com/card/palladium",
+          "as_of": "2026-08-28"
+        },
+        "source_group": "recurring"
+      }
+    }
+  ],
   "raw_source_fields": {
     "base_earn": "2X Bilt Points on everyday purchases",
     "bonus_categories": "4X hotels through Bilt Travel; 3X flights through Bilt Travel; 4X Lyft; up to 5X Bilt Dining depending on partner bonus structure",

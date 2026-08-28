@@ -25,6 +25,7 @@
         "valuation_as_of": { "type": ["string", "null"], "format": "date" }
       }
     },
+    "base_reward": { "$ref": "#/$defs/rewardRule" },
     "reward_rules": { "type": "array", "items": { "$ref": "#/$defs/rewardRule" } },
     "benefits": { "type": "array", "items": { "$ref": "#/$defs/benefit" } },
     "sources": { "type": "array" },
@@ -36,8 +37,30 @@
       "required": ["id", "category", "label", "rate", "rate_type", "valid_from"],
       "properties": {
         "id": { "type": "string" },
+        "category": { "type": "string" },
+        "label": { "type": "string" },
+        "match_terms": { "type": "array", "items": { "type": "string" } },
         "rate": { "type": ["number", "null"] },
         "rate_type": { "enum": ["points_multiplier", "cashback_percent", "text_only"] },
+        "activation_required": { "type": "boolean" },
+        "conditional": { "type": "boolean" },
+        "condition": { "type": "string" },
+        "cap_usd": { "type": ["number", "null"], "minimum": 0 },
+        "cap_formula": { "type": "string" },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "rate", "rate_type"],
+            "properties": {
+              "label": { "type": "string" },
+              "rate": { "type": "number" },
+              "rate_type": { "enum": ["points_multiplier", "cashback_percent"] }
+            }
+          }
+        },
+        "source_url": { "type": "string", "format": "uri" },
+        "as_of": { "type": "string", "format": "date" },
         "valid_from": { "type": ["string", "null"], "format": "date" },
         "valid_to": { "type": ["string", "null"], "format": "date" }
       }
@@ -67,7 +90,9 @@
         "value_usd": { "type": "number", "minimum": 0 },
         "basis": { "type": "string", "minLength": 1 },
         "source_url": { "type": "string", "format": "uri" },
-        "as_of": { "type": "string", "format": "date" }
+        "as_of": { "type": "string", "format": "date" },
+        "unit": { "type": "string" },
+        "unit_value_usd": { "type": "number", "minimum": 0 }
       }
     }
   }

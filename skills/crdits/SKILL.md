@@ -24,6 +24,8 @@ Run the narrowest JSON command, then explain the result plainly:
 
 State the dated point-value assumption and source when it changes the recommendation. Do not describe editorial point values as guaranteed cash value. Normal wallet summaries use the public catalog valuation automatically; never ask the user to assign a value to each credit.
 
+For Bilt Palladium catch-all recommendations, preserve the catalog's full condition: 3.33X means 2X base points plus 1.33X derived from earning 4% Bilt Cash and redeeming it at $30 per 1,000 housing points. Apply it only under the Flexible Bilt Cash option while housing unlock capacity remains—approximately the first 75% of monthly rent or mortgage in everyday spend. State that cap whenever Bilt wins; do not present 3.33X as unconditional or uncapped.
+
 ## Record private activity
 
 First inspect the benefit's `tracking_type` in `crdits summary --json`. Its behavior is deterministic:
@@ -75,6 +77,8 @@ Assign public valuations consistently:
 - automatic points or miles: `points` at `points_amount × point_value_cents`, sourced and dated;
 - lounge membership, subscription, status, elite-night credit, or unsupported certificate: `excluded` at $0;
 - another defensible public estimate: `market_estimate`, with a reproducible basis and source.
+
+When a reward multiplier combines currencies, store the component rates, conversion, eligibility condition, cap formula, source, and as-of date. Bilt Cash is a separate non-cash currency: for the conservative housing-points method, value each nominal $1 at one-third dollar using the 1-cent Bilt Points cash floor, even though Bilt advertises separate dollar-for-dollar partner redemptions.
 
 The CLI archives a replaced definition in the card's `history` before writing the new version. After any catalog mutation:
 

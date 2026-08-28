@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { addUsage, addWalletCard, openDatabase, setBenefitStatus, setPreference, updateWalletCard } from "../server/db.mjs";
 import { buildDashboard, enumerateCycles, recommendCard } from "../server/engine.mjs";
@@ -70,6 +71,23 @@ test("recommends by reward value and ignores conditional rules without a merchan
   const result = recommendCard({ catalog: [card, conditionalCard], db, category: "dining", amount: 100, asOf: "2026-08-26" });
   assert.equal(result.recommendation[0].nickname, "My Test");
   assert.equal(result.recommendation[0].total_value_usd, 6);
+  db.close();
+});
+
+test("Bilt Palladium uses the sourced 3.33X catch-all strategy and conservative Bilt Cash value", async () => {
+  const bilt = JSON.parse(await readFile(new URL("../catalog/cards/bilt-palladium-card.json", import.meta.url), "utf8"));
+  const db = openDatabase(":memory:");
+  addWalletCard(db, { catalog_slug: bilt.slug, nickname: "My Bilt" });
+  const result = recommendCard({ catalog: [bilt], db, category: "other", amount: 100, asOf: "2026-08-28" });
+  assert.equal(result.recommendation[0].rate, 3.333333);
+  assert.equal(result.recommendation[0].reward_value_usd, 7.33);
+  assert.match(result.recommendation[0].rule, /75% of monthly housing spend/);
+
+  const dashboard = buildDashboard({ catalog: [bilt], db, asOf: "2026-08-28" });
+  const annualBiltCash = dashboard.cards[0].benefits.find((benefit) => benefit.id === "bilt-cash-annually");
+  assert.equal(annualBiltCash.amount_usd, 200);
+  assert.equal(annualBiltCash.catalog_value_usd, 66.67);
+  assert.equal(annualBiltCash.valuation_method, "market_estimate");
   db.close();
 });
 

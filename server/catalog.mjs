@@ -313,6 +313,17 @@ export function validateCard(card) {
   if (!card?.issuer) errors.push("issuer is required");
   if (!Array.isArray(card?.reward_rules)) errors.push("reward_rules must be an array");
   if (!Array.isArray(card?.benefits)) errors.push("benefits must be an array");
+  for (const rule of [card?.base_reward, ...(card?.reward_rules ?? [])].filter(Boolean)) {
+    if (rule.components) {
+      const componentRate = rule.components.reduce((sum, component) => sum + Number(component.rate), 0);
+      if (!Number.isFinite(componentRate) || Math.abs(componentRate - Number(rule.rate)) > 0.005) {
+        errors.push(`reward rule ${rule.id ?? "unknown"} components must sum to its rate`);
+      }
+      if (!rule.condition || !rule.cap_formula || !rule.source_url || !rule.as_of) {
+        errors.push(`derived reward rule ${rule.id ?? "unknown"} needs condition, cap_formula, source_url, and as_of`);
+      }
+    }
+  }
   const benefitIds = new Set();
   for (const benefit of card?.benefits ?? []) {
     if (!benefit.id || benefitIds.has(benefit.id)) errors.push(`benefit id must be unique: ${benefit.id ?? "missing"}`);
@@ -332,6 +343,9 @@ export function validateCard(card) {
       if (!benefit.valuation.basis) errors.push(`benefit ${benefit.id ?? "unknown"} valuation needs a basis`);
       if (!benefit.valuation.source_url) errors.push(`benefit ${benefit.id ?? "unknown"} valuation needs a source_url`);
       if (!benefit.valuation.as_of) errors.push(`benefit ${benefit.id ?? "unknown"} valuation needs an as_of date`);
+      if (benefit.valuation.unit_value_usd != null && (!benefit.valuation.unit || !Number.isFinite(Number(benefit.valuation.unit_value_usd)))) {
+        errors.push(`benefit ${benefit.id ?? "unknown"} unit valuation needs a unit and numeric unit_value_usd`);
+      }
       if (benefit.valuation.method === "excluded" && Number(benefit.valuation.value_usd) !== 0) {
         errors.push(`benefit ${benefit.id ?? "unknown"} excluded valuation must equal zero`);
       }

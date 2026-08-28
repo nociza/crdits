@@ -8,6 +8,7 @@ The repository catalog contains versioned facts shared by all holders of a card 
 - recurring statement credits and non-cash benefits;
 - the public tracking behavior (`spend`, `automatic`, `enrollment`, or `reference`) for each benefit;
 - a public valuation method, value, basis, source URL, and `as_of` date for every benefit;
+- derived reward-rate components, eligibility conditions, and cap formulas when a headline multiplier combines currencies;
 - effective dates, verification status, and source URLs.
 
 The local SQLite database contains user-specific or sensitive state:
@@ -21,6 +22,8 @@ The local SQLite database contains user-specific or sensitive state:
 Never migrate local fields into the public catalog. Never overwrite a historical public definition; let the structured catalog commands archive and replace it.
 
 Use `face_value` for a finite issuer-denominated dollar credit. Use `points` for explicit points or miles multiplied by a dated, sourced cents-per-point estimate. Use `excluded` at $0 for memberships, subscriptions, statuses, elite-night credits, and unsupported certificates. Reserve `market_estimate` for a reproducible public methodology. Editorial point valuations are estimates; preserve their basis, source, and date, and distinguish them from cash floors.
+
+For Bilt Palladium under Flexible Bilt Cash, the catalog's 3.33X catch-all is conditional: 2X base points plus 4% Bilt Cash converted at $30 per 1,000 housing points. The conversion adds 1.33 points per everyday dollar and exhausts the full 1X housing unlock after everyday spend reaches roughly 75% of monthly housing. The annual $200 Bilt Cash allocation uses a conservative $66.67 market estimate based on the 1-cent Bilt Points cash floor, while retaining $200 as its nominal spend balance.
 
 Tracking behavior is a public product fact, but whether a holder activated a benefit is private. Automatic bonuses and statuses must never require usage entries. Anniversary benefits must not receive a calendar-year fallback when the private membership-year anchor is absent.
 

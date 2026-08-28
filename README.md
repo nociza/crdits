@@ -124,6 +124,8 @@ expected value = sourced catalog value × remaining balance share
 
 Dollar statement credits default to 100% of issuer-stated face value. Editorial point valuations remain labeled estimates rather than guaranteed cash value. Existing local preference rows remain supported as optional advanced overrides, while targeted offers stay separate and are never added automatically to expected value.
 
+Derived earn rates retain their math and limits in the public catalog. For example, Bilt Palladium's conditional 3.33X catch-all combines 2X base points with 1.33X from 4% Bilt Cash redeemed toward housing points. It applies only under Flexible Bilt Cash while housing unlock capacity remains—about the first 75% of monthly housing spend. The annual $200 Bilt Cash allocation is conservatively valued at $66.67 using that redemption and a 1-cent-per-point cash floor.
+
 ## Private deployment
 
 `crdits` is intended to run as a separate service boundary, even when linked from an existing dashboard. Use a dedicated service account, local SQLite path, API credential, port, and systemd sandbox. A trusted small-app guest may be shared, but SQLite must never be opened over a network mount. Keep the catalog and client-side encrypted database backups separate, and place external browser access behind its own Access policy.
