@@ -392,67 +392,79 @@ export function CrditsDashboard() {
   }
 
   function renderWalletCard(card: WalletCard) {
+    const spendBenefits = card.benefits.filter((benefit) => benefit.tracking_type === "spend");
+    const includedBenefits = card.benefits.filter((benefit) => benefit.tracking_type !== "spend");
+    const includedNeedsAction = includedBenefits.some((benefit) => benefit.is_actionable);
+
+    function renderBenefit(benefit: Benefit, compact = false) {
+      const currentPeriod = benefit.periods.find((period) => period.is_current);
+      const pastPeriods = benefit.periods.filter((period) => period.end < (dashboard?.as_of || ""));
+      const latestPastPeriod = pastPeriods.at(-1);
+      const splitCadenceLabel = benefit.cadence === "quarterly" ? "Resets every quarter" : "Resets every six months";
+      const automaticLabel = benefit.points_amount
+        ? `${benefit.points_amount.toLocaleString()} points${benefit.amount_usd == null ? "" : ` · ${usd.format(benefit.amount_usd)} est.`}`
+        : benefit.amount_usd == null ? "Included automatically" : `${usd.format(benefit.amount_usd)} automatic value`;
+      const enrollmentLabel = benefit.status === "active" ? `Active${benefit.activated_on ? ` since ${benefit.activated_on}` : ""}` : "Activate once";
+      const detail = benefit.requires_membership_year
+        ? "Set this card’s membership-year date for an accurate renewal countdown"
+        : benefit.tracking_type === "spend"
+          ? benefit.periods.length ? splitCadenceLabel : `${benefit.cadence.replaceAll("_", " ")} · expires ${benefit.expires_on}`
+          : benefit.description;
+      const value = benefit.requires_membership_year
+        ? "Date needed"
+        : benefit.tracking_type === "spend"
+          ? `${usd.format(benefit.remaining_usd ?? 0)} left`
+          : benefit.tracking_type === "automatic"
+            ? automaticLabel
+            : benefit.tracking_type === "enrollment" ? enrollmentLabel : "Reference";
+
+      return (
+        <div className={`benefit tracking-${benefit.tracking_type} ${compact ? "compact-benefit" : ""}`} key={benefit.id}>
+          <div className="benefit-title"><span className="benefit-kind">{benefit.tracking_type === "spend" ? benefit.cadence.replaceAll("_", " ") : benefit.tracking_type === "enrollment" ? "set once" : benefit.tracking_type}</span><strong>{benefit.title}</strong><small>{detail}</small></div>
+          <div className="benefit-value"><strong>{value}</strong>{benefit.tracking_type === "spend" ? <small>{usd.format(benefit.used_usd)} used</small> : <small className="behavior-label">{benefit.counts_toward_value ? "Included in value" : "Not deducted or counted"}</small>}</div>
+          {benefit.periods.length ? <CreditPeriods periods={benefit.periods} asOf={dashboard?.as_of || ""} onSelect={(period) => setEdit({ mode: "usage", card, benefit, periodKey: period.key })} /> : benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <Progress used={benefit.used_usd} total={benefit.amount_usd} /> : null}
+          <div className="benefit-actions">
+            {benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <button type="button" className="is-primary" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: currentPeriod?.key || null })}>Log {currentPeriod ? `${currentPeriod.label} use` : "use"}</button> : null}
+            {latestPastPeriod ? <button type="button" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: latestPastPeriod.key })}>Past period</button> : null}
+            {benefit.tracking_type === "enrollment" && benefit.status !== "active" ? <button type="button" className="is-primary" onClick={() => void activateBenefit(card, benefit)}>Mark active</button> : null}
+            {benefit.tracking_type === "spend" || benefit.counts_toward_value ? <button type="button" onClick={() => setEdit({ mode: "value", card, benefit })}>Value {Math.round(benefit.probability * benefit.personal_value_percent * 100)}%</button> : null}
+          </div>
+          {edit?.card.id === card.id && edit.benefit.id === benefit.id ? (
+            edit.mode === "usage" ? (
+              <UsageEditor key={`${benefit.id}:${edit.periodKey || "open"}`} benefit={benefit} asOf={dashboard?.as_of || ""} initialPeriodKey={edit.periodKey} onSubmit={recordUsage} onCancel={() => setEdit(null)} />
+            ) : (
+              <form className="inline-editor" onSubmit={saveValue}>
+                <label>Chance of value %<input name="probability" type="number" min="0" max="100" defaultValue={Math.round(benefit.probability * 100)} /></label>
+                <label>Personal value %<input name="personal_value_percent" type="number" min="0" max="100" defaultValue={Math.round(benefit.personal_value_percent * 100)} /></label>
+                <label>Face value override<input name="face_value_override" type="number" min="0" step="0.01" defaultValue={benefit.amount_usd ?? ""} /></label>
+                <label>Remind days before<input name="reminder_days" type="number" min="0" defaultValue="30" /></label>
+                <button>Save value</button><button type="button" className="ghost" onClick={() => setEdit(null)}>Cancel</button>
+              </form>
+            )
+          ) : null}
+        </div>
+      );
+    }
+
     return (
       <article className="wallet-card" key={card.id}>
-        <div className="card-identity">
+        <aside className="wallet-card-rail">
           <CardArtwork card={card} />
-          <div>
+          <div className="card-identity">
             <div className="card-topline"><span>{card.issuer}</span><small className={card.needs_attention ? "needs-attention" : "is-caught-up"}>{card.needs_attention ? `${card.actionable_benefits_count} to review` : "Caught up"}</small></div>
             <h2>{card.nickname}{card.last_four ? <em>•• {card.last_four}</em> : null}</h2>
             <p>{card.name}</p>
           </div>
-        </div>
-        <div className="membership-year">
-          <span><small>Membership year starts</small><strong>{card.membership_year_start || "Not set"}</strong></span>
-          <button type="button" onClick={() => setCardEdit(cardEdit === card.id ? null : card.id)}>{card.membership_year_start ? "Change" : "Set date"}</button>
-        </div>
-        {cardEdit === card.id ? (
-          <form className="inline-editor membership-editor" onSubmit={(event) => saveMembershipYear(event, card)}>
-            <label className="wide">Start date from your annual-fee record<input name="membership_year_start" type="date" defaultValue={card.membership_year_start || ""} required /></label>
-            <button>Save membership year</button><button type="button" className="ghost" onClick={() => setCardEdit(null)}>Cancel</button>
-          </form>
-        ) : null}
-        <div className="card-values"><span><small>Expected left</small><strong>{usd.format(card.expected_remaining_usd)}</strong></span><span><small>Annual fee</small><strong>{usd.format(card.annual_fee_usd)}</strong></span><span><small>Projected net</small><strong className={card.projected_net_usd >= 0 ? "positive" : "negative"}>{usd.format(card.projected_net_usd)}</strong></span></div>
-        <div className="benefit-list">
-          {card.benefits.map((benefit) => {
-            const currentPeriod = benefit.periods.find((period) => period.is_current);
-            const pastPeriods = benefit.periods.filter((period) => period.end < (dashboard?.as_of || ""));
-            const latestPastPeriod = pastPeriods.at(-1);
-            const splitCadenceLabel = benefit.cadence === "quarterly" ? "Quarterly credit · each quarter resets" : "Semiannual credit · each half resets";
-            const automaticLabel = benefit.points_amount
-              ? `${benefit.points_amount.toLocaleString()} points · ${benefit.amount_usd == null ? "value not set" : `${usd.format(benefit.amount_usd)} estimated value`}`
-              : benefit.amount_usd == null ? "Included automatically" : `${usd.format(benefit.amount_usd)} automatic value`;
-            const enrollmentLabel = benefit.status === "active"
-              ? `Active${benefit.activated_on ? ` since ${benefit.activated_on}` : ""}`
-              : "One-time activation";
-            return (
-              <div className={`benefit tracking-${benefit.tracking_type}`} key={benefit.id}>
-                <div className="benefit-title"><strong>{benefit.title}</strong><small>{benefit.requires_membership_year ? "Set the membership-year date for a true countdown" : benefit.tracking_type === "spend" ? benefit.periods.length ? splitCadenceLabel : `${benefit.cadence.replaceAll("_", " ")} · expires ${benefit.expires_on}` : benefit.description}</small></div>
-                <div className="benefit-value"><strong>{benefit.requires_membership_year ? "Date needed" : benefit.tracking_type === "spend" ? `${usd.format(benefit.remaining_usd ?? 0)} left` : benefit.tracking_type === "automatic" ? automaticLabel : benefit.tracking_type === "enrollment" ? enrollmentLabel : "Reference benefit"}</strong>{benefit.tracking_type === "spend" ? <small>{usd.format(benefit.used_usd)} used</small> : <small className="behavior-label">{benefit.tracking_type}{benefit.counts_toward_value ? "" : " · not counted"}</small>}</div>
-                {benefit.periods.length ? <CreditPeriods periods={benefit.periods} asOf={dashboard?.as_of || ""} onSelect={(period) => setEdit({ mode: "usage", card, benefit, periodKey: period.key })} /> : benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <Progress used={benefit.used_usd} total={benefit.amount_usd} /> : null}
-                <div className="benefit-actions">
-                  {benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <button type="button" className="is-primary" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: currentPeriod?.key || null })}>Log {currentPeriod ? `${currentPeriod.label} use` : "use"}</button> : null}
-                  {latestPastPeriod ? <button type="button" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: latestPastPeriod.key })}>Bookkeep past</button> : null}
-                  {benefit.tracking_type === "enrollment" && benefit.status !== "active" ? <button type="button" onClick={() => void activateBenefit(card, benefit)}>Mark active once</button> : null}
-                  {benefit.tracking_type === "spend" || benefit.counts_toward_value ? <button type="button" onClick={() => setEdit({ mode: "value", card, benefit })}>Value {Math.round(benefit.probability * benefit.personal_value_percent * 100)}%</button> : null}
-                </div>
-                {edit?.card.id === card.id && edit.benefit.id === benefit.id ? (
-                  edit.mode === "usage" ? (
-                    <UsageEditor key={`${benefit.id}:${edit.periodKey || "open"}`} benefit={benefit} asOf={dashboard?.as_of || ""} initialPeriodKey={edit.periodKey} onSubmit={recordUsage} onCancel={() => setEdit(null)} />
-                  ) : (
-                    <form className="inline-editor" onSubmit={saveValue}>
-                      <label>Chance of value %<input name="probability" type="number" min="0" max="100" defaultValue={Math.round(benefit.probability * 100)} /></label>
-                      <label>Personal value %<input name="personal_value_percent" type="number" min="0" max="100" defaultValue={Math.round(benefit.personal_value_percent * 100)} /></label>
-                      <label>Face value override<input name="face_value_override" type="number" min="0" step="0.01" defaultValue={benefit.amount_usd ?? ""} /></label>
-                      <label>Remind days before<input name="reminder_days" type="number" min="0" defaultValue="30" /></label>
-                      <button>Save value</button><button type="button" className="ghost" onClick={() => setEdit(null)}>Cancel</button>
-                    </form>
-                  )
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
+          <div className="card-net"><small>Projected net</small><strong className={card.projected_net_usd >= 0 ? "positive" : "negative"}>{card.projected_net_usd >= 0 ? "+" : ""}{usd.format(card.projected_net_usd)}</strong></div>
+          <div className="card-values"><span><small>Expected left</small><strong>{usd.format(card.expected_remaining_usd)}</strong></span><span><small>Annual fee</small><strong>{usd.format(card.annual_fee_usd)}</strong></span></div>
+          <div className="membership-year"><span><small>Membership year</small><strong>{card.membership_year_start || "Not set"}</strong></span><button type="button" onClick={() => setCardEdit(cardEdit === card.id ? null : card.id)}>{card.membership_year_start ? "Change" : "Set date"}</button></div>
+          {cardEdit === card.id ? <form className="inline-editor membership-editor" onSubmit={(event) => saveMembershipYear(event, card)}><label className="wide">Start date from annual-fee record<input name="membership_year_start" type="date" defaultValue={card.membership_year_start || ""} required /></label><button>Save date</button><button type="button" className="ghost" onClick={() => setCardEdit(null)}>Cancel</button></form> : null}
+        </aside>
+        <section className="wallet-card-body">
+          <header className="benefits-heading"><div><p className="eyebrow">CREDITS TO USE</p><h3>{spendBenefits.length ? `${spendBenefits.length} benefit${spendBenefits.length === 1 ? "" : "s"} in play` : "Nothing to use right now"}</h3></div><span className={card.needs_attention ? "" : "caught-up"}>{card.needs_attention ? "Review needed" : "✓ All caught up"}</span></header>
+          <div className="benefit-list spend-benefits">{spendBenefits.map((benefit) => renderBenefit(benefit))}</div>
+          {includedBenefits.length ? <details className="included-benefits" open={includedNeedsAction || undefined}><summary><span>Included perks &amp; statuses</span><small>{includedBenefits.length} set-once or reference item{includedBenefits.length === 1 ? "" : "s"}</small></summary><div className="benefit-list">{includedBenefits.map((benefit) => renderBenefit(benefit, true))}</div></details> : null}
+        </section>
       </article>
     );
   }
@@ -506,29 +518,27 @@ export function CrditsDashboard() {
         <>
           <section className="hero">
             <div>
-              <p className="eyebrow">CARD VALUE LEDGER · {dashboard?.as_of ?? "LOCAL"}</p>
-              <h1>Your card value,<br /><em>minus the wishful thinking.</em></h1>
-              <p className="hero-copy">Credits used, value still at risk, and the right card for the next purchase—without bank logins.</p>
+              <p className="eyebrow">CARDCREDITS · {dashboard?.as_of ?? "LOCAL"}</p>
+              <h1>Your card credits,<br /><em>at a glance.</em></h1>
+              <p className="hero-copy">See what is available, what needs attention, and which card to use next. Personal activity stays in your private ledger.</p>
             </div>
             <div className="net-orb">
-              <span>Projected net</span>
-              <strong>{dashboard ? usd.format(dashboard.metrics.projected_net_usd) : "—"}</strong>
-              <small>realized + expected − fees</small>
+              <span>Available now</span>
+              <strong>{dashboard ? usd.format(dashboard.metrics.credits_remaining_usd) : "—"}</strong>
+              <small>{dashboard?.reminders.length ?? 0} reminder{dashboard?.reminders.length === 1 ? "" : "s"} · {attentionCards.length} card{attentionCards.length === 1 ? "" : "s"} to review</small>
             </div>
           </section>
 
           <section className="metrics" aria-label="Portfolio metrics">
-            <Metric label="Realized this year" value={dashboard?.metrics.realized_ytd_usd ?? 0} detail="Usage ledger" tone="good" />
-            <Metric label="Credits remaining" value={dashboard?.metrics.credits_remaining_usd ?? 0} detail="Face value through year-end" />
-            <Metric label="Expected remaining" value={dashboard?.metrics.expected_remaining_usd ?? 0} detail="Probability × personal value" tone="good" />
-            <Metric label="Targeted offers" value={dashboard?.metrics.targeted_offers_usd ?? 0} detail="Excluded from expected value" />
-            <Metric label="Annual fees" value={dashboard?.metrics.annual_fees_usd ?? 0} detail={`${dashboard?.cards.length ?? 0} active cards`} tone="warn" />
+            <Metric label="Credits available" value={dashboard?.metrics.credits_remaining_usd ?? 0} detail={`${usd.format(dashboard?.metrics.expected_remaining_usd ?? 0)} expected after personal value`} />
+            <Metric label="Used this year" value={dashboard?.metrics.realized_ytd_usd ?? 0} detail="Recorded in your private ledger" tone="good" />
+            <Metric label="Projected net" value={dashboard?.metrics.projected_net_usd ?? 0} detail={`Against ${usd.format(dashboard?.metrics.annual_fees_usd ?? 0)} in annual fees`} tone={(dashboard?.metrics.projected_net_usd ?? 0) >= 0 ? "good" : "warn"} />
           </section>
 
           <section className="overview-grid">
             <article className="panel attention-panel">
               <div className="panel-heading">
-                <div><p className="eyebrow">MONEY AT RISK</p><h2>Use these next</h2></div>
+                <div><p className="eyebrow">ATTENTION QUEUE</p><h2>Use these next</h2></div>
                 <span className="count-badge">{dashboard?.reminders.length ?? 0}</span>
               </div>
               <div className="reminder-list">
@@ -564,13 +574,11 @@ export function CrditsDashboard() {
             </article>
           </section>
 
-          <section className="portfolio-strip">
-            <div><p className="eyebrow">PORTFOLIO</p><h2>Every fee has to earn its place.</h2></div>
-            <div className="mini-cards">
-              {dashboard?.cards.slice(0, 4).map((card) => (
-                <button key={card.id} onClick={() => setTab("wallet")}>
-                  <CardArtwork card={card} compact /><span>{card.issuer}</span><strong>{card.nickname}</strong><small className={card.projected_net_usd >= 0 ? "positive" : "negative"}>{card.projected_net_usd >= 0 ? "+" : ""}{usd.format(card.projected_net_usd)} projected</small>
-                </button>
+          <section className="review-section">
+            <div className="review-heading"><div><p className="eyebrow">YOUR WALLET</p><h2>Cards to review</h2><span>Spendable credits come first. Automatic perks and quiet cards stay out of the way.</span></div><button onClick={() => setTab("wallet")}>Open wallet →</button></div>
+            <div className="review-cards">
+              {(attentionCards.length ? attentionCards : dashboard?.cards.slice(0, 4) || []).map((card) => (
+                <button key={card.id} onClick={() => setTab("wallet")}><CardArtwork card={card} compact /><span><small>{card.issuer}</small><strong>{card.nickname}</strong><em>{card.actionable_benefits_count ? `${card.actionable_benefits_count} benefit${card.actionable_benefits_count === 1 ? "" : "s"} to review` : "Caught up"}</em></span><b>{usd.format(card.benefits.filter((benefit) => benefit.tracking_type === "spend").reduce((total, benefit) => total + (benefit.remaining_usd || 0), 0))}<small>available</small></b><i>→</i></button>
               ))}
             </div>
           </section>
@@ -586,10 +594,10 @@ export function CrditsDashboard() {
 
           {otherCards.length ? <details className="quiet-cards"><summary>{otherCards.length} card{otherCards.length === 1 ? "" : "s"} with no credits to use</summary><div className="wallet-grid">{otherCards.map(renderWalletCard)}</div></details> : null}
 
-          <div className="forms-grid">
-            <article className="panel form-panel"><p className="eyebrow">WALLET</p><h2>Add a card</h2><form onSubmit={addWalletCard} className="stack-form"><label>Card product<select name="catalog_slug" required defaultValue=""><option value="" disabled>Choose from catalog</option>{dashboard?.catalog_cards.map((card) => <option key={card.slug} value={card.slug}>{card.issuer} · {card.short_name}</option>)}</select></label><label>Nickname<input name="nickname" placeholder="e.g. Aspire" /></label><label>Last four<input name="last_four" inputMode="numeric" maxLength={4} placeholder="Optional" /></label><div className="split-fields"><label>Opened<input name="opened_on" type="date" /></label><label>Membership year starts<input name="membership_year_start" type="date" /></label></div><button>Add to wallet</button></form></article>
-            <article className="panel form-panel"><p className="eyebrow">TARGETED · LOCAL ONLY</p><h2>Add an offer</h2><form onSubmit={addOffer} className="stack-form"><label>Card<select name="wallet_card_id" required>{dashboard?.cards.map((card) => <option key={card.id} value={card.id}>{card.nickname}</option>)}</select></label><div className="split-fields"><label>Merchant<input name="merchant" required /></label><label>Reward $<input name="reward_amount_usd" type="number" min="0" step="0.01" /></label></div><label>Offer<input name="title" placeholder="Spend $100, get $20" required /></label><div className="split-fields"><label>Spend requirement $<input name="spend_requirement_usd" type="number" min="0" /></label><label>Expires<input name="expires_on" type="date" /></label></div><label className="check"><input name="activated" type="checkbox" /> Activated</label><button>Save offer</button></form></article>
-          </div>
+          <details className="manage-wallet"><summary><span><strong>Manage wallet</strong><small>Add a card or save a targeted offer</small></span><b>+</b></summary><div className="forms-grid">
+              <article className="panel form-panel"><p className="eyebrow">WALLET</p><h2>Add a card</h2><form onSubmit={addWalletCard} className="stack-form"><label>Card product<select name="catalog_slug" required defaultValue=""><option value="" disabled>Choose from catalog</option>{dashboard?.catalog_cards.map((card) => <option key={card.slug} value={card.slug}>{card.issuer} · {card.short_name}</option>)}</select></label><label>Nickname<input name="nickname" placeholder="e.g. Aspire" /></label><label>Last four<input name="last_four" inputMode="numeric" maxLength={4} placeholder="Optional" /></label><div className="split-fields"><label>Opened<input name="opened_on" type="date" /></label><label>Membership year starts<input name="membership_year_start" type="date" /></label></div><button>Add to wallet</button></form></article>
+              <article className="panel form-panel"><p className="eyebrow">TARGETED · LOCAL ONLY</p><h2>Add an offer</h2><form onSubmit={addOffer} className="stack-form"><label>Card<select name="wallet_card_id" required>{dashboard?.cards.map((card) => <option key={card.id} value={card.id}>{card.nickname}</option>)}</select></label><div className="split-fields"><label>Merchant<input name="merchant" required /></label><label>Reward $<input name="reward_amount_usd" type="number" min="0" step="0.01" /></label></div><label>Offer<input name="title" placeholder="Spend $100, get $20" required /></label><div className="split-fields"><label>Spend requirement $<input name="spend_requirement_usd" type="number" min="0" /></label><label>Expires<input name="expires_on" type="date" /></label></div><label className="check"><input name="activated" type="checkbox" /> Activated</label><button>Save offer</button></form></article>
+          </div></details>
           {dashboard?.offers.length ? <article className="panel offer-table"><div className="panel-heading"><div><p className="eyebrow">SAVED OFFERS</p><h2>Targeted coupons</h2></div></div>{dashboard.offers.map((offer) => <div key={offer.id}><strong>{offer.merchant}</strong><span>{offer.title}</span><small>{walletById.get(offer.wallet_card_id)?.nickname} · {offer.activated ? "activated" : "not activated"} · {offer.expires_on || "no expiry"}</small><b>{offer.reward_amount_usd ? usd.format(offer.reward_amount_usd) : "—"}</b></div>)}</article> : null}
         </section>
       ) : null}

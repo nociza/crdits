@@ -266,3 +266,137 @@ footer small { justify-self: end; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
 }
+
+/* Wallet-first redesign: spend credits lead, passive perks recede. */
+.hero { align-items: center; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); padding-top: clamp(56px, 7vw, 92px); padding-bottom: 52px; }
+.hero h1 { max-width: 790px; font-size: clamp(50px, 6.5vw, 86px); line-height: .96; }
+.hero-copy { margin-top: 24px; font-size: 17px; }
+.net-orb { width: 100%; aspect-ratio: auto; min-height: 190px; align-items: flex-start; padding: 34px; border-radius: 20px; text-align: left; }
+.net-orb::before { inset: 10px; border-radius: 13px; }
+.net-orb strong { margin: 14px 0 10px; font-size: clamp(48px, 5vw, 66px); }
+.net-orb small { max-width: none; font-size: 10px; }
+.metrics { grid-template-columns: repeat(3, 1fr); }
+.metric-card { min-height: 140px; padding: 28px 25px; }
+.metric-card span { font-size: 12px; }
+.metric-card strong { margin: 13px 0 9px; font-size: clamp(32px, 3.3vw, 44px); }
+.metric-card small { max-width: 280px; line-height: 1.45; }
+.overview-grid { gap: 24px; padding-top: 54px; padding-bottom: 40px; }
+.attention-panel, .recommend-panel { min-height: 410px; }
+
+.review-section { max-width: 1440px; margin: 0 auto 68px; padding: 0 clamp(20px, 4vw, 64px); }
+.review-heading { display: flex; align-items: end; justify-content: space-between; gap: 28px; margin-bottom: 22px; }
+.review-heading h2 { margin: 0; font-size: 34px; letter-spacing: -.045em; }
+.review-heading span { display: block; margin-top: 8px; color: var(--muted); font-size: 13px; }
+.review-heading > button { padding: 10px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); color: var(--ink); font-size: 12px; cursor: pointer; }
+.review-heading > button:hover { border-color: var(--green); color: var(--green); }
+.review-cards { display: grid; gap: 9px; }
+.review-cards > button { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto 20px; align-items: center; gap: 19px; min-height: 88px; padding: 11px 18px 11px 11px; border: 1px solid var(--line); border-radius: 13px; background: rgba(251,250,245,.72); text-align: left; cursor: pointer; }
+.review-cards > button:hover { border-color: var(--green); background: var(--panel); transform: translateX(2px); box-shadow: var(--shadow); }
+.review-cards .card-art.compact { width: 96px; margin: 0; }
+.review-cards span small, .review-cards span strong, .review-cards span em, .review-cards b small { display: block; }
+.review-cards span small { color: var(--green); font: 700 9px var(--font-geist-mono), monospace; letter-spacing: .1em; text-transform: uppercase; }
+.review-cards span strong { margin-top: 4px; font-size: 16px; }
+.review-cards span em { margin-top: 3px; color: var(--muted); font-size: 11px; font-style: normal; }
+.review-cards b { font-size: 22px; text-align: right; }
+.review-cards b small { margin-top: 3px; color: var(--muted); font-size: 9px; font-weight: 550; letter-spacing: .06em; text-transform: uppercase; }
+.review-cards > button > i { color: var(--green); font-size: 17px; font-style: normal; }
+
+.section-page { padding-top: 54px; }
+.section-title { align-items: center; }
+.section-title p:not(.eyebrow) { max-width: 720px; font-size: 14px; line-height: 1.55; }
+.wallet-grid { grid-template-columns: 1fr; gap: 20px; }
+.wallet-card { display: grid; grid-template-columns: 270px minmax(0, 1fr); padding: 0; overflow: hidden; box-shadow: 0 12px 38px rgba(19,35,29,.06); }
+.wallet-card-rail { padding: 25px; border-right: 1px solid var(--line); background: linear-gradient(150deg, rgba(184,225,203,.2), transparent 60%); }
+.wallet-card-rail > .card-art { width: 100%; margin-bottom: 23px; }
+.card-identity { display: block; }
+.wallet-card h2 { margin: 15px 0 4px; font-size: 28px; line-height: 1.05; }
+.card-net { margin-top: 25px; padding: 17px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.card-net small, .card-net strong { display: block; }
+.card-net small { color: var(--muted); font: 700 9px var(--font-geist-mono), monospace; letter-spacing: .08em; text-transform: uppercase; }
+.card-net strong { margin-top: 6px; font-size: 30px; letter-spacing: -.04em; }
+.card-values { grid-template-columns: repeat(2, 1fr); margin: 0; padding: 16px 0; border-top: 0; }
+.card-values span { padding: 0 11px; }
+.card-values span:first-child { padding-left: 0; }
+.card-values span:last-child { border-right: 0; }
+.card-values small { font-size: 9px; }
+.card-values strong { font-size: 17px; }
+.membership-year { margin-top: 0; padding: 11px 12px; }
+.membership-editor { grid-template-columns: 1fr; margin-top: 9px; padding: 11px; }
+.wallet-card-body { min-width: 0; padding: 30px; }
+.benefits-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 19px; }
+.benefits-heading .eyebrow { margin-bottom: 7px; }
+.benefits-heading h3 { margin: 0; font-size: 25px; letter-spacing: -.04em; }
+.benefits-heading > span { padding: 7px 10px; border-radius: 999px; color: #7f211b; background: #f6d7d2; font-size: 10px; font-weight: 700; }
+.benefits-heading > span.caught-up { color: var(--green-dark); background: rgba(184,225,203,.48); }
+.benefit-list { gap: 11px; }
+.benefit { grid-template-columns: minmax(0, 1fr) minmax(130px, auto); gap: 13px 24px; padding: 18px; }
+.benefit-kind { display: block; margin-bottom: 7px; color: var(--green); font: 700 9px var(--font-geist-mono), monospace; letter-spacing: .1em; text-transform: uppercase; }
+.benefit-title strong { font-size: 16px; }
+.benefit-title small { max-width: 660px; margin-top: 5px; font-size: 11px; line-height: 1.45; }
+.benefit-value strong { font-size: 17px; }
+.benefit-value small { margin-top: 5px; font-size: 10px; }
+.progress-track { height: 5px; }
+.credit-periods { gap: 7px; }
+.credit-period { min-height: 72px; padding: 10px 11px; }
+.credit-period small { font-size: 9px; }
+.credit-period strong { margin-top: 6px; font-size: 11px; }
+.benefit-actions { gap: 8px; }
+.benefit-actions button { min-height: 36px; padding: 8px 11px; font-size: 10px; }
+.inline-editor { gap: 11px; padding: 15px; }
+.inline-editor button { min-height: 40px; }
+.included-benefits { margin-top: 19px; padding-top: 17px; border-top: 1px solid var(--line); }
+.included-benefits > summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 5px 1px; color: var(--muted); cursor: pointer; list-style-position: inside; }
+.included-benefits > summary span { color: var(--ink); font-size: 13px; font-weight: 700; }
+.included-benefits > summary small { font-size: 11px; }
+.included-benefits[open] > summary { margin-bottom: 13px; }
+.included-benefits .benefit { padding: 14px 16px; background: rgba(255,255,255,.22); }
+.included-benefits .benefit-title strong, .included-benefits .benefit-value strong { font-size: 13px; }
+.included-benefits .benefit-title small { font-size: 10px; }
+.behavior-label { text-transform: none; letter-spacing: .02em; }
+.quiet-cards { margin-top: 32px; padding-top: 24px; }
+.quiet-cards summary { padding: 10px 0; font-size: 13px; }
+.manage-wallet { margin-top: 26px; border: 1px solid var(--line); border-radius: 14px; background: rgba(251,250,245,.42); }
+.manage-wallet > summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 19px 21px; cursor: pointer; list-style: none; }
+.manage-wallet > summary::-webkit-details-marker { display: none; }
+.manage-wallet > summary strong, .manage-wallet > summary small { display: block; }
+.manage-wallet > summary strong { font-size: 14px; }
+.manage-wallet > summary small { margin-top: 4px; color: var(--muted); font-size: 11px; }
+.manage-wallet > summary b { color: var(--green); font-size: 24px; font-weight: 400; transition: transform .2s ease; }
+.manage-wallet[open] > summary b { transform: rotate(45deg); }
+.manage-wallet .forms-grid { margin: 0; padding: 0 15px 15px; }
+
+@media (max-width: 1040px) {
+  .hero { grid-template-columns: 1fr; }
+  .net-orb { justify-self: stretch; width: 100%; min-height: 155px; }
+  .wallet-card { grid-template-columns: 235px minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .topbar { display: flex; justify-content: center; padding: 0 12px; }
+  .topbar .wordmark, .topbar .privacy-badge { display: none; }
+  .topbar nav { position: static; width: min(100%, 420px); justify-content: stretch; background: var(--ink); box-shadow: none; }
+  .metrics { grid-template-columns: 1fr; padding: 0 15px; }
+  .metric-card { min-height: 112px; border-top: 1px solid var(--line) !important; border-right: 0 !important; }
+  .metric-card:first-child { border-top: 0 !important; }
+  .metric-card:last-child { grid-column: auto; }
+  .review-heading { align-items: flex-start; flex-direction: column; }
+  .review-cards > button { grid-template-columns: 76px minmax(0, 1fr) 18px; gap: 13px; }
+  .review-cards .card-art.compact { width: 76px; }
+  .review-cards b { display: none; }
+  .wallet-card { grid-template-columns: 1fr; }
+  .wallet-card-rail { display: grid; grid-template-columns: 155px minmax(0, 1fr); gap: 19px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .wallet-card-rail > .card-art { margin: 0; }
+  .card-net, .card-values, .membership-year, .membership-editor { grid-column: 1 / -1; }
+  .wallet-card-body { padding: 23px 19px; }
+  .benefit { grid-template-columns: 1fr; }
+  .benefit-value { text-align: left; }
+  .included-benefits > summary { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .forms-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .wallet-card-rail { display: block; padding: 20px; }
+  .wallet-card-rail > .card-art { max-width: 250px; margin-bottom: 20px; }
+  .benefits-heading > span { display: none; }
+  .benefit-actions { flex-wrap: wrap; }
+  .credit-periods.has-2, .credit-periods.has-4 { grid-template-columns: 1fr; }
+  .inline-editor { grid-template-columns: 1fr; }
+}

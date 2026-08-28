@@ -21,8 +21,8 @@ test("server-renders the crdits application shell", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
   assert.match(html, /<title>crdits — card value ledger<\/title>/i);
-  assert.match(html, /Your card value/);
-  assert.match(html, /minus the wishful thinking/);
+  assert.match(html, /Your card credits/);
+  assert.match(html, /at a glance/);
   assert.match(html, /Public rules in Git/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
