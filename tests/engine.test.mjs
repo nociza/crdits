@@ -97,21 +97,30 @@ test("automatic and enrollment benefits never behave like spend credits", () => 
   db.close();
 });
 
-test("quarterly and semiannual credits expose independent period timelines", () => {
+test("monthly, quarterly, and semiannual credits expose independent period timelines", () => {
   const db = openDatabase(":memory:");
   const splitCard = {
     ...card,
     benefits: [
+      { id: "month-credit", title: "Dining credit", kind: "statement_credit", tracking_type: "spend", amount_usd: 10, cadence: "monthly", valid_from: "2026-01-01", valid_to: null },
       { id: "half-credit", title: "Resort credit", kind: "statement_credit", tracking_type: "spend", amount_usd: 200, cadence: "semiannual", valid_from: "2026-01-01", valid_to: null },
       { id: "quarter-credit", title: "Flight credit", kind: "statement_credit", tracking_type: "spend", amount_usd: 50, cadence: "quarterly", valid_from: "2026-01-01", valid_to: null },
     ],
   };
   const wallet = addWalletCard(db, { catalog_slug: splitCard.slug, nickname: "Split" });
+  addUsage(db, { wallet_card_id: wallet.id, benefit_id: "month-credit", amount_usd: 10, used_at: "2026-02-28" });
   addUsage(db, { wallet_card_id: wallet.id, benefit_id: "half-credit", amount_usd: 200, used_at: "2026-06-30" });
   addUsage(db, { wallet_card_id: wallet.id, benefit_id: "quarter-credit", amount_usd: 20, used_at: "2026-08-20" });
   const dashboard = buildDashboard({ catalog: [splitCard], db, asOf: "2026-08-26", reminderDays: 30 });
+  const month = dashboard.cards[0].benefits.find((item) => item.id === "month-credit");
   const half = dashboard.cards[0].benefits.find((item) => item.id === "half-credit");
   const quarter = dashboard.cards[0].benefits.find((item) => item.id === "quarter-credit");
+  assert.deepEqual(month.periods.map((item) => item.label), ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]);
+  assert.deepEqual(month.periods.filter((item) => ["2026-02", "2026-08", "2026-09"].includes(item.key)).map((item) => [item.key, item.status, item.used_usd, item.is_current]), [
+    ["2026-02", "used", 10, false],
+    ["2026-08", "available", 0, true],
+    ["2026-09", "upcoming", 0, false],
+  ]);
   assert.deepEqual(half.periods.map((item) => [item.label, item.status, item.used_usd, item.is_current]), [
     ["H1", "used", 200, false],
     ["H2", "available", 0, true],

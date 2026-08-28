@@ -19,13 +19,13 @@ crdits catalog validate --json
 crdits wallet add --catalog-slug SLUG --nickname NAME --last-four 1234 --membership-year-start YYYY-MM-DD
 crdits wallet update --card ID_OR_SLUG --membership-year-start YYYY-MM-DD
 crdits wallet import-csv PATH
-crdits use --card ID_OR_SLUG --benefit BENEFIT_ID --amount USD --date YYYY-MM-DD --period YYYY-QN|YYYY-HN --note TEXT
+crdits use --card ID_OR_SLUG --benefit BENEFIT_ID --amount USD --date YYYY-MM-DD --period YYYY-MM|YYYY-QN|YYYY-HN --note TEXT
 crdits benefit activate --card ID_OR_SLUG --benefit BENEFIT_ID --date YYYY-MM-DD --note TEXT
 crdits offer add --card ID_OR_SLUG --merchant NAME --title TEXT --reward-amount USD --expires YYYY-MM-DD --activated
 ```
 
 `--card` accepts a local wallet id, catalog slug, or exact nickname.
-`--period` is optional for ordinary spend credits and required by the skill workflow when recording a quarterly or semiannual credit. It may name a current or closed period; its date must fall inside that period, and future usage is rejected.
+`--period` is optional for ordinary spend credits and required by the skill workflow when recording a monthly, quarterly, or semiannual credit. It may name a current or closed period; its date must fall inside that period, and future usage is rejected.
 
 ## Public catalog writes
 

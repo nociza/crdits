@@ -48,7 +48,7 @@ Usage:
   crdits summary [--json]
   crdits due [--days 30] [--json]
   crdits recommend <category> [--merchant NAME] [--amount 100] [--json]
-  crdits use --card ID_OR_SLUG --benefit ID --amount USD [--date YYYY-MM-DD] [--period YYYY-QN|YYYY-HN] [--note TEXT]
+  crdits use --card ID_OR_SLUG --benefit ID --amount USD [--date YYYY-MM-DD] [--period YYYY-MM|YYYY-QN|YYYY-HN] [--note TEXT]
   crdits benefit activate --card ID_OR_SLUG --benefit ID [--date YYYY-MM-DD] [--note TEXT]
   crdits offer add --card ID_OR_SLUG --merchant NAME --title TEXT [--reward-amount USD] [--expires YYYY-MM-DD] [--activated]
   crdits wallet list [--json]

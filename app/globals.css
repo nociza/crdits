@@ -151,6 +151,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .credit-periods { grid-column: 1 / -1; display: grid; gap: 6px; }
 .credit-periods.has-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .credit-periods.has-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.credit-periods.is-monthly { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .credit-period { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; color: inherit; background: #eeede5; text-align: left; cursor: pointer; }
 .credit-period:not(:disabled):hover { border-color: var(--green); transform: translateY(-1px); }
 .credit-period:disabled { cursor: default; }
@@ -389,6 +390,7 @@ footer small { justify-self: end; }
   .wallet-card-body { padding: 23px 19px; }
   .benefit { grid-template-columns: 1fr; }
   .benefit-value { text-align: left; }
+  .credit-periods.is-monthly { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .included-benefits > summary { align-items: flex-start; flex-direction: column; gap: 5px; }
   .forms-grid { grid-template-columns: 1fr; }
 }
@@ -398,6 +400,7 @@ footer small { justify-self: end; }
   .benefits-heading > span { display: none; }
   .benefit-actions { flex-wrap: wrap; }
   .credit-periods.has-2, .credit-periods.has-4 { grid-template-columns: 1fr; }
+  .credit-periods.is-monthly { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .inline-editor { grid-template-columns: 1fr; }
 }
 

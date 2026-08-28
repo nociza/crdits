@@ -53,3 +53,35 @@ test("retrospective split-credit usage is constrained to its named period", asyn
 
   service.db.close();
 });
+
+test("retrospective monthly usage is constrained to its named month", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-09-15" });
+  const wallet = await service.addWalletCard({
+    catalog_slug: "chase-sapphire-preferred",
+    nickname: "Sapphire",
+  });
+  const benefitId = "doordash-grocery-daily-essentials-benefit-while-eligible-dashpass-terms-apply";
+
+  await service.addUsage({
+    wallet_card_id: wallet.id,
+    benefit_id: benefitId,
+    amount_usd: 10,
+    used_at: "2026-08-31",
+    period_key: "2026-08",
+  });
+
+  const dashboard = await service.dashboard();
+  const benefit = dashboard.cards[0].benefits.find((item) => item.id === benefitId);
+  assert.equal(benefit.periods.find((period) => period.key === "2026-08").status, "used");
+  assert.equal(benefit.periods.find((period) => period.key === "2026-09").used_usd, 0);
+
+  await assert.rejects(service.addUsage({
+    wallet_card_id: wallet.id,
+    benefit_id: benefitId,
+    amount_usd: 5,
+    used_at: "2026-09-01",
+    period_key: "2026-08",
+  }), /does not fall inside 2026-08/);
+
+  service.db.close();
+});

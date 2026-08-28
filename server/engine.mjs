@@ -7,6 +7,7 @@ import {
 } from "./db.mjs";
 
 const DAY_MS = 86_400_000;
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function iso(date) {
   return date.toISOString().slice(0, 10);
@@ -145,8 +146,8 @@ function daysUntil(date, asOf) {
   return Math.ceil((utcDate(date).getTime() - utcDate(asOf).getTime()) / DAY_MS);
 }
 
-function splitPeriodStates(benefit, card, wallet, preference, usage, asOf) {
-  if (trackingType(benefit) !== "spend" || !["quarterly", "semiannual"].includes(benefit.cadence)) return [];
+function periodStates(benefit, card, wallet, preference, usage, asOf) {
+  if (trackingType(benefit) !== "spend" || !["monthly", "quarterly", "semiannual"].includes(benefit.cadence)) return [];
   const face = faceValue(benefit, card, preference);
   if (face == null) return [];
   const year = utcDate(asOf).getUTCFullYear();
@@ -163,7 +164,9 @@ function splitPeriodStates(benefit, card, wallet, preference, usage, asOf) {
           : used > 0 ? "partial" : "available";
     return {
       key: window.key,
-      label: window.key.split("-").at(-1),
+      label: benefit.cadence === "monthly"
+        ? MONTH_LABELS[Number(window.start.slice(5, 7)) - 1]
+        : window.key.split("-").at(-1),
       start: window.start,
       end: window.end,
       amount_usd: round(face),
@@ -238,7 +241,7 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
     activated_on: savedStatus?.activated_on || null,
     requires_membership_year: false,
     counts_toward_value: countsTowardValue(benefit),
-    periods: splitPeriodStates(benefit, card, wallet, preference, usage, asOf),
+    periods: periodStates(benefit, card, wallet, preference, usage, asOf),
     is_actionable: (behavior === "spend" && remaining > 0) || (behavior === "enrollment" && status !== "active"),
   };
 }

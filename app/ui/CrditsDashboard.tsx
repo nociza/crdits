@@ -173,8 +173,9 @@ function Progress({ used, total }: { used: number; total: number | null }) {
 }
 
 function CreditPeriods({ periods, asOf, onSelect }: { periods: BenefitPeriod[]; asOf: string; onSelect: (period: BenefitPeriod) => void }) {
+  const isMonthly = periods.some((period) => /^\d{4}-\d{2}$/.test(period.key));
   return (
-    <div className={`credit-periods has-${periods.length}`} aria-label="Credit periods">
+    <div className={`credit-periods has-${periods.length} ${isMonthly ? "is-monthly" : ""}`} aria-label="Credit periods">
       {periods.map((period) => {
         const selectable = period.start <= asOf && period.remaining_usd > 0;
         const detail = period.status === "used"
@@ -399,7 +400,9 @@ export function CrditsDashboard() {
     const includedNeedsAction = includedBenefits.some((benefit) => benefit.is_actionable);
 
     function renderBenefit(benefit: Benefit, compact = false) {
-      const splitCadenceLabel = benefit.cadence === "quarterly" ? "Resets every quarter" : "Resets every six months";
+      const splitCadenceLabel = benefit.cadence === "monthly"
+        ? "Resets every month"
+        : benefit.cadence === "quarterly" ? "Resets every quarter" : "Resets every six months";
       const automaticLabel = benefit.points_amount
         ? `${benefit.points_amount.toLocaleString()} points${benefit.amount_usd == null ? "" : ` · ${usd.format(benefit.amount_usd)} est.`}`
         : benefit.amount_usd == null ? "Included automatically" : `${usd.format(benefit.amount_usd)} automatic value`;
