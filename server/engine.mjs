@@ -118,7 +118,7 @@ function trackingType(benefit) {
   return "spend";
 }
 
-function faceValue(benefit, card, preference) {
+function cycleAmount(benefit, card, preference) {
   if (preference.face_value_override != null) return Number(preference.face_value_override);
   if (benefit.amount_usd != null) return Number(benefit.amount_usd);
   if (benefit.points_amount != null && card.reward_currency?.point_value_cents != null) {
@@ -127,7 +127,19 @@ function faceValue(benefit, card, preference) {
   return null;
 }
 
+function catalogValue(benefit, card, preference) {
+  if (preference.face_value_override != null) return Number(preference.face_value_override);
+  if (benefit.valuation?.method === "excluded") return null;
+  if (benefit.valuation?.value_usd != null) return Number(benefit.valuation.value_usd);
+  if (benefit.points_amount != null && card.reward_currency?.point_value_cents != null) {
+    return Number(benefit.points_amount) * Number(card.reward_currency.point_value_cents) / 100;
+  }
+  if (benefit.amount_usd != null) return Number(benefit.amount_usd);
+  return null;
+}
+
 function countsTowardValue(benefit) {
+  if (benefit.valuation?.method === "excluded") return false;
   const behavior = trackingType(benefit);
   return behavior === "spend" || (behavior === "automatic" && Number(benefit.points_amount) > 0);
 }
@@ -135,11 +147,9 @@ function countsTowardValue(benefit) {
 function preferenceFor(map, walletCardId, benefit) {
   const stored = map.get(`${walletCardId}:${benefit.id}`);
   if (stored) return stored;
-  const behavior = trackingType(benefit);
-  const statementCredit = behavior === "spend";
   return {
-    probability: behavior === "automatic" ? 1 : statementCredit ? 0.8 : 0.55,
-    personal_value_percent: behavior === "automatic" ? 1 : statementCredit ? 0.9 : 0.7,
+    probability: 1,
+    personal_value_percent: 1,
     face_value_override: null,
     reminder_days: null,
   };
@@ -164,7 +174,7 @@ function resetPeriodStatus({ remaining, used, start, end, asOf }) {
 
 function resetPeriodTimeline(benefit, card, wallet, preference, usage, asOf) {
   if (trackingType(benefit) !== "spend" || !isResetCadence(benefit.cadence)) return [];
-  const face = faceValue(benefit, card, preference);
+  const face = cycleAmount(benefit, card, preference);
   if (face == null) return [];
   const year = utcDate(asOf).getUTCFullYear();
   return enumerateCycles(benefit, wallet, `${year}-01-01`, `${year}-12-31`).map((window) => {
@@ -187,7 +197,8 @@ function resetPeriodTimeline(benefit, card, wallet, preference, usage, asOf) {
 
 function currentCycleState(benefit, card, wallet, preference, usage, savedStatus, asOf) {
   const behavior = trackingType(benefit);
-  const face = faceValue(benefit, card, preference);
+  const face = cycleAmount(benefit, card, preference);
+  const catalog = catalogValue(benefit, card, preference);
   const missingMembershipYear = benefit.cadence === "anniversary" && !membershipAnchor(wallet);
   if (missingMembershipYear) {
     return {
@@ -199,6 +210,11 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
       tracking_type: behavior,
       amount_usd: face == null ? null : round(face),
       points_amount: benefit.points_amount == null ? null : Number(benefit.points_amount),
+      catalog_value_usd: catalog == null ? null : round(catalog),
+      valuation_method: benefit.valuation?.method || null,
+      valuation_basis: benefit.valuation?.basis || null,
+      valuation_source_url: benefit.valuation?.source_url || null,
+      valuation_as_of: benefit.valuation?.as_of || null,
       used_usd: 0,
       remaining_usd: null,
       expected_value_usd: null,
@@ -220,10 +236,11 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
   if (!window) return null;
   const used = behavior === "spend" ? usageFor(usage, wallet.id, benefit.id, window.start, window.end) : 0;
   const remaining = behavior === "spend" && face != null ? Math.max(0, Number(face) - used) : behavior === "automatic" ? 0 : null;
-  const expected = behavior === "spend" && remaining != null
-    ? remaining * preference.probability * preference.personal_value_percent
-    : behavior === "automatic" && countsTowardValue(benefit) && face != null
-      ? face * preference.probability * preference.personal_value_percent
+  const remainingShare = behavior === "spend" && face > 0 && remaining != null ? remaining / face : 0;
+  const expected = behavior === "spend" && remaining != null && catalog != null
+    ? catalog * remainingShare * preference.probability * preference.personal_value_percent
+    : behavior === "automatic" && countsTowardValue(benefit) && catalog != null
+      ? catalog * preference.probability * preference.personal_value_percent
       : null;
   const status = behavior === "automatic" ? "automatic" : savedStatus?.status || (behavior === "enrollment" ? "inactive" : null);
   const expiresOn = behavior === "spend" ? window.end : null;
@@ -236,6 +253,11 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
     tracking_type: behavior,
     amount_usd: face == null ? null : round(face),
     points_amount: benefit.points_amount == null ? null : Number(benefit.points_amount),
+    catalog_value_usd: catalog == null ? null : round(catalog),
+    valuation_method: benefit.valuation?.method || null,
+    valuation_basis: benefit.valuation?.basis || null,
+    valuation_source_url: benefit.valuation?.source_url || null,
+    valuation_as_of: benefit.valuation?.as_of || null,
     used_usd: round(used),
     remaining_usd: remaining == null ? null : round(remaining),
     expected_value_usd: expected == null ? null : round(expected),
@@ -257,7 +279,8 @@ function annualProjection(benefit, card, wallet, preference, usage, year, asOf) 
   const yearStart = `${year}-01-01`;
   const yearEnd = `${year}-12-31`;
   if (trackingType(benefit) !== "spend") return { remaining: 0, expected: 0 };
-  const face = faceValue(benefit, card, preference);
+  const face = cycleAmount(benefit, card, preference);
+  const catalog = catalogValue(benefit, card, preference);
   if (face == null) return { remaining: 0, expected: 0 };
   let remaining = 0;
   let expected = 0;
@@ -266,22 +289,23 @@ function annualProjection(benefit, card, wallet, preference, usage, year, asOf) 
     const used = usageFor(usage, wallet.id, benefit.id, window.start, window.end);
     const cycleRemaining = Math.max(0, Number(face) - used);
     remaining += cycleRemaining;
-    expected += cycleRemaining * preference.probability * preference.personal_value_percent;
+    const remainingShare = face > 0 ? cycleRemaining / face : 0;
+    expected += (catalog ?? 0) * remainingShare * preference.probability * preference.personal_value_percent;
   }
   return { remaining, expected };
 }
 
 function automaticProjection(benefit, card, wallet, preference, year, asOf) {
   if (trackingType(benefit) !== "automatic" || !countsTowardValue(benefit)) return { realized: 0, expected: 0 };
-  const face = faceValue(benefit, card, preference);
-  if (face == null) return { realized: 0, expected: 0 };
+  const catalog = catalogValue(benefit, card, preference);
+  if (catalog == null) return { realized: 0, expected: 0 };
   const yearStart = `${year}-01-01`;
   const yearEnd = `${year}-12-31`;
   let realized = 0;
   let expected = 0;
   for (const window of enumerateCycles(benefit, wallet, yearStart, yearEnd)) {
     if (window.start < yearStart || window.start > yearEnd) continue;
-    const value = Number(face) * preference.probability * preference.personal_value_percent;
+    const value = Number(catalog) * preference.probability * preference.personal_value_percent;
     if (window.start <= asOf) realized += value;
     else expected += value;
   }

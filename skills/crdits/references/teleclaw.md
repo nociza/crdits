@@ -35,4 +35,4 @@ Run monthly:
 npm run catalog:refresh-plan
 ```
 
-For each returned card, verify the official issuer page before secondary sources. Write structured updates with an effective date and URL, validate the catalog, and report the diff. Do not scrape issuer accounts and do not process targeted offers in this routine.
+For each returned card, verify the official issuer page before secondary sources. Refresh dated point valuations from a transparent public methodology. Write structured updates with an effective date, valuation method, value, basis, source, and valuation date; validate the catalog and report the diff. Do not scrape issuer accounts and do not process targeted offers in this routine.

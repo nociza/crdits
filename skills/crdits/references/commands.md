@@ -31,11 +31,13 @@ crdits offer add --card ID_OR_SLUG --merchant NAME --title TEXT --reward-amount 
 
 ```text
 crdits catalog import-csv PATH
-crdits catalog upsert-benefit --card SLUG --title TITLE --tracking-type TRACKING --amount-usd USD --points-amount POINTS --cadence CADENCE --valid-from YYYY-MM-DD --source-url URL --description TEXT
+crdits catalog upsert-benefit --card SLUG --title TITLE --tracking-type TRACKING --amount-usd USD --points-amount POINTS --cadence CADENCE --valid-from YYYY-MM-DD --source-url URL --valuation-method METHOD --valuation-value-usd USD --valuation-basis TEXT --valuation-source-url URL --valuation-as-of YYYY-MM-DD --description TEXT
 crdits catalog upsert-reward --card SLUG --category CATEGORY --rate N --rate-type points_multiplier --match-terms "term, term" --valid-from YYYY-MM-DD --source-url URL
-crdits catalog patch-card --card SLUG --annual-fee-usd USD --point-value-cents CPP --verified-at YYYY-MM-DD --source-url URL
+crdits catalog patch-card --card SLUG --annual-fee-usd USD --point-value-cents CPP --valuation-basis TEXT --valuation-source-url URL --valuation-as-of YYYY-MM-DD --verified-at YYYY-MM-DD --source-url URL
 ```
 
 Valid cadences are `monthly`, `quarterly`, `semiannual`, `annual`, `anniversary`, `every_n_years`, and `one_time`.
 
 Valid tracking types are `spend`, `automatic`, `enrollment`, and `reference`. `--amount-usd` is optional for automatic point bonuses and reference benefits. Only `spend` accepts `crdits use`; only `enrollment` accepts `benefit activate`.
+
+Valid valuation methods are `face_value`, `points`, `market_estimate`, and `excluded`. Structured benefit updates derive the value when possible, but public contributions should provide an explicit basis, source, and date.

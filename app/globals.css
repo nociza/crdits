@@ -169,6 +169,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .benefit-actions { grid-column: 1 / -1; display: flex; gap: 7px; }
 .benefit-actions button { min-height: 31px; border: 1px solid var(--line); background: transparent; border-radius: 7px; padding: 6px 10px; font-size: 10px; cursor: pointer; }
 .benefit-actions button.is-primary { border-color: var(--green); color: white; background: var(--green); font-weight: 700; }
+.catalog-valuation { display: flex; align-items: center; gap: 8px; margin-left: auto; color: var(--muted); font-size: 10px; }
+.catalog-valuation a { color: var(--green); font-weight: 700; text-decoration: none; }
+.catalog-valuation a:hover { text-decoration: underline; }
 .benefit.tracking-automatic, .benefit.tracking-enrollment { background: rgba(184,225,203,.16); }
 .behavior-label { text-transform: uppercase; letter-spacing: .08em; color: var(--green) !important; }
 .inline-editor { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 14px; background: #eeede5; border-radius: 10px; }

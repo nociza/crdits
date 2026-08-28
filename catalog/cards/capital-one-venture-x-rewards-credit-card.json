@@ -14,7 +14,8 @@
     "point_value_cents": 1.85,
     "cash_floor_cents": 1,
     "valuation_basis": "TPG editorial transfer-partner valuation; fixed travel redemptions can be lower",
-    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+    "valuation_as_of": "2026-08-03"
   },
   "base_reward": {
     "id": "other-1",
@@ -83,6 +84,14 @@
       "enrollment_required": false,
       "valid_from": "2026-08-25",
       "valid_to": null,
+      "source_url": "https://www.capitalone.com/credit-cards/travel-and-miles/",
+      "valuation": {
+        "method": "face_value",
+        "value_usd": 300,
+        "basis": "Issuer-stated $300 maximum per account-anniversary travel-credit period",
+        "source_url": "https://www.capitalone.com/credit-cards/travel-and-miles/",
+        "as_of": "2026-08-28"
+      },
       "source_group": "recurring"
     },
     {
@@ -99,6 +108,14 @@
       "enrollment_required": false,
       "valid_from": "2026-08-25",
       "valid_to": null,
+      "source_url": "https://www.capitalone.com/credit-cards/travel-and-miles/",
+      "valuation": {
+        "method": "points",
+        "value_usd": 185,
+        "basis": "10,000 miles at TPG's August 2026 valuation of 1.85 cents per mile",
+        "source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+        "as_of": "2026-08-03"
+      },
       "source_group": "annual_or_anniversary"
     },
     {
@@ -114,6 +131,14 @@
       "enrollment_required": false,
       "valid_from": "2026-08-25",
       "valid_to": null,
+      "source_url": "https://www.capitalone.com/credit-cards/travel-and-miles/",
+      "valuation": {
+        "method": "face_value",
+        "value_usd": 120,
+        "basis": "Issuer-stated reimbursement maximum per four-year eligibility period",
+        "source_url": "https://www.capitalone.com/credit-cards/travel-and-miles/",
+        "as_of": "2026-08-28"
+      },
       "source_group": "annual_or_anniversary"
     }
   ],
@@ -127,7 +152,7 @@
   "notes": "Portal credits require Capital One Travel. Lounge guest/access rules can change and should be versioned separately from the core card row",
   "valid_from": "2026-08-25",
   "valid_to": null,
-  "verified_at": "2026-08-25",
+  "verified_at": "2026-08-28",
   "sources": [
     {
       "kind": "primary",
@@ -136,6 +161,10 @@
     {
       "kind": "benefits",
       "url": "https://www.capitalone.com/learn-grow/money-management/capital-one-offers/"
+    },
+    {
+      "kind": "benefits",
+      "url": "https://www.capitalone.com/credit-cards/travel-and-miles/"
     },
     {
       "kind": "valuation",

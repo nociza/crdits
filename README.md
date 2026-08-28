@@ -1,11 +1,11 @@
 # crdits
 
-`crdits` is a local-first credit-card value ledger. It tracks recurring credits, targeted offers, actual usage, realistic expected value, annual-fee ROI, reward categories, point values, and which owned card should be used for a purchase.
+`crdits` is a local-first credit-card value ledger. It tracks recurring credits, targeted offers, actual usage, sourced catalog value, annual-fee ROI, reward categories, point values, and which owned card should be used for a purchase.
 
 The project deliberately has two sources of truth:
 
 - `catalog/cards/*.json` is the public, versioned, community-maintained card catalog.
-- `.data/crdits.sqlite` is the private wallet, usage, valuation, offer, and reminder ledger.
+- `.data/crdits.sqlite` is the private wallet, usage, optional overrides, offer, and reminder ledger.
 
 Full card numbers, issuer credentials, MFA data, cookies, and browser sessions are never part of the model.
 
@@ -81,15 +81,19 @@ Run that monthly as an agent task. Teleclaw should verify official issuer source
 
 ## Catalog updates
 
-Catalog definitions have effective dates and sources. The seed importer keeps the research timestamp in `verified_at` and uses the start of that calendar year as the history floor for imported benefits; it does not pretend the day of research was the day every recurring credit began. Structured update commands use explicit effective dates and archive a replaced definition in the card's `history` before writing the new version.
+Catalog definitions have effective dates, valuation methods, values, and sources. Dollar credits use the issuer's stated maximum per period. Point bonuses use a dated cents-per-point estimate, with the editorial source clearly labeled. Entitlements that should not offset the annual fee use an explicit zero-dollar `excluded` valuation. The seed importer keeps the research timestamp in `verified_at` and uses the start of that calendar year as the history floor for imported benefits; it does not pretend the day of research was the day every recurring credit began. Structured update commands use explicit effective dates and archive a replaced definition in the card's `history` before writing the new version.
 
 ```bash
 npm run crdits -- catalog upsert-benefit \
   --card chase-sapphire-preferred \
   --title "Hotel credit" \
   --amount-usd 100 \
+  --valuation-method face_value \
+  --valuation-value-usd 100 \
+  --valuation-basis "Issuer-stated maximum per anniversary year" \
   --cadence anniversary \
   --valid-from 2026-06-23 \
+  --valuation-as-of 2026-06-23 \
   --source-url https://issuer.example/card-terms
 
 npm run crdits -- catalog upsert-reward \
@@ -108,17 +112,17 @@ Each catalog benefit declares how it behaves: `spend` for finite credits, `autom
 
 Monthly, quarterly, and semiannual spend credits are displayed as separate Jan–Dec, Q1–Q4, or H1–H2 periods, including expired, current, used, and upcoming states. Select any available current or closed period tile, enter the amount in the one-field popup, and save; the current period uses today's date while retrospective entries use that period's closing date. Usage is applied only to its named, dated period and never carries across a reset boundary; future and fully used periods are disabled.
 
-Memberships, lounge access, hotel status, and elite-night credits are tracked as entitlements but contribute $0 to card ROI. Automatic point currency, such as anniversary miles, is valued only when the catalog has both a points amount and a point valuation.
+Memberships, lounge access, hotel status, and elite-night credits are tracked as entitlements but carry an explicit catalog value of $0 and never reduce the annual fee. Automatic point currency, such as anniversary miles, is valued only when the catalog has both a points amount and a dated point valuation. Free-night certificates remain visible but excluded until the catalog has a defensible, source-backed valuation policy for that certificate.
 
 ## Expected value
 
-For each current or future benefit cycle in the calendar year:
+No valuation setup is required for a normal wallet. For each current or future benefit cycle in the calendar year:
 
 ```text
-expected value = remaining face value × probability of use × personal value percentage
+expected value = sourced catalog value × remaining balance share
 ```
 
-Targeted offers are shown separately and never added automatically to expected value. Editorial point valuations remain labeled assumptions; card recommendations show their estimated dollar return.
+Dollar statement credits default to 100% of issuer-stated face value. Editorial point valuations remain labeled estimates rather than guaranteed cash value. Existing local preference rows remain supported as optional advanced overrides, while targeted offers stay separate and are never added automatically to expected value.
 
 ## Private deployment
 

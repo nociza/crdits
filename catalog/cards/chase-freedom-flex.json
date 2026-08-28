@@ -14,7 +14,8 @@
     "point_value_cents": 2.05,
     "cash_floor_cents": 1,
     "valuation_basis": "TPG transferable-points valuation if points are pooled with an eligible premium Chase card; standalone cash redemption floor is about 1 cpp",
-    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+    "valuation_as_of": "2026-08-03"
   },
   "base_reward": {
     "id": "other-1",

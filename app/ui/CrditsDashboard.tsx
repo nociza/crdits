@@ -16,6 +16,11 @@ type Benefit = {
   used_usd: number;
   remaining_usd: number | null;
   expected_value_usd: number | null;
+  catalog_value_usd: number | null;
+  valuation_method: "face_value" | "points" | "market_estimate" | "excluded" | null;
+  valuation_basis: string | null;
+  valuation_source_url: string | null;
+  valuation_as_of: string | null;
   probability: number;
   personal_value_percent: number;
   expires_on: string | null;
@@ -130,9 +135,7 @@ type Recommendation = {
   }>;
 };
 
-type BenefitEditor =
-  | { mode: "usage"; card: WalletCard; benefit: Benefit; periodKey: string | null }
-  | { mode: "value"; card: WalletCard; benefit: Benefit };
+type BenefitEditor = { mode: "usage"; card: WalletCard; benefit: Benefit; periodKey: string | null };
 
 const usd = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -382,23 +385,6 @@ export function CrditsDashboard() {
     });
   }
 
-  async function saveValue(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!edit) return;
-    const data = new FormData(event.currentTarget);
-    await mutate("Personal value assumptions saved locally.", async () => {
-      await api("/v1/preferences", { method: "POST", body: JSON.stringify({
-        wallet_card_id: edit.card.id,
-        benefit_id: edit.benefit.id,
-        probability: Number(data.get("probability")) / 100,
-        personal_value_percent: Number(data.get("personal_value_percent")) / 100,
-        face_value_override: data.get("face_value_override") ? Number(data.get("face_value_override")) : null,
-        reminder_days: Number(data.get("reminder_days")) || null,
-      }) });
-      setEdit(null);
-    });
-  }
-
   function renderWalletCard(card: WalletCard) {
     const spendBenefits = card.benefits.filter((benefit) => benefit.tracking_type === "spend");
     const includedBenefits = card.benefits.filter((benefit) => benefit.tracking_type !== "spend");
@@ -406,7 +392,7 @@ export function CrditsDashboard() {
 
     function renderBenefit(benefit: Benefit, compact = false) {
       const automaticLabel = benefit.points_amount
-        ? `${benefit.points_amount.toLocaleString()} points${benefit.amount_usd == null ? "" : ` · ${usd.format(benefit.amount_usd)} est.`}`
+        ? `${benefit.points_amount.toLocaleString()} points${benefit.catalog_value_usd == null ? "" : ` · ${usd.format(benefit.catalog_value_usd)} est.`}`
         : benefit.amount_usd == null ? "Included automatically" : `${usd.format(benefit.amount_usd)} automatic value`;
       const enrollmentLabel = benefit.status === "active" ? `Active${benefit.activated_on ? ` since ${benefit.activated_on}` : ""}` : "Activate once";
       const detail = benefit.requires_membership_year
@@ -421,6 +407,13 @@ export function CrditsDashboard() {
           : benefit.tracking_type === "automatic"
             ? automaticLabel
             : benefit.tracking_type === "enrollment" ? enrollmentLabel : "Reference";
+      const valuationLabel = benefit.valuation_method === "face_value"
+        ? `${usd.format(benefit.catalog_value_usd ?? 0)} face value`
+        : benefit.valuation_method === "points"
+          ? `${usd.format(benefit.catalog_value_usd ?? 0)} sourced estimate`
+          : benefit.valuation_method === "market_estimate"
+            ? `${usd.format(benefit.catalog_value_usd ?? 0)} market estimate`
+            : "Not counted in card value";
 
       return (
         <div className={`benefit tracking-${benefit.tracking_type} ${compact ? "compact-benefit" : ""}`} key={benefit.id}>
@@ -430,15 +423,8 @@ export function CrditsDashboard() {
           <div className="benefit-actions">
             {benefit.tracking_type === "spend" && !benefit.requires_membership_year && !benefit.periods.length ? <button type="button" className="is-primary" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: null })}>Log use</button> : null}
             {benefit.tracking_type === "enrollment" && benefit.status !== "active" ? <button type="button" className="is-primary" onClick={() => void activateBenefit(card, benefit)}>Mark active</button> : null}
-            {benefit.tracking_type === "spend" || benefit.counts_toward_value ? <button type="button" onClick={() => setEdit({ mode: "value", card, benefit })}>Value {Math.round(benefit.probability * benefit.personal_value_percent * 100)}%</button> : null}
+            <span className="catalog-valuation" title={benefit.valuation_basis || undefined}>{valuationLabel}{benefit.valuation_source_url ? <a href={benefit.valuation_source_url} target="_blank" rel="noreferrer">Source ↗</a> : null}</span>
           </div>
-          {edit?.mode === "value" && edit.card.id === card.id && edit.benefit.id === benefit.id ? <form className="inline-editor" onSubmit={saveValue}>
-            <label>Chance of value %<input name="probability" type="number" min="0" max="100" defaultValue={Math.round(benefit.probability * 100)} /></label>
-            <label>Personal value %<input name="personal_value_percent" type="number" min="0" max="100" defaultValue={Math.round(benefit.personal_value_percent * 100)} /></label>
-            <label>Face value override<input name="face_value_override" type="number" min="0" step="0.01" defaultValue={benefit.amount_usd ?? ""} /></label>
-            <label>Remind days before<input name="reminder_days" type="number" min="0" defaultValue="30" /></label>
-            <button>Save value</button><button type="button" className="ghost" onClick={() => setEdit(null)}>Cancel</button>
-          </form> : null}
         </div>
       );
     }
@@ -476,6 +462,8 @@ export function CrditsDashboard() {
     if (kind !== "benefit") {
       delete body.tracking_type;
       delete body.points_amount;
+      delete body.valuation_method;
+      delete body.valuation_value_usd;
     }
     const route = kind === "benefit" ? "benefits" : kind === "reward" ? "rewards" : "";
     const method = kind === "facts" ? "PATCH" : "POST";
@@ -527,7 +515,7 @@ export function CrditsDashboard() {
           </section>
 
           <section className="metrics" aria-label="Portfolio metrics">
-            <Metric label="Credits available" value={dashboard?.metrics.credits_remaining_usd ?? 0} detail={`${usd.format(dashboard?.metrics.expected_remaining_usd ?? 0)} expected after personal value`} />
+            <Metric label="Credits available" value={dashboard?.metrics.credits_remaining_usd ?? 0} detail={`${usd.format(dashboard?.metrics.expected_remaining_usd ?? 0)} using sourced catalog values`} />
             <Metric label="Used this year" value={dashboard?.metrics.realized_ytd_usd ?? 0} detail="Recorded in your private ledger" tone="good" />
             <Metric label="Projected net" value={dashboard?.metrics.projected_net_usd ?? 0} detail={`Against ${usd.format(dashboard?.metrics.annual_fees_usd ?? 0)} in annual fees`} tone={(dashboard?.metrics.projected_net_usd ?? 0) >= 0 ? "good" : "warn"} />
           </section>
@@ -584,7 +572,7 @@ export function CrditsDashboard() {
 
       {!error && tab === "wallet" ? (
         <section className="section-page">
-          <div className="section-title"><div><p className="eyebrow">LOCAL SQLITE</p><h1>Your wallet</h1><p>Each physical card has its own usage ledger and assumptions.</p></div><span>{dashboard?.cards.length ?? 0} active</span></div>
+          <div className="section-title"><div><p className="eyebrow">LOCAL SQLITE</p><h1>Your wallet</h1><p>Each physical card has its own private usage ledger; values come from the public catalog.</p></div><span>{dashboard?.cards.length ?? 0} active</span></div>
           <div className="wallet-grid">
             {attentionCards.map(renderWalletCard)}
           </div>
@@ -620,8 +608,12 @@ export function CrditsDashboard() {
                 <div className="split-fields"><label>Cadence<select name="cadence" defaultValue="annual"><option>monthly</option><option>quarterly</option><option>semiannual</option><option>annual</option><option>anniversary</option><option>one_time</option></select></label><label>Category<input name="category" placeholder="dining" /></label></div>
                 <div className="split-fields"><label>Rate type<select name="rate_type" defaultValue="points_multiplier"><option value="points_multiplier">Points multiplier</option><option value="cashback_percent">Cashback percent</option></select></label><label>Match terms<input name="match_terms" placeholder="dining, restaurants" /></label></div>
                 <div className="split-fields"><label>Annual fee<input name="annual_fee_usd" type="number" step="0.01" /></label><label>Point value ¢<input name="point_value_cents" type="number" step="0.01" /></label></div>
-                <label>Official source URL<input name="source_url" type="url" placeholder="https://issuer.example/…" /></label>
+                <div className="split-fields"><label>Catalog value method<select name="valuation_method" defaultValue="face_value"><option value="face_value">Issuer face value</option><option value="points">Points valuation</option><option value="market_estimate">Market estimate</option><option value="excluded">Exclude from ROI</option></select></label><label>Catalog value $<input name="valuation_value_usd" type="number" min="0" step="0.01" placeholder="Defaults from amount" /></label></div>
+                <label>Official benefit source URL<input name="source_url" type="url" placeholder="https://issuer.example/…" /></label>
+                <label>Valuation source URL<input name="valuation_source_url" type="url" placeholder="https://thepointsguy.com/…" /></label>
+                <label>Valuation basis<input name="valuation_basis" placeholder="Face value, or points × sourced cents per point" /></label>
                 <label>Effective from<input name="valid_from" type="date" defaultValue={dashboard?.as_of} /></label>
+                <label>Valuation as of<input name="valuation_as_of" type="date" defaultValue={dashboard?.as_of} /></label>
                 <label>Details<textarea name="description" rows={3} placeholder="Trigger, enrollment, restrictions, and relevant terms" /></label>
                 <button>Write catalog update</button>
               </form>

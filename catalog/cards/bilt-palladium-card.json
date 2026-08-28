@@ -14,7 +14,8 @@
     "point_value_cents": 2.2,
     "cash_floor_cents": null,
     "valuation_basis": "TPG editorial transfer-partner valuation; not guaranteed cash value",
-    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+    "valuation_as_of": "2026-08-03"
   },
   "base_reward": {
     "id": "other-1",
@@ -109,6 +110,14 @@
       "enrollment_required": false,
       "valid_from": "2026-08-25",
       "valid_to": null,
+      "source_url": "https://www.bilt.com/card/palladium",
+      "valuation": {
+        "method": "face_value",
+        "value_usd": 200,
+        "basis": "Issuer-stated $200 of Bilt Cash per calendar year",
+        "source_url": "https://www.bilt.com/card/palladium",
+        "as_of": "2026-08-28"
+      },
       "source_group": "recurring"
     },
     {
@@ -124,6 +133,14 @@
       "enrollment_required": false,
       "valid_from": "2026-01-01",
       "valid_to": null,
+      "source_url": "https://www.bilt.com/card/palladium",
+      "valuation": {
+        "method": "face_value",
+        "value_usd": 200,
+        "basis": "Issuer-stated $200 maximum per semiannual hotel-credit period",
+        "source_url": "https://www.bilt.com/card/palladium",
+        "as_of": "2026-08-28"
+      },
       "source_group": "recurring"
     },
     {
@@ -139,6 +156,14 @@
       "enrollment_required": true,
       "valid_from": "2026-08-25",
       "valid_to": null,
+      "source_url": "https://www.bilt.com/card/palladium",
+      "valuation": {
+        "method": "excluded",
+        "value_usd": 0,
+        "basis": "Lounge membership is tracked but excluded from automatic card ROI",
+        "source_url": "https://www.bilt.com/card/palladium",
+        "as_of": "2026-08-28"
+      },
       "source_group": "annual_or_anniversary"
     }
   ],
@@ -152,7 +177,7 @@
   "notes": "Bilt Cash and hotel credits have distinct expiration/reset rules. Hotel credit requires eligible Bilt Travel bookings and minimum-stay terms; model each half-year as a separate benefit cycle",
   "valid_from": "2026-08-25",
   "valid_to": null,
-  "verified_at": "2026-08-25",
+  "verified_at": "2026-08-28",
   "sources": [
     {
       "kind": "primary",

@@ -22,7 +22,7 @@ Run the narrowest JSON command, then explain the result plainly:
 - Best card: `crdits recommend dining --amount 80 --merchant "Restaurant" --json`
 - Wallet inventory: `crdits wallet list --json`
 
-State the point-value assumption when it changes the recommendation. Do not describe editorial point values as guaranteed cash value.
+State the dated point-value assumption and source when it changes the recommendation. Do not describe editorial point values as guaranteed cash value. Normal wallet summaries use the public catalog valuation automatically; never ask the user to assign a value to each credit.
 
 ## Record private activity
 
@@ -55,7 +55,7 @@ crdits wallet update --card CARD --membership-year-start YYYY-MM-DD
 
 Do not substitute a calendar-year countdown when the membership-year date is unknown. Report that the date is needed.
 
-Activation is state, not value. Marking DashPass, Priority Pass, or a status active must not add realized or expected dollars. Do not assign a cash value to a service or status unless a future user explicitly asks for a separate manual valuation feature.
+Activation is state, not value. Marking DashPass, Priority Pass, or a status active must not add realized or expected dollars. Respect the catalog's explicit `excluded` valuation for services, statuses, elite-night credits, and currently unvalued certificates.
 
 Add targeted issuer offers with `crdits offer add`. Keep merchant offers, activation state, card nicknames, last four digits, usage, and notes in SQLite. Never place them in `catalog/`.
 
@@ -63,11 +63,18 @@ Do not request or store full card numbers, issuer credentials, MFA data, session
 
 ## Update public card facts
 
-Use an official issuer page first. Record the source URL and effective date. Choose one structured mutation:
+Use an official issuer page first for benefit amount and terms. For points, use a current public valuation methodology such as TPG or a data-driven equivalent, and record that it is an estimate. Record the source URL, effective date, valuation method, value, basis, and valuation date. Choose one structured mutation:
 
 - Credit or benefit: `catalog upsert-benefit` with an explicit `tracking_type`
 - Reward category or multiplier: `catalog upsert-reward`
 - Annual fee or point valuation: `catalog patch-card`
+
+Assign public valuations consistently:
+
+- finite dollar credit: `face_value` at the issuer-stated maximum per reset period;
+- automatic points or miles: `points` at `points_amount × point_value_cents`, sourced and dated;
+- lounge membership, subscription, status, elite-night credit, or unsupported certificate: `excluded` at $0;
+- another defensible public estimate: `market_estimate`, with a reproducible basis and source.
 
 The CLI archives a replaced definition in the card's `history` before writing the new version. After any catalog mutation:
 
@@ -76,7 +83,7 @@ The CLI archives a replaced definition in the card's `history` before writing th
 3. Report the source, effective date, and changed fields.
 4. Commit only when the user's workflow explicitly authorizes a commit.
 
-Do not treat targeted offers or a user's preferences as community facts.
+Do not treat targeted offers or a user's preferences as community facts. Keep optional personal overrides in SQLite; never require them for ordinary valuation.
 
 ## Teleclaw routines
 

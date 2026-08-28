@@ -58,9 +58,9 @@ Usage:
   crdits catalog import-csv PATH
   crdits catalog validate [--json]
   crdits catalog stale [--days 45] [--json]
-  crdits catalog upsert-benefit --card SLUG --title TITLE --tracking-type spend|automatic|enrollment|reference --cadence monthly|quarterly|semiannual|annual|anniversary
+  crdits catalog upsert-benefit --card SLUG --title TITLE --tracking-type spend|automatic|enrollment|reference --cadence monthly|quarterly|semiannual|annual|anniversary [--valuation-method face_value|points|market_estimate|excluded] [--valuation-value-usd USD] [--valuation-source-url URL] [--valuation-as-of YYYY-MM-DD]
   crdits catalog upsert-reward --card SLUG --category CATEGORY --rate N --rate-type points_multiplier|cashback_percent
-  crdits catalog patch-card --card SLUG [--annual-fee-usd USD] [--point-value-cents CPP]
+  crdits catalog patch-card --card SLUG [--annual-fee-usd USD] [--point-value-cents CPP] [--valuation-source-url URL] [--valuation-as-of YYYY-MM-DD]
 `);
 }
 

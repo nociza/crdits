@@ -19,7 +19,10 @@
       "properties": {
         "name": { "type": ["string", "null"] },
         "point_value_cents": { "type": ["number", "null"], "minimum": 0 },
-        "cash_floor_cents": { "type": ["number", "null"], "minimum": 0 }
+        "cash_floor_cents": { "type": ["number", "null"], "minimum": 0 },
+        "valuation_basis": { "type": ["string", "null"] },
+        "valuation_source_url": { "type": ["string", "null"], "format": "uri" },
+        "valuation_as_of": { "type": ["string", "null"], "format": "date" }
       }
     },
     "reward_rules": { "type": "array", "items": { "$ref": "#/$defs/rewardRule" } },
@@ -41,7 +44,7 @@
     },
     "benefit": {
       "type": "object",
-      "required": ["id", "title", "kind", "amount_usd", "cadence", "valid_from"],
+      "required": ["id", "title", "kind", "amount_usd", "cadence", "valid_from", "source_url", "valuation"],
       "properties": {
         "id": { "type": "string" },
         "title": { "type": "string" },
@@ -49,9 +52,22 @@
         "tracking_type": { "enum": ["spend", "automatic", "enrollment", "reference"] },
         "amount_usd": { "type": ["number", "null"], "minimum": 0 },
         "points_amount": { "type": ["number", "null"], "minimum": 0 },
+        "source_url": { "type": "string", "format": "uri" },
+        "valuation": { "$ref": "#/$defs/valuation" },
         "cadence": { "enum": ["monthly", "quarterly", "semiannual", "annual", "anniversary", "every_n_years", "one_time"] },
         "valid_from": { "type": ["string", "null"], "format": "date" },
         "valid_to": { "type": ["string", "null"], "format": "date" }
+      }
+    },
+    "valuation": {
+      "type": "object",
+      "required": ["method", "value_usd", "basis", "source_url", "as_of"],
+      "properties": {
+        "method": { "enum": ["face_value", "points", "market_estimate", "excluded"] },
+        "value_usd": { "type": "number", "minimum": 0 },
+        "basis": { "type": "string", "minLength": 1 },
+        "source_url": { "type": "string", "format": "uri" },
+        "as_of": { "type": "string", "format": "date" }
       }
     }
   }

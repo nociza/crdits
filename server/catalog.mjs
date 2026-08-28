@@ -142,6 +142,34 @@ function trackingTypeFor(text, kind, amount) {
   return "spend";
 }
 
+function defaultBenefitValuation({ trackingType, amount, pointsAmount = null, pointValueCents = null, sourceUrl = null, asOf = null }) {
+  if (trackingType === "spend" && amount != null) {
+    return {
+      method: "face_value",
+      value_usd: Number(amount),
+      basis: "Issuer-stated maximum dollar value per benefit period",
+      source_url: sourceUrl,
+      as_of: asOf,
+    };
+  }
+  if (pointsAmount != null && pointValueCents != null) {
+    return {
+      method: "points",
+      value_usd: Number(pointsAmount) * Number(pointValueCents) / 100,
+      basis: `${Number(pointsAmount).toLocaleString("en-US")} points at ${Number(pointValueCents)} cents per point`,
+      source_url: sourceUrl,
+      as_of: asOf,
+    };
+  }
+  return {
+    method: "excluded",
+    value_usd: 0,
+    basis: "Tracked entitlement; excluded from automatic card ROI",
+    source_url: sourceUrl,
+    as_of: asOf,
+  };
+}
+
 function effectiveTo(text) {
   const year = text.match(/through\s+(20\d{2})/i)?.[1];
   return year ? `${year}-12-31` : null;
@@ -162,6 +190,7 @@ export function parseBenefits(recurring, annual, researchAsOf) {
     const schedule = cadenceFor(text);
     const kind = benefitKind(text);
     const amount = cycleAmount(text, schedule.cadence);
+    const trackingType = trackingTypeFor(text, kind, amount);
     const baseId = slugify(benefitTitle(text)) || "benefit";
     const seen = ids.get(baseId) ?? 0;
     ids.set(baseId, seen + 1);
@@ -169,7 +198,7 @@ export function parseBenefits(recurring, annual, researchAsOf) {
       id: seen ? `${baseId}-${seen + 1}` : baseId,
       title: benefitTitle(text),
       kind,
-      tracking_type: trackingTypeFor(text, kind, amount),
+      tracking_type: trackingType,
       amount_usd: amount,
       cadence: schedule.cadence,
       interval_years: schedule.interval_years ?? null,
@@ -178,6 +207,8 @@ export function parseBenefits(recurring, annual, researchAsOf) {
       enrollment_required: /enroll|activation|activate/i.test(text),
       valid_from: researchYearStart(researchAsOf),
       valid_to: effectiveTo(text),
+      source_url: null,
+      valuation: defaultBenefitValuation({ trackingType, amount, asOf: researchAsOf }),
       source_group: sourceGroup,
     };
   });
@@ -225,6 +256,12 @@ export function cardFromCsvRow(row) {
   const researchAsOf = row.research_as_of || null;
   const pointValue = numberOrNull(row.point_value_reference_cents);
   const cashFloor = numberOrNull(row.cash_floor_cents);
+  const benefitSourceUrl = row.primary_source_url || row.benefits_source_url || null;
+  const benefits = parseBenefits(row.recurring_credits, row.annual_or_anniversary_benefits, researchAsOf).map((benefit) => ({
+    ...benefit,
+    source_url: benefitSourceUrl,
+    valuation: { ...benefit.valuation, source_url: benefitSourceUrl },
+  }));
   return {
     schema_version: 1,
     slug: slugify(name),
@@ -240,10 +277,11 @@ export function cardFromCsvRow(row) {
       cash_floor_cents: cashFloor,
       valuation_basis: row.point_value_basis || null,
       valuation_source_url: row.valuation_source_url || null,
+      valuation_as_of: row.valuation_source_url ? researchAsOf : null,
     },
     base_reward: parseRewardRule(row.base_earn || "", 0, researchAsOf),
     reward_rules: splitItems(row.bonus_categories).map((text, index) => parseRewardRule(text, index, researchAsOf)),
-    benefits: parseBenefits(row.recurring_credits, row.annual_or_anniversary_benefits, researchAsOf),
+    benefits,
     spend_threshold_benefits: splitItems(row.spend_threshold_benefits),
     offer_ecosystem: row.coupon_offer_ecosystem || null,
     other_key_benefits: splitItems(row.other_key_benefits),
@@ -283,6 +321,29 @@ export function validateCard(card) {
     if (!benefit.cadence) errors.push(`benefit ${benefit.id ?? "unknown"} needs a cadence`);
     if (!["spend", "automatic", "enrollment", "reference"].includes(benefit.tracking_type)) {
       errors.push(`benefit ${benefit.id ?? "unknown"} needs a valid tracking_type`);
+    }
+    if (!benefit.source_url) errors.push(`benefit ${benefit.id ?? "unknown"} needs an official source_url`);
+    if (!benefit.valuation || !["face_value", "points", "market_estimate", "excluded"].includes(benefit.valuation.method)) {
+      errors.push(`benefit ${benefit.id ?? "unknown"} needs a valid valuation`);
+    } else {
+      if (!Number.isFinite(Number(benefit.valuation.value_usd)) || Number(benefit.valuation.value_usd) < 0) {
+        errors.push(`benefit ${benefit.id ?? "unknown"} valuation needs a nonnegative value_usd`);
+      }
+      if (!benefit.valuation.basis) errors.push(`benefit ${benefit.id ?? "unknown"} valuation needs a basis`);
+      if (!benefit.valuation.source_url) errors.push(`benefit ${benefit.id ?? "unknown"} valuation needs a source_url`);
+      if (!benefit.valuation.as_of) errors.push(`benefit ${benefit.id ?? "unknown"} valuation needs an as_of date`);
+      if (benefit.valuation.method === "excluded" && Number(benefit.valuation.value_usd) !== 0) {
+        errors.push(`benefit ${benefit.id ?? "unknown"} excluded valuation must equal zero`);
+      }
+      if (benefit.valuation.method === "face_value" && Number(benefit.valuation.value_usd) !== Number(benefit.amount_usd)) {
+        errors.push(`benefit ${benefit.id ?? "unknown"} face_value must equal amount_usd`);
+      }
+      if (benefit.valuation.method === "points") {
+        const calculated = Number(benefit.points_amount) * Number(card.reward_currency?.point_value_cents) / 100;
+        if (!Number.isFinite(calculated) || Math.abs(calculated - Number(benefit.valuation.value_usd)) > 0.005) {
+          errors.push(`benefit ${benefit.id ?? "unknown"} points valuation must match points_amount × point_value_cents`);
+        }
+      }
     }
   }
   return errors;
@@ -344,13 +405,26 @@ export async function upsertBenefit(catalogDir, cardSlug, input) {
     const existingIndex = card.benefits.findIndex((benefit) => benefit.id === id);
     const existing = existingIndex >= 0 ? card.benefits[existingIndex] : null;
     if (existing) archive(card, "benefit", existing);
+    const amount = numberOrNull(input.amount_usd);
+    const pointsAmount = numberOrNull(input.points_amount);
+    const trackingType = input.tracking_type || (input.enrollment_required ? "enrollment" : amount == null ? "reference" : "spend");
+    const valuationMethod = input.valuation_method || (trackingType === "spend" && amount != null ? "face_value" : pointsAmount != null ? "points" : "excluded");
+    const valuationSourceUrl = input.valuation_source_url || (valuationMethod === "points" ? card.reward_currency?.valuation_source_url : input.source_url) || null;
+    const defaultValuation = defaultBenefitValuation({
+      trackingType,
+      amount,
+      pointsAmount,
+      pointValueCents: card.reward_currency?.point_value_cents,
+      sourceUrl: valuationSourceUrl,
+      asOf: input.valuation_as_of || input.verified_at || input.valid_from || new Date().toISOString().slice(0, 10),
+    });
     const next = {
       id,
       title: input.title,
       kind: input.kind || "statement_credit",
-      tracking_type: input.tracking_type || (input.enrollment_required ? "enrollment" : numberOrNull(input.amount_usd) == null ? "reference" : "spend"),
-      amount_usd: numberOrNull(input.amount_usd),
-      points_amount: numberOrNull(input.points_amount),
+      tracking_type: trackingType,
+      amount_usd: amount,
+      points_amount: pointsAmount,
       cadence: input.cadence || "annual",
       interval_years: numberOrNull(input.interval_years),
       description: input.description || input.title,
@@ -358,8 +432,15 @@ export async function upsertBenefit(catalogDir, cardSlug, input) {
       enrollment_required: Boolean(input.enrollment_required),
       valid_from: input.valid_from || new Date().toISOString().slice(0, 10),
       valid_to: input.valid_to || null,
-      source_group: input.source_group || "community_update",
       source_url: input.source_url || null,
+      valuation: {
+        method: valuationMethod,
+        value_usd: numberOrNull(input.valuation_value_usd) ?? defaultValuation.value_usd,
+        basis: input.valuation_basis || defaultValuation.basis,
+        source_url: valuationSourceUrl,
+        as_of: input.valuation_as_of || defaultValuation.as_of,
+      },
+      source_group: input.source_group || "community_update",
     };
     if (existingIndex >= 0) card.benefits[existingIndex] = next;
     else card.benefits.push(next);
@@ -405,11 +486,23 @@ export async function upsertRewardRule(catalogDir, cardSlug, input) {
 export async function patchCardFacts(catalogDir, cardSlug, input) {
   return updateCard(catalogDir, cardSlug, (card) => {
     if (input.annual_fee_usd !== undefined) card.annual_fee_usd = numberOrNull(input.annual_fee_usd);
-    if (input.point_value_cents !== undefined) card.reward_currency.point_value_cents = numberOrNull(input.point_value_cents);
+    if (input.point_value_cents !== undefined) {
+      card.reward_currency.point_value_cents = numberOrNull(input.point_value_cents);
+      card.reward_currency.valuation_basis = input.valuation_basis || card.reward_currency.valuation_basis || null;
+      card.reward_currency.valuation_source_url = input.valuation_source_url || input.source_url || card.reward_currency.valuation_source_url || null;
+      card.reward_currency.valuation_as_of = input.valuation_as_of || input.verified_at || new Date().toISOString().slice(0, 10);
+      for (const benefit of card.benefits.filter((item) => item.valuation?.method === "points" && item.points_amount != null)) {
+        benefit.valuation.value_usd = Number(benefit.points_amount) * Number(card.reward_currency.point_value_cents) / 100;
+        benefit.valuation.basis = `${Number(benefit.points_amount).toLocaleString("en-US")} points at ${Number(card.reward_currency.point_value_cents)} cents per point`;
+        benefit.valuation.source_url = card.reward_currency.valuation_source_url;
+        benefit.valuation.as_of = card.reward_currency.valuation_as_of;
+      }
+    }
     if (input.cash_floor_cents !== undefined) card.reward_currency.cash_floor_cents = numberOrNull(input.cash_floor_cents);
     if (input.notes !== undefined) card.notes = input.notes || null;
-    if (input.source_url && !card.sources.some((source) => source.url === input.source_url)) {
-      card.sources.push({ kind: "primary", url: input.source_url });
+    const sourceUrl = input.valuation_source_url || input.source_url;
+    if (sourceUrl && !card.sources.some((source) => source.url === sourceUrl)) {
+      card.sources.push({ kind: input.point_value_cents !== undefined ? "valuation" : "primary", url: sourceUrl });
     }
     card.verified_at = input.verified_at || new Date().toISOString().slice(0, 10);
     return card;

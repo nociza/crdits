@@ -14,7 +14,8 @@
     "point_value_cents": 0.75,
     "cash_floor_cents": null,
     "valuation_basis": "TPG editorial valuation; not guaranteed cash value",
-    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+    "valuation_as_of": "2026-08-03"
   },
   "base_reward": {
     "id": "other-1",
@@ -71,13 +72,21 @@
       "kind": "statement_credit",
       "tracking_type": "spend",
       "amount_usd": 50,
-      "cadence": "one_time",
+      "cadence": "semiannual",
       "interval_years": null,
-      "description": "Temporary airline statement-credit promotion: up to $100 total through 2027, split into two $50 credits after qualifying airline spend",
+      "description": "2026 airline statement-credit promotion for existing eligible cardmembers: two $50 credits after qualifying airline spend, one in each half of 2026",
       "eligibility": null,
       "enrollment_required": false,
-      "valid_from": "2026-08-25",
-      "valid_to": "2027-12-31",
+      "valid_from": "2026-01-01",
+      "valid_to": "2026-12-31",
+      "source_url": "https://creditcards.chase.com/travel-credit-cards/marriott-bonvoy/boundless",
+      "valuation": {
+        "method": "face_value",
+        "value_usd": 50,
+        "basis": "Issuer-stated $50 maximum per 2026 semiannual airline-credit period for existing eligible cardmembers",
+        "source_url": "https://creditcards.chase.com/travel-credit-cards/marriott-bonvoy/boundless",
+        "as_of": "2026-08-28"
+      },
       "source_group": "recurring"
     },
     {
@@ -93,6 +102,14 @@
       "enrollment_required": false,
       "valid_from": "2026-08-25",
       "valid_to": null,
+      "source_url": "https://creditcards.chase.com/travel-credit-cards/marriott-bonvoy/boundless",
+      "valuation": {
+        "method": "excluded",
+        "value_usd": 0,
+        "basis": "Free-night redemption varies by property and is not counted automatically",
+        "source_url": "https://creditcards.chase.com/travel-credit-cards/marriott-bonvoy/boundless",
+        "as_of": "2026-08-28"
+      },
       "source_group": "annual_or_anniversary"
     },
     {
@@ -108,6 +125,14 @@
       "enrollment_required": false,
       "valid_from": "2026-08-25",
       "valid_to": null,
+      "source_url": "https://creditcards.chase.com/travel-credit-cards/marriott-bonvoy/boundless",
+      "valuation": {
+        "method": "excluded",
+        "value_usd": 0,
+        "basis": "Elite-night credits are tracked but excluded from automatic card ROI",
+        "source_url": "https://creditcards.chase.com/travel-credit-cards/marriott-bonvoy/boundless",
+        "as_of": "2026-08-28"
+      },
       "source_group": "annual_or_anniversary"
     },
     {
@@ -123,6 +148,14 @@
       "enrollment_required": false,
       "valid_from": "2026-08-25",
       "valid_to": null,
+      "source_url": "https://creditcards.chase.com/travel-credit-cards/marriott-bonvoy/boundless",
+      "valuation": {
+        "method": "excluded",
+        "value_usd": 0,
+        "basis": "Hotel status is tracked but excluded from automatic card ROI",
+        "source_url": "https://creditcards.chase.com/travel-credit-cards/marriott-bonvoy/boundless",
+        "as_of": "2026-08-28"
+      },
       "source_group": "annual_or_anniversary"
     }
   ],
@@ -135,10 +168,10 @@
     "Marriott status/elite-night benefits",
     "travel protections subject to guide to benefits"
   ],
-  "notes": "Temporary airline-credit promotion runs across 2026-2027 and should be modeled with effective dates rather than as a permanent benefit",
+  "notes": "The airline-credit promotion differs for existing and new cardmembers. This catalog entry models the two 2026 semiannual $50 credits for existing eligible cardmembers; other cohorts require a separately effective-dated definition.",
   "valid_from": "2026-08-25",
   "valid_to": null,
-  "verified_at": "2026-08-25",
+  "verified_at": "2026-08-28",
   "sources": [
     {
       "kind": "primary",
@@ -153,7 +186,27 @@
       "url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
     }
   ],
-  "history": [],
+  "history": [
+    {
+      "type": "benefit",
+      "superseded_at": "2026-08-28T00:00:00Z",
+      "value": {
+        "id": "temporary-airline-statement-credit-promotion-up-to-100-total",
+        "title": "Temporary airline statement-credit promotion: up to $100 total",
+        "kind": "statement_credit",
+        "tracking_type": "spend",
+        "amount_usd": 50,
+        "cadence": "one_time",
+        "interval_years": null,
+        "description": "Temporary airline statement-credit promotion: up to $100 total through 2027, split into two $50 credits after qualifying airline spend",
+        "eligibility": null,
+        "enrollment_required": false,
+        "valid_from": "2026-08-25",
+        "valid_to": "2027-12-31",
+        "source_group": "recurring"
+      }
+    }
+  ],
   "raw_source_fields": {
     "base_earn": "2X Marriott Bonvoy points on other purchases",
     "bonus_categories": "6X at participating Marriott Bonvoy hotels; 3X on first $6,000 combined annual spend at grocery stores, gas stations, and dining",

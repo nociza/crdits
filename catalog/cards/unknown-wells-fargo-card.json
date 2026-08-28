@@ -12,7 +12,8 @@
     "point_value_cents": 1.75,
     "cash_floor_cents": null,
     "valuation_basis": "TPG Wells Fargo Rewards valuation; only relevant if this is a Wells Fargo Rewards-earning card",
-    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+    "valuation_as_of": "2026-08-03"
   },
   "base_reward": {
     "id": "other-1",

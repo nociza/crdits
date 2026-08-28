@@ -13,7 +13,7 @@ const card = {
   reward_currency: { name: "Points", point_value_cents: 2, cash_floor_cents: 1 },
   base_reward: { id: "base", label: "1X everything", rate: 1, rate_type: "points_multiplier", valid_from: "2026-01-01", valid_to: null },
   reward_rules: [{ id: "dining", category: "dining", label: "3X dining", match_terms: ["dining", "restaurant"], rate: 3, rate_type: "points_multiplier", conditional: false, valid_from: "2026-01-01", valid_to: null }],
-  benefits: [{ id: "dining-credit", title: "Dining credit", kind: "statement_credit", tracking_type: "spend", amount_usd: 25, cadence: "monthly", valid_from: "2026-01-01", valid_to: null }],
+  benefits: [{ id: "dining-credit", title: "Dining credit", kind: "statement_credit", tracking_type: "spend", amount_usd: 25, cadence: "monthly", valid_from: "2026-01-01", valid_to: null, valuation: { method: "face_value", value_usd: 25, basis: "Issuer face value", source_url: "https://issuer.example/card", as_of: "2026-08-01" } }],
   sources: [],
   history: [],
 };
@@ -39,6 +39,20 @@ test("partial usage and personal value drive annual projection", () => {
   assert.equal(dashboard.metrics.expected_remaining_usd, 44.94);
   assert.equal(dashboard.metrics.realized_ytd_usd, 18);
   assert.equal(dashboard.reminders.length, 1);
+  db.close();
+});
+
+test("catalog values are used at 100% without asking for personal assumptions", () => {
+  const db = openDatabase(":memory:");
+  addWalletCard(db, { catalog_slug: card.slug, nickname: "My Test" });
+  const dashboard = buildDashboard({ catalog: [card], db, asOf: "2026-08-26", reminderDays: 30 });
+  const benefit = dashboard.cards[0].benefits[0];
+  assert.equal(benefit.probability, 1);
+  assert.equal(benefit.personal_value_percent, 1);
+  assert.equal(benefit.catalog_value_usd, 25);
+  assert.equal(benefit.valuation_method, "face_value");
+  assert.equal(dashboard.metrics.credits_remaining_usd, 125);
+  assert.equal(dashboard.metrics.expected_remaining_usd, 125);
   db.close();
 });
 
@@ -87,6 +101,7 @@ test("automatic and enrollment benefits never behave like spend credits", () => 
   assert.equal(points.remaining_usd, 0);
   assert.equal(points.is_actionable, false);
   assert.equal(points.counts_toward_value, true);
+  assert.equal(points.catalog_value_usd, 200);
   assert.equal(membership.status, "active");
   assert.equal(membership.is_actionable, false);
   assert.equal(membership.counts_toward_value, false);

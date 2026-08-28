@@ -14,7 +14,8 @@
     "point_value_cents": 2.05,
     "cash_floor_cents": 1,
     "valuation_basis": "TPG editorial transfer-partner valuation; cash redemption floor is about 1 cpp",
-    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/"
+    "valuation_source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+    "valuation_as_of": "2026-08-03"
   },
   "base_reward": {
     "id": "other-1",
@@ -182,6 +183,14 @@
       "enrollment_required": false,
       "valid_from": "2026-08-25",
       "valid_to": null,
+      "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
+      "valuation": {
+        "method": "face_value",
+        "value_usd": 100,
+        "basis": "Issuer-stated $100 maximum per account-anniversary hotel-credit period",
+        "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
+        "as_of": "2026-08-28"
+      },
       "source_group": "recurring"
     },
     {
@@ -197,6 +206,14 @@
       "enrollment_required": false,
       "valid_from": "2026-01-01",
       "valid_to": null,
+      "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
+      "valuation": {
+        "method": "face_value",
+        "value_usd": 10,
+        "basis": "Issuer-stated $10 maximum per monthly DoorDash promo period",
+        "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
+        "as_of": "2026-08-28"
+      },
       "source_group": "recurring"
     },
     {
@@ -212,6 +229,14 @@
       "enrollment_required": false,
       "valid_from": "2026-08-25",
       "valid_to": null,
+      "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
+      "valuation": {
+        "method": "face_value",
+        "value_usd": 120,
+        "basis": "Issuer-stated reimbursement maximum per four-year eligibility period",
+        "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
+        "as_of": "2026-08-28"
+      },
       "source_group": "annual_or_anniversary"
     },
     {
@@ -227,6 +252,14 @@
       "enrollment_required": true,
       "valid_from": "2026-08-25",
       "valid_to": null,
+      "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
+      "valuation": {
+        "method": "excluded",
+        "value_usd": 0,
+        "basis": "DashPass is tracked as an enrollment entitlement but excluded from automatic card ROI",
+        "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
+        "as_of": "2026-08-28"
+      },
       "source_group": "annual_or_anniversary"
     },
     {
@@ -242,6 +275,14 @@
       "enrollment_required": true,
       "valid_from": "2026-08-25",
       "valid_to": null,
+      "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
+      "valuation": {
+        "method": "excluded",
+        "value_usd": 0,
+        "basis": "Subscription entitlement is tracked but excluded from automatic card ROI",
+        "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
+        "as_of": "2026-08-28"
+      },
       "source_group": "annual_or_anniversary"
     }
   ],
@@ -255,11 +296,15 @@
   "notes": "Major June 2026 product refresh. Legacy 10% anniversary points bonus is being discontinued/phase-out applies. World of Hyatt transfer ratio changes from 1:1 to 4:3 for new applicants and later in 2026 for many existing cardholders; model transfer ratios with effective dates",
   "valid_from": "2026-08-25",
   "valid_to": null,
-  "verified_at": "2026-08-25",
+  "verified_at": "2026-08-28",
   "sources": [
     {
       "kind": "primary",
       "url": "https://media.chase.com/news/Meet-the-New-Chase-Sapphire-Preferred"
+    },
+    {
+      "kind": "primary",
+      "url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred"
     },
     {
       "kind": "benefits",

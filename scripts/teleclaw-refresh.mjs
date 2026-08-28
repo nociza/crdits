@@ -11,6 +11,6 @@ if (!stale.length) {
 } else {
   console.log(`Refresh these crdits catalog entries using official issuer sources first:`);
   for (const card of stale) console.log(`- ${card.name} (${card.slug}) — ${card.verification_status}, last verified ${card.verified_at || "never"}`);
-  console.log("Validate every changed source, preserve prior definitions in history, and run `npm run catalog:validate` before reporting completion.");
+  console.log("Refresh issuer-stated face values and dated point valuations, preserve prior definitions in history, and run `npm run catalog:validate` before reporting completion.");
 }
 service.db.close();
