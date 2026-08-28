@@ -400,3 +400,26 @@ footer small { justify-self: end; }
   .credit-periods.has-2, .credit-periods.has-4 { grid-template-columns: 1fr; }
   .inline-editor { grid-template-columns: 1fr; }
 }
+
+.usage-modal-backdrop { position: fixed; z-index: 80; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(20,34,29,.54); backdrop-filter: blur(8px); }
+.usage-modal { width: min(100%, 430px); padding: 26px; border: 1px solid rgba(13,113,76,.24); border-radius: 18px; background: var(--panel); box-shadow: 0 30px 90px rgba(19,35,29,.24); }
+.usage-modal > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.usage-modal > header span { color: var(--green); font: 700 9px var(--font-geist-mono), monospace; letter-spacing: .11em; text-transform: uppercase; }
+.usage-modal > header h3 { margin: 6px 0 0; font-size: 30px; letter-spacing: -.045em; }
+.usage-modal > header > button { width: 35px; height: 35px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); background: transparent; font-size: 22px; cursor: pointer; }
+.usage-modal > p { margin: 21px 0 4px; font-size: 14px; line-height: 1.45; }
+.usage-modal > small { color: var(--muted); font-size: 11px; }
+.usage-modal form { display: grid; gap: 19px; margin-top: 23px; }
+.usage-modal label { gap: 8px; }
+.usage-modal label > span { display: grid; grid-template-columns: 42px minmax(0,1fr); align-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: white; }
+.usage-modal label b { display: grid; place-items: center; align-self: stretch; border-right: 1px solid var(--line); color: var(--green); font-size: 18px; }
+.usage-modal input { min-width: 0; height: 55px; padding: 0 14px; border: 0; border-radius: 0; box-shadow: none; background: transparent; font-size: 23px; font-weight: 650; }
+.usage-modal label > span:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px rgba(13,113,76,.11); }
+.usage-modal form > div { display: grid; grid-template-columns: 1fr 1.4fr; gap: 9px; }
+.usage-modal form button { min-height: 45px; border: 0; border-radius: 9px; color: white; background: var(--green); font-size: 12px; font-weight: 720; cursor: pointer; }
+.usage-modal form button.ghost { border: 1px solid var(--line); color: var(--muted); background: transparent; }
+
+@media (max-width: 520px) {
+  .usage-modal-backdrop { place-items: end center; padding: 10px; }
+  .usage-modal { padding: 23px 20px; border-radius: 18px; }
+}
