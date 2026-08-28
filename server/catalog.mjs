@@ -147,6 +147,11 @@ function effectiveTo(text) {
   return year ? `${year}-12-31` : null;
 }
 
+function researchYearStart(researchAsOf) {
+  const year = String(researchAsOf || "").match(/^(\d{4})-/)?.[1];
+  return year ? `${year}-01-01` : null;
+}
+
 export function parseBenefits(recurring, annual, researchAsOf) {
   const entries = [
     ...splitItems(recurring).map((text) => ({ text, sourceGroup: "recurring" })),
@@ -171,7 +176,7 @@ export function parseBenefits(recurring, annual, researchAsOf) {
       description: text,
       eligibility: null,
       enrollment_required: /enroll|activation|activate/i.test(text),
-      valid_from: researchAsOf || null,
+      valid_from: researchYearStart(researchAsOf),
       valid_to: effectiveTo(text),
       source_group: sourceGroup,
     };

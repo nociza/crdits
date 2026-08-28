@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { loadCatalog, upsertBenefit, validateCard, writeCard } from "../server/catalog.mjs";
+import { loadCatalog, parseBenefits, upsertBenefit, validateCard, writeCard } from "../server/catalog.mjs";
 
 const repositoryCatalog = new URL("../catalog/cards/", import.meta.url);
 
@@ -12,9 +12,18 @@ test("seed catalog is valid and preserves the eleven provided products", async (
   assert.equal(cards.length, 11);
   assert.ok(cards.every((card) => validateCard(card).length === 0));
   const aspire = cards.find((card) => card.slug === "hilton-honors-american-express-aspire-card");
+  const bilt = cards.find((card) => card.slug === "bilt-palladium-card");
+  const sapphire = cards.find((card) => card.slug === "chase-sapphire-preferred");
   assert.equal(aspire.reward_currency.point_value_cents, 0.4);
   assert.equal(aspire.benefits.find((item) => item.id === "flight-credit").amount_usd, 50);
   assert.equal(aspire.benefits.find((item) => item.id === "hilton-resort-credit").cadence, "semiannual");
+  assert.equal(bilt.benefits.find((item) => item.id === "annual-bilt-travel-hotel-credit").valid_from, "2026-01-01");
+  assert.equal(sapphire.benefits.find((item) => item.id === "doordash-grocery-daily-essentials-benefit-while-eligible-dashpass-terms-apply").valid_from, "2026-01-01");
+});
+
+test("seed research dates preserve the full current-year benefit history", () => {
+  const [benefit] = parseBenefits("$10 monthly dining credit", "", "2026-08-25");
+  assert.equal(benefit.valid_from, "2026-01-01");
 });
 
 test("catalog updates archive the previous definition", async () => {

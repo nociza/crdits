@@ -8,6 +8,15 @@ import {
 
 const DAY_MS = 86_400_000;
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const RESET_CADENCE_LABELS = {
+  monthly: (window) => MONTH_LABELS[Number(window.start.slice(5, 7)) - 1],
+  quarterly: (window) => window.key.slice(-2),
+  semiannual: (window) => window.key.slice(-2),
+};
+
+export function isResetCadence(cadence) {
+  return Object.hasOwn(RESET_CADENCE_LABELS, cadence);
+}
 
 function iso(date) {
   return date.toISOString().slice(0, 10);
@@ -146,8 +155,15 @@ function daysUntil(date, asOf) {
   return Math.ceil((utcDate(date).getTime() - utcDate(asOf).getTime()) / DAY_MS);
 }
 
-function periodStates(benefit, card, wallet, preference, usage, asOf) {
-  if (trackingType(benefit) !== "spend" || !["monthly", "quarterly", "semiannual"].includes(benefit.cadence)) return [];
+function resetPeriodStatus({ remaining, used, start, end, asOf }) {
+  if (remaining <= 0) return "used";
+  if (end < asOf) return used > 0 ? "partial" : "expired";
+  if (start > asOf) return "upcoming";
+  return used > 0 ? "partial" : "available";
+}
+
+function resetPeriodTimeline(benefit, card, wallet, preference, usage, asOf) {
+  if (trackingType(benefit) !== "spend" || !isResetCadence(benefit.cadence)) return [];
   const face = faceValue(benefit, card, preference);
   if (face == null) return [];
   const year = utcDate(asOf).getUTCFullYear();
@@ -155,24 +171,15 @@ function periodStates(benefit, card, wallet, preference, usage, asOf) {
     const used = usageFor(usage, wallet.id, benefit.id, window.start, window.end);
     const remaining = Math.max(0, Number(face) - used);
     const isCurrent = window.start <= asOf && window.end >= asOf;
-    const status = remaining <= 0
-      ? "used"
-      : window.end < asOf
-        ? used > 0 ? "partial" : "expired"
-        : window.start > asOf
-          ? "upcoming"
-          : used > 0 ? "partial" : "available";
     return {
       key: window.key,
-      label: benefit.cadence === "monthly"
-        ? MONTH_LABELS[Number(window.start.slice(5, 7)) - 1]
-        : window.key.split("-").at(-1),
+      label: RESET_CADENCE_LABELS[benefit.cadence](window),
       start: window.start,
       end: window.end,
       amount_usd: round(face),
       used_usd: round(used),
       remaining_usd: round(remaining),
-      status,
+      status: resetPeriodStatus({ remaining, used, start: window.start, end: window.end, asOf }),
       is_current: isCurrent,
     };
   });
@@ -241,7 +248,7 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
     activated_on: savedStatus?.activated_on || null,
     requires_membership_year: false,
     counts_toward_value: countsTowardValue(benefit),
-    periods: periodStates(benefit, card, wallet, preference, usage, asOf),
+    periods: resetPeriodTimeline(benefit, card, wallet, preference, usage, asOf),
     is_actionable: (behavior === "spend" && remaining > 0) || (behavior === "enrollment" && status !== "active"),
   };
 }

@@ -21,7 +21,7 @@ import {
   setWalletCardStatus,
   updateWalletCard,
 } from "./db.mjs";
-import { buildDashboard, enumerateCycles, recommendCard } from "./engine.mjs";
+import { buildDashboard, enumerateCycles, isResetCadence, recommendCard } from "./engine.mjs";
 import { readFile, readdir } from "node:fs/promises";
 
 export function projectPaths(root = process.env.CRDITS_ROOT || process.cwd()) {
@@ -87,7 +87,7 @@ export function createService(options = {}) {
       }
       if (usedAt > today()) throw new Error("usage cannot be recorded in a future period");
       if (input.period_key) {
-        if (!["monthly", "quarterly", "semiannual"].includes(benefit.cadence)) throw new Error("period_key is only valid for monthly, quarterly, or semiannual credits");
+        if (!isResetCadence(benefit.cadence)) throw new Error("period_key is only valid for monthly, quarterly, or semiannual credits");
         const matchingPeriod = enumerateCycles(benefit, wallet, usedAt, usedAt).find((period) => period.key === input.period_key);
         if (!matchingPeriod) throw new Error(`usage date ${usedAt} does not fall inside ${input.period_key}`);
       }

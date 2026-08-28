@@ -146,6 +146,12 @@ const usdPrecise = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
 
+const RESET_CADENCE_DETAILS: Record<string, string> = {
+  monthly: "Resets every month",
+  quarterly: "Resets every quarter",
+  semiannual: "Resets every six months",
+};
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/crdits${path}`, {
     ...init,
@@ -172,10 +178,9 @@ function Progress({ used, total }: { used: number; total: number | null }) {
   return <span className="progress-track" aria-label={`${Math.round(percent)} percent used`}><i style={{ width: `${percent}%` }} /></span>;
 }
 
-function CreditPeriods({ periods, asOf, onSelect }: { periods: BenefitPeriod[]; asOf: string; onSelect: (period: BenefitPeriod) => void }) {
-  const isMonthly = periods.some((period) => /^\d{4}-\d{2}$/.test(period.key));
+function CreditPeriods({ cadence, periods, asOf, onSelect }: { cadence: string; periods: BenefitPeriod[]; asOf: string; onSelect: (period: BenefitPeriod) => void }) {
   return (
-    <div className={`credit-periods has-${periods.length} ${isMonthly ? "is-monthly" : ""}`} aria-label="Credit periods">
+    <div className={`credit-periods has-${periods.length} is-${cadence}`} aria-label="Credit periods">
       {periods.map((period) => {
         const selectable = period.start <= asOf && period.remaining_usd > 0;
         const detail = period.status === "used"
@@ -400,9 +405,6 @@ export function CrditsDashboard() {
     const includedNeedsAction = includedBenefits.some((benefit) => benefit.is_actionable);
 
     function renderBenefit(benefit: Benefit, compact = false) {
-      const splitCadenceLabel = benefit.cadence === "monthly"
-        ? "Resets every month"
-        : benefit.cadence === "quarterly" ? "Resets every quarter" : "Resets every six months";
       const automaticLabel = benefit.points_amount
         ? `${benefit.points_amount.toLocaleString()} points${benefit.amount_usd == null ? "" : ` · ${usd.format(benefit.amount_usd)} est.`}`
         : benefit.amount_usd == null ? "Included automatically" : `${usd.format(benefit.amount_usd)} automatic value`;
@@ -410,7 +412,7 @@ export function CrditsDashboard() {
       const detail = benefit.requires_membership_year
         ? "Set this card’s membership-year date for an accurate renewal countdown"
         : benefit.tracking_type === "spend"
-          ? benefit.periods.length ? splitCadenceLabel : `${benefit.cadence.replaceAll("_", " ")} · expires ${benefit.expires_on}`
+          ? benefit.periods.length ? RESET_CADENCE_DETAILS[benefit.cadence] : `${benefit.cadence.replaceAll("_", " ")} · expires ${benefit.expires_on}`
           : benefit.description;
       const value = benefit.requires_membership_year
         ? "Date needed"
@@ -424,7 +426,7 @@ export function CrditsDashboard() {
         <div className={`benefit tracking-${benefit.tracking_type} ${compact ? "compact-benefit" : ""}`} key={benefit.id}>
           <div className="benefit-title"><span className="benefit-kind">{benefit.tracking_type === "spend" ? benefit.cadence.replaceAll("_", " ") : benefit.tracking_type === "enrollment" ? "set once" : benefit.tracking_type}</span><strong>{benefit.title}</strong><small>{detail}</small></div>
           <div className="benefit-value"><strong>{value}</strong>{benefit.tracking_type === "spend" ? <small>{usd.format(benefit.used_usd)} used</small> : <small className="behavior-label">{benefit.counts_toward_value ? "Included in value" : "Not deducted or counted"}</small>}</div>
-          {benefit.periods.length ? <CreditPeriods periods={benefit.periods} asOf={dashboard?.as_of || ""} onSelect={(period) => setEdit({ mode: "usage", card, benefit, periodKey: period.key })} /> : benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <Progress used={benefit.used_usd} total={benefit.amount_usd} /> : null}
+          {benefit.periods.length ? <CreditPeriods cadence={benefit.cadence} periods={benefit.periods} asOf={dashboard?.as_of || ""} onSelect={(period) => setEdit({ mode: "usage", card, benefit, periodKey: period.key })} /> : benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <Progress used={benefit.used_usd} total={benefit.amount_usd} /> : null}
           <div className="benefit-actions">
             {benefit.tracking_type === "spend" && !benefit.requires_membership_year && !benefit.periods.length ? <button type="button" className="is-primary" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: null })}>Log use</button> : null}
             {benefit.tracking_type === "enrollment" && benefit.status !== "active" ? <button type="button" className="is-primary" onClick={() => void activateBenefit(card, benefit)}>Mark active</button> : null}

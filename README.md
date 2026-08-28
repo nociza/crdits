@@ -81,7 +81,7 @@ Run that monthly as an agent task. Teleclaw should verify official issuer source
 
 ## Catalog updates
 
-Catalog definitions have effective dates and sources. Structured update commands archive a replaced definition in the card's `history` before writing the new version.
+Catalog definitions have effective dates and sources. The seed importer keeps the research timestamp in `verified_at` and uses the start of that calendar year as the history floor for imported benefits; it does not pretend the day of research was the day every recurring credit began. Structured update commands use explicit effective dates and archive a replaced definition in the card's `history` before writing the new version.
 
 ```bash
 npm run crdits -- catalog upsert-benefit \
