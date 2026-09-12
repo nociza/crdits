@@ -234,10 +234,14 @@ function UsageModal({ card, benefit, asOf, periodKey, onSubmit, onCancel }: {
 
   useEffect(() => {
     const dialog = dialogRef.current;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialog?.showModal();
     amountInput.current?.focus();
     amountInput.current?.select();
-    return () => dialog?.close();
+    return () => {
+      dialog?.close();
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
   }, []);
 
   useEffect(() => {
