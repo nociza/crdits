@@ -37,6 +37,7 @@ export function createApiClient({
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(15_000),
     });
     const value = await readJsonBounded(response);
     if (!response.ok) throw new Error(value?.error || `crdits API returned ${response.status}`);
@@ -44,15 +45,18 @@ export function createApiClient({
   }
 
   return {
-    dashboard: () => request("v1/dashboard"),
+    dashboard: ({ year } = {}) => request(year == null ? "v1/dashboard" : `v1/dashboard?year=${encodeURIComponent(year)}`),
     reminders: (days = 30) => request(`v1/reminders?days=${encodeURIComponent(days)}`),
-    recommend: ({ category, merchant, amount }) => {
+    recommend: ({ category, merchant, amount, context }) => {
       const query = new URLSearchParams({ category: category || "", merchant: merchant || "", amount: String(amount || 100) });
+      if (context) query.set("context", JSON.stringify(context));
       return request(`v1/recommend?${query}`);
     },
-    addUsage: (input) => request("v1/usage", { method: "POST", body: input }),
+    addUsage: (input, { replace = false } = {}) => request(replace ? "v1/usage/period" : "v1/usage", { method: "POST", body: input }),
+    usageHistory: (card, benefit) => request(`v1/usage/history?card=${encodeURIComponent(card)}&benefit=${encodeURIComponent(benefit)}`),
     setBenefitStatus: (input) => request("v1/benefit-status", { method: "POST", body: input }),
     addOffer: (input) => request("v1/offers", { method: "POST", body: input }),
+    updateOffer: (id, input) => request(`v1/offers/${encodeURIComponent(id)}`, { method: "PATCH", body: input }),
     addWalletCard: (input) => request("v1/wallet/cards", { method: "POST", body: input }),
     updateWalletCard: (identifier, input) => request(`v1/wallet/cards/${encodeURIComponent(identifier)}`, { method: "PATCH", body: input }),
     async walletCards() {

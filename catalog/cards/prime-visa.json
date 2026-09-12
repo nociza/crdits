@@ -66,7 +66,14 @@
       "cap_usd": null,
       "conditional": false,
       "valid_from": "2026-08-25",
-      "valid_to": null
+      "valid_to": null,
+      "constraints": {
+        "categories": [
+          "gas",
+          "dining",
+          "transit"
+        ]
+      }
     }
   ],
   "benefits": [],

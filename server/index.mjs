@@ -61,13 +61,14 @@ async function route(request, response) {
   if (!authorized(request, url.pathname)) return json(response, 401, { error: "unauthorized" });
 
   if (request.method === "GET" && url.pathname === "/health") return json(response, 200, { ok: true, service: "crdits" });
-  if (request.method === "GET" && url.pathname === "/v1/dashboard") return json(response, 200, await service.dashboard());
+  if (request.method === "GET" && url.pathname === "/v1/dashboard") return json(response, 200, await service.dashboard({ year: url.searchParams.get("year") ?? undefined }));
   if (request.method === "GET" && url.pathname === "/v1/reminders") return json(response, 200, await service.reminders(url.searchParams.get("days") || 30));
   if (request.method === "GET" && url.pathname === "/v1/recommend") {
     return json(response, 200, await service.recommend({
       category: url.searchParams.get("category") || "",
       merchant: url.searchParams.get("merchant") || "",
       amount: url.searchParams.get("amount") || 100,
+      context: JSON.parse(url.searchParams.get("context") || "{}"),
     }));
   }
   if (request.method === "GET" && url.pathname === "/v1/monitor") {
@@ -78,22 +79,26 @@ async function route(request, response) {
       active_cards: dashboard.cards.length,
       reminders_due: dashboard.reminders.length,
       urgent_reminders: dashboard.reminders.filter((item) => item.severity === "urgent").length,
-      projected_net_usd: dashboard.metrics.projected_net_usd,
     });
   }
   if (request.method === "POST" && url.pathname === "/v1/wallet/cards") return json(response, 201, await service.addWalletCard(await body(request)));
   const walletCardParams = pathMatch(url.pathname, "/v1/wallet/cards/:id");
   if (request.method === "PATCH" && walletCardParams) return json(response, 200, service.updateWalletCard(walletCardParams.id, await body(request)));
   if (request.method === "POST" && url.pathname === "/v1/usage") return json(response, 201, await service.addUsage(await body(request)));
+  if (request.method === "POST" && url.pathname === "/v1/usage/period") return json(response, 200, await service.addUsage(await body(request), { replace: true }));
+  if (request.method === "GET" && url.pathname === "/v1/usage/history") return json(response, 200, service.usageHistory(url.searchParams.get("card"), url.searchParams.get("benefit")));
   if (request.method === "POST" && url.pathname === "/v1/benefit-status") return json(response, 200, await service.setBenefitStatus(await body(request)));
   if (request.method === "POST" && url.pathname === "/v1/preferences") return json(response, 200, service.setPreference(await body(request)));
   if (request.method === "POST" && url.pathname === "/v1/offers") return json(response, 201, service.addOffer(await body(request)));
+  const offerParams = pathMatch(url.pathname, "/v1/offers/:id");
+  if (request.method === "PATCH" && offerParams) return json(response, 200, service.updateOffer(offerParams.id, await body(request)));
 
   const benefitParams = pathMatch(url.pathname, "/v1/catalog/cards/:slug/benefits");
   if (request.method === "POST" && benefitParams) return json(response, 200, await service.upsertBenefit(benefitParams.slug, await body(request)));
   const rewardParams = pathMatch(url.pathname, "/v1/catalog/cards/:slug/rewards");
   if (request.method === "POST" && rewardParams) return json(response, 200, await service.upsertRewardRule(rewardParams.slug, await body(request)));
   const cardParams = pathMatch(url.pathname, "/v1/catalog/cards/:slug");
+  if (request.method === "GET" && cardParams) return json(response, 200, await service.catalogCard(cardParams.slug));
   if (request.method === "PATCH" && cardParams) return json(response, 200, await service.patchCardFacts(cardParams.slug, await body(request)));
 
   return json(response, 404, { error: "not found" });

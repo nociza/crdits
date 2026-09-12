@@ -110,6 +110,22 @@ function migrate(db) {
   if (!walletColumns.has("membership_year_start")) {
     db.exec("ALTER TABLE wallet_cards ADD COLUMN membership_year_start TEXT");
   }
+  const usageColumns = new Set(db.prepare("PRAGMA table_info(benefit_usage)").all().map(column => column.name));
+  for (const [name, type] of [["voided_at", "TEXT"], ["value_ratio", "REAL"], ["catalog_verified_at", "TEXT"]]) {
+    if (!usageColumns.has(name)) db.exec(`ALTER TABLE benefit_usage ADD COLUMN ${name} ${type}`);
+  }
+  db.exec(`CREATE TABLE IF NOT EXISTS usage_changes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id TEXT UNIQUE,
+    wallet_card_id INTEGER NOT NULL REFERENCES wallet_cards(id),
+    benefit_id TEXT NOT NULL,
+    period_key TEXT NOT NULL,
+    before_usd REAL NOT NULL,
+    after_usd REAL NOT NULL,
+    payload TEXT NOT NULL,
+    result TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
 }
 
 export function listWalletCards(db, { includeClosed = false } = {}) {
@@ -151,7 +167,8 @@ export function addWalletCard(db, input) {
 
 function dateOrNull(value, field) {
   if (value == null || value === "") return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) throw new Error(`${field} must use YYYY-MM-DD`);
+  const date = new Date(`${value}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value)) || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) throw new Error(`${field} must use a valid YYYY-MM-DD`);
   return String(value);
 }
 
@@ -270,7 +287,7 @@ export function setBenefitStatus(db, input) {
 }
 
 export function listUsage(db, { start = null, end = null, walletCardId = null } = {}) {
-  const conditions = [];
+  const conditions = ["voided_at IS NULL"];
   const values = [];
   if (start) { conditions.push("used_at >= ?"); values.push(start); }
   if (end) { conditions.push("used_at <= ?"); values.push(end); }
@@ -283,6 +300,8 @@ export function listUsage(db, { start = null, end = null, walletCardId = null } 
     amount_usd: Number(row.amount_usd),
     used_at: row.used_at,
     note: row.note,
+    value_ratio: row.value_ratio,
+    catalog_verified_at: row.catalog_verified_at,
   }));
 }
 
@@ -292,10 +311,10 @@ export function addUsage(db, input) {
   if (!Number.isFinite(amount) || amount < 0) throw new Error("amount_usd must be a non-negative number");
   const usedAt = input.used_at || new Date().toISOString().slice(0, 10);
   const row = db.prepare(`
-    INSERT INTO benefit_usage (wallet_card_id, benefit_id, amount_usd, used_at, note)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO benefit_usage (wallet_card_id, benefit_id, amount_usd, used_at, note, value_ratio, catalog_verified_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
     RETURNING *
-  `).get(input.wallet_card_id, input.benefit_id, amount, usedAt, input.note || null);
+  `).get(input.wallet_card_id, input.benefit_id, amount, usedAt, input.note || null, input.value_ratio ?? null, input.catalog_verified_at ?? null);
   return {
     id: Number(row.id),
     wallet_card_id: Number(row.wallet_card_id),
@@ -304,6 +323,58 @@ export function addUsage(db, input) {
     used_at: row.used_at,
     note: row.note,
   };
+}
+
+// Serialize read/check/write so two tabs cannot overwrite or exceed the same credit.
+// Corrections retire rows; the original entries and before/after totals are retained.
+export function writePeriodUsage(db, input, period, { limit, replace = false } = {}) {
+  const amount = Number(input.amount_usd);
+  if (!Number.isFinite(amount) || amount < 0) throw new Error("amount_usd must be a non-negative number");
+  if (replace && !Number.isFinite(Number(input.expected_total_usd))) throw new Error("expected_total_usd is required for a correction");
+  if (input.request_id != null && (typeof input.request_id !== "string" || input.request_id.length < 8 || input.request_id.length > 128)) throw new Error("invalid request_id");
+  const payload = JSON.stringify({ card: input.wallet_card_id, benefit: input.benefit_id, period: period.key, amount, replace, date: input.used_at, note: input.note || null });
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const replay = input.request_id && db.prepare("SELECT payload, result FROM usage_changes WHERE request_id = ?").get(input.request_id);
+    if (replay) {
+      if (replay.payload !== payload) throw new Error("request_id already used for a different update");
+      db.exec("COMMIT");
+      return JSON.parse(replay.result);
+    }
+    const rows = listUsage(db, { start: period.start, end: period.end, walletCardId: input.wallet_card_id }).filter(row => row.benefit_id === input.benefit_id);
+    const before = Math.round(rows.reduce((sum, row) => sum + row.amount_usd, 0) * 100) / 100;
+    if (replace && Math.abs(before - Number(input.expected_total_usd)) > 0.005) throw new Error("This period changed in another session. Refresh before saving.");
+    const after = Math.round((replace ? amount : before + amount) * 100) / 100;
+    if (limit != null && after > limit + 0.005) throw new Error(`Period total cannot exceed the $${limit} credit`);
+    if (replace) {
+      db.prepare("UPDATE benefit_usage SET voided_at = CURRENT_TIMESTAMP WHERE wallet_card_id = ? AND benefit_id = ? AND used_at BETWEEN ? AND ? AND voided_at IS NULL").run(input.wallet_card_id, input.benefit_id, period.start, period.end);
+    }
+    let entry;
+    if (replace) {
+      // Preserve dated allocations when an anniversary window spans two years.
+      // Reductions consume the most recent entries first; increases are dated
+      // by the user. Correcting a total must not move old usage into this year.
+      let unallocated = after;
+      for (const row of rows.sort((a, b) => a.used_at.localeCompare(b.used_at) || a.id - b.id)) {
+        const retained = Math.min(row.amount_usd, unallocated);
+        if (retained > 0) entry = addUsage(db, { ...row, amount_usd: retained });
+        unallocated = Math.round((unallocated - retained) * 100) / 100;
+      }
+      if (unallocated > 0) entry = addUsage(db, { ...input, amount_usd: unallocated });
+      entry = { ...input, id: entry?.id ?? null, amount_usd: after };
+    } else entry = addUsage(db, { ...input, amount_usd: amount });
+    const result = { ...entry, period_key: period.key, total_usd: after };
+    db.prepare("INSERT INTO usage_changes (request_id, wallet_card_id, benefit_id, period_key, before_usd, after_usd, payload, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(input.request_id || null, input.wallet_card_id, input.benefit_id, period.key, before, after, payload, JSON.stringify(result));
+    db.exec("COMMIT");
+    return result;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+export function usageHistory(db, walletCardId, benefitId) {
+  return db.prepare("SELECT id, period_key, before_usd, after_usd, created_at FROM usage_changes WHERE wallet_card_id = ? AND benefit_id = ? ORDER BY id DESC LIMIT 100").all(walletCardId, benefitId);
 }
 
 export function listPreferences(db) {
@@ -375,6 +446,26 @@ export function addOffer(db, input) {
     input.note || null,
   );
   return normalizeOffer(row);
+}
+
+export function updateOffer(db, id, input) {
+  const current = db.prepare("SELECT * FROM offers WHERE id = ?").get(Number(id));
+  if (!current) throw new Error("offer not found");
+  const status = input.status ?? current.status;
+  if (!["available", "used", "expired"].includes(status)) throw new Error("invalid offer status");
+  if (input.activated !== undefined && typeof input.activated !== "boolean") throw new Error("activated must be boolean");
+  const title = input.title ?? current.title;
+  if (typeof title !== "string" || !title.trim()) throw new Error("title is required");
+  const reward = input.reward_amount_usd === undefined ? current.reward_amount_usd : input.reward_amount_usd === null ? null : Number(input.reward_amount_usd);
+  if (reward != null && (!Number.isFinite(reward) || reward < 0)) throw new Error("reward must be non-negative");
+  const expires = input.expires_on === undefined ? current.expires_on : dateOrNull(input.expires_on, "expires_on");
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const row = db.prepare("UPDATE offers SET activated = ?, status = ?, title = ?, reward_amount_usd = ?, expires_on = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING *").get(input.activated == null ? current.activated : Number(input.activated), status, title.trim(), reward, expires, current.id);
+    if (status === "used" && current.status !== "used") db.prepare("INSERT INTO offer_usage (offer_id, amount_usd, used_at, note) VALUES (?, ?, ?, ?)").run(current.id, reward || 0, new Date().toISOString().slice(0, 10), "Marked used; saved offer face value, not a verified statement credit");
+    db.exec("COMMIT");
+    return normalizeOffer(row);
+  } catch (error) { db.exec("ROLLBACK"); throw error; }
 }
 
 function normalizeOffer(row) {

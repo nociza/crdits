@@ -37,6 +37,32 @@ npm run crdits -- wallet update --card "Sapphire Preferred" --membership-year-st
 
 Machine-readable output is available with `--json`. The dashboard uses the same service layer as the CLI, so calculations do not diverge between the website and Teleclaw.
 
+Click an elapsed month, quarter, or half-year to **set its used total**, including
+fully used periods. The one-field dialog accepts 0 for a correction and shows an
+audit trail. The year selector opens older bookkeeping. Additional `use` entries
+are capped; `set-used --previous OLD --amount NEW --request-id UNIQUE_ID` is
+duplicate-safe and rejects stale totals. `history --card ID --benefit ID` returns
+the correction trail. Original entries are retained, and anniversary corrections
+preserve their allocation across calendar years.
+
+“Net value this year” means used/credited value minus annual fees. Remaining
+this year includes future reset periods and is not an available-now balance.
+New ledger entries store their valuation ratio; legacy entries are pinned once
+at migration-time catalog values, not asserted historical redemption prices.
+Historical fees and benefits remain limited by the definitions actually recorded
+in the catalog; the seed does not invent pre-2026 entitlement history.
+
+Recommendations enforce structured category, merchant and channel constraints.
+Unconfirmed bonuses appear separately. `--context` can provide a booking channel,
+confirmed rule IDs and **remaining** caps; beyond-cap spend falls back to base
+earn. Bilt's 3.33X strategy is retained conditionally, with 2X base earn when its
+housing-linked capacity is unknown. See the skill command reference for fields.
+
+Catalog forms load existing IDs and valuations, preview changes, and save a
+local public-catalog patch. A local save is not a Git push: publication remains
+an explicit reviewed repository operation. Used/archived offers leave the active
+recommendation and reminder set and can be edited or restored from history.
+
 ## Agent skill
 
 Install the repository skill into Codex and Claude Code with a safe symlink:

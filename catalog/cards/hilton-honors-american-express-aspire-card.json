@@ -21,6 +21,7 @@
     "id": "other-1",
     "category": "other",
     "label": "3X Hilton Honors points on other eligible purchases",
+    "unconditional_rate": 3,
     "match_terms": [],
     "rate": 3,
     "rate_type": "points_multiplier",
@@ -42,7 +43,15 @@
       "cap_usd": null,
       "conditional": true,
       "valid_from": "2026-08-25",
-      "valid_to": null
+      "valid_to": null,
+      "constraints": {
+        "categories": [
+          "hotels"
+        ],
+        "merchants": [
+          "hilton"
+        ]
+      }
     },
     {
       "id": "travel-2",
@@ -61,7 +70,16 @@
       "cap_usd": null,
       "conditional": false,
       "valid_from": "2026-08-25",
-      "valid_to": null
+      "valid_to": null,
+      "constraints": {
+        "categories": [
+          "flights"
+        ],
+        "channels": [
+          "direct",
+          "amex-travel"
+        ]
+      }
     },
     {
       "id": "housing-3",
@@ -76,7 +94,12 @@
       "cap_usd": null,
       "conditional": true,
       "valid_from": "2026-08-25",
-      "valid_to": null
+      "valid_to": null,
+      "constraints": {
+        "categories": [
+          "car-rental"
+        ]
+      }
     },
     {
       "id": "dining-4",

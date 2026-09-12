@@ -23,6 +23,7 @@
     "label": "Effective 3.33X catch-all: 2X Bilt Points plus 4% Bilt Cash converted to housing points; applies while Flexible Bilt Cash is selected and housing unlock capacity remains (about the first 75% of monthly housing spend)",
     "match_terms": [],
     "rate": 3.333333,
+    "unconditional_rate": 2,
     "rate_type": "points_multiplier",
     "activation_required": true,
     "cap_usd": null,
@@ -62,7 +63,15 @@
       "cap_usd": null,
       "conditional": false,
       "valid_from": "2026-08-25",
-      "valid_to": null
+      "valid_to": null,
+      "constraints": {
+        "categories": [
+          "hotels"
+        ],
+        "channels": [
+          "bilt-travel"
+        ]
+      }
     },
     {
       "id": "travel-2",
@@ -79,7 +88,15 @@
       "cap_usd": null,
       "conditional": false,
       "valid_from": "2026-08-25",
-      "valid_to": null
+      "valid_to": null,
+      "constraints": {
+        "categories": [
+          "flights"
+        ],
+        "channels": [
+          "bilt-travel"
+        ]
+      }
     },
     {
       "id": "transit-3",
@@ -94,7 +111,15 @@
       "cap_usd": null,
       "conditional": false,
       "valid_from": "2026-08-25",
-      "valid_to": null
+      "valid_to": null,
+      "constraints": {
+        "categories": [
+          "transit"
+        ],
+        "merchants": [
+          "lyft"
+        ]
+      }
     },
     {
       "id": "dining-4",

@@ -6,6 +6,41 @@ import { createService } from "../server/service.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
+test("period corrections are capped, duplicate-safe, concurrency checked and auditable", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-08-27" });
+  const wallet = await service.addWalletCard({ catalog_slug: "hilton-honors-american-express-aspire-card", nickname: "Test" });
+  const input = { wallet_card_id: wallet.id, benefit_id: "flight-credit", used_at: "2026-06-30", period_key: "2026-Q2", amount_usd: 50, request_id: "test-request-1" };
+  const first = await service.addUsage(input);
+  assert.deepEqual(await service.addUsage(input), first);
+  await assert.rejects(service.addUsage({ ...input, request_id: "test-request-2" }), /cannot exceed/);
+  await assert.rejects(service.addUsage({ ...input, amount_usd: 20, request_id: "test-request-2", expected_total_usd: 0 }, { replace: true }), /another session/);
+  await service.addUsage({ ...input, amount_usd: 20, request_id: "test-request-3", expected_total_usd: 50 }, { replace: true });
+  await service.addUsage({ ...input, amount_usd: 0, request_id: "test-request-4", expected_total_usd: 20 }, { replace: true });
+  assert.equal((await service.dashboard()).cards[0].logged_realized_ytd_usd, 0);
+  const history = service.usageHistory(wallet.id, "flight-credit");
+  assert.deepEqual(history.map(row => [row.before_usd, row.after_usd]), [[20, 0], [50, 20], [0, 50]]);
+  assert.equal(service.db.prepare("SELECT count(*) AS n FROM benefit_usage WHERE voided_at IS NOT NULL").get().n, 2);
+  service.db.close();
+});
+
+test("reporting a past year never authorizes future usage", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-08-27" });
+  const report = await service.dashboard({ year: 2025 });
+  assert.equal(report.as_of, "2025-12-31");
+  assert.equal(report.today, "2026-08-27");
+  await assert.rejects(service.dashboard({ year: 2027 }), /year must/);
+  service.db.close();
+});
+
+test("a named merchant alone does not qualify portal or partner earnings", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-08-27" });
+  await service.addWalletCard({ catalog_slug: "bilt-palladium-card", nickname: "Test Bilt" });
+  assert.equal((await service.recommend({ category: "travel", merchant: "Delta direct", amount: 100 })).recommendation[0].rate, 2);
+  assert.equal((await service.recommend({ category: "dining", merchant: "Random cafe", amount: 100 })).recommendation[0].rate, 2);
+  await assert.rejects(service.recommend({ category: "other", amount: -10 }), /positive number/);
+  service.db.close();
+});
+
 test("retrospective split-credit usage is constrained to its named period", async () => {
   const service = createService({ root, dbPath: ":memory:", asOf: "2026-08-27" });
   const wallet = await service.addWalletCard({

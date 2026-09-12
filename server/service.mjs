@@ -11,7 +11,6 @@ import {
 } from "./catalog.mjs";
 import {
   addOffer,
-  addUsage,
   addWalletCard,
   findWalletCard,
   listWalletCards,
@@ -20,8 +19,12 @@ import {
   setPreference,
   setWalletCardStatus,
   updateWalletCard,
+  writePeriodUsage,
+  listPreferences,
+  usageHistory,
+  updateOffer,
 } from "./db.mjs";
-import { buildDashboard, enumerateCycles, isResetCadence, recommendCard } from "./engine.mjs";
+import { buildDashboard, enumerateCycles, recommendCard, cycleAmount, catalogValue } from "./engine.mjs";
 import { readFile, readdir } from "node:fs/promises";
 
 export function projectPaths(root = process.env.CRDITS_ROOT || process.cwd()) {
@@ -39,15 +42,41 @@ export function createService(options = {}) {
   const today = () => options.asOf || new Date().toISOString().slice(0, 10);
 
   async function catalog() {
-    return loadCatalog(catalogDir);
+    const cards = await loadCatalog(catalogDir);
+    // Pin pre-migration usage at the existing catalog valuation once. This is
+    // a migration-time estimate, not a claim about historical redemption prices.
+    const legacy = db.prepare("SELECT * FROM benefit_usage WHERE value_ratio IS NULL").all();
+    const wallets = listWalletCards(db, { includeClosed: true });
+    const preferences = listPreferences(db);
+    if (legacy.length) {
+      const update = db.prepare("UPDATE benefit_usage SET value_ratio = ?, catalog_verified_at = ? WHERE id = ? AND value_ratio IS NULL");
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        for (const entry of legacy) {
+          const wallet = wallets.find(item => item.id === entry.wallet_card_id);
+          const card = cards.find(item => item.slug === wallet?.catalog_slug);
+          const benefit = card?.benefits.find(item => item.id === entry.benefit_id);
+          if (!benefit) continue;
+          const preference = preferences.find(item => item.wallet_card_id === wallet.id && item.benefit_id === benefit.id) || {};
+          const nominal = cycleAmount(benefit, card, preference);
+          const value = catalogValue(benefit, card, preference);
+          update.run(nominal > 0 && value != null ? value / nominal : 0, `migration:${card.verified_at || today()}`, entry.id);
+        }
+        db.exec("COMMIT");
+      } catch (error) { db.exec("ROLLBACK"); throw error; }
+    }
+    return cards;
   }
 
   return {
     db,
     paths: { ...paths, catalogDir, dbPath: options.dbPath || paths.dbPath },
 
-    async dashboard() {
-      return buildDashboard({ catalog: await catalog(), db, asOf: today() });
+    async dashboard({ year } = {}) {
+      const currentYear = Number(today().slice(0, 4));
+      const selectedYear = year == null ? currentYear : Number(year);
+      if (!Number.isInteger(selectedYear) || selectedYear < 2000 || selectedYear > currentYear) throw new Error("year must be between 2000 and the current year");
+      return { ...buildDashboard({ catalog: await catalog(), db, asOf: selectedYear === currentYear ? today() : `${selectedYear}-12-31`, includeClosed: selectedYear < currentYear }), today: today(), selected_year: selectedYear };
     },
 
     async reminders(days = 30) {
@@ -55,8 +84,8 @@ export function createService(options = {}) {
       return { as_of: dashboard.as_of, days: Number(days), reminders: dashboard.reminders };
     },
 
-    async recommend({ category, merchant, amount }) {
-      return recommendCard({ catalog: await catalog(), db, category, merchant, amount: Number(amount || 100), asOf: today() });
+    async recommend({ category, merchant, amount, context = {} }) {
+      return recommendCard({ catalog: await catalog(), db, category, merchant, amount: Number(amount ?? 100), context, asOf: today() });
     },
 
     async addWalletCard(input) {
@@ -73,7 +102,7 @@ export function createService(options = {}) {
       return setWalletCardStatus(db, id, "closed");
     },
 
-    async addUsage(input) {
+    async addUsage(input, { replace = false } = {}) {
       const wallet = findWalletCard(db, input.wallet_card_id || input.card);
       if (!wallet) throw new Error("wallet card not found");
       const card = (await catalog()).find((item) => item.slug === wallet.catalog_slug);
@@ -87,11 +116,25 @@ export function createService(options = {}) {
       }
       if (usedAt > today()) throw new Error("usage cannot be recorded in a future period");
       if (input.period_key) {
-        if (!isResetCadence(benefit.cadence)) throw new Error("period_key is only valid for monthly, quarterly, or semiannual credits");
         const matchingPeriod = enumerateCycles(benefit, wallet, usedAt, usedAt).find((period) => period.key === input.period_key);
         if (!matchingPeriod) throw new Error(`usage date ${usedAt} does not fall inside ${input.period_key}`);
       }
-      return addUsage(db, { ...input, used_at: usedAt, wallet_card_id: wallet.id });
+      const period = enumerateCycles(benefit, wallet, usedAt, usedAt)[0];
+      if (!period) throw new Error("No eligible credit period for this date; check the card anniversary and benefit dates");
+      const preference = listPreferences(db).find(item => item.wallet_card_id === wallet.id && item.benefit_id === benefit.id) || {};
+      const limit = cycleAmount(benefit, card, preference);
+      const value = catalogValue(benefit, card, preference);
+      return writePeriodUsage(db, { ...input, used_at: usedAt, wallet_card_id: wallet.id, value_ratio: limit > 0 && value != null ? value / limit : 0, catalog_verified_at: card.verified_at }, period, { limit, replace });
+    },
+
+    usageHistory(walletCardId, benefitId) {
+      return usageHistory(db, Number(walletCardId), benefitId);
+    },
+
+    async catalogCard(slug) {
+      const card = (await catalog()).find(item => item.slug === slug);
+      if (!card) throw new Error("catalog card not found");
+      return card;
     },
 
     async setBenefitStatus(input) {
@@ -115,6 +158,8 @@ export function createService(options = {}) {
       if (!wallet) throw new Error("wallet card not found");
       return addOffer(db, { ...input, wallet_card_id: wallet.id });
     },
+
+    updateOffer(id, input) { return updateOffer(db, id, input); },
 
     async importCatalogCsv(csvPath) {
       return importCatalogCsv(csvPath, catalogDir);
@@ -161,14 +206,17 @@ export function createService(options = {}) {
     },
 
     async upsertBenefit(cardSlug, input) {
+      await catalog();
       return upsertBenefit(catalogDir, cardSlug, input);
     },
 
     async upsertRewardRule(cardSlug, input) {
+      await catalog();
       return upsertRewardRule(catalogDir, cardSlug, input);
     },
 
     async patchCardFacts(cardSlug, input) {
+      await catalog();
       return patchCardFacts(catalogDir, cardSlug, input);
     },
 

@@ -18,11 +18,14 @@ Never guess a database path. Honor `CRDITS_DB_PATH` when set; otherwise let the 
 Run the narrowest JSON command, then explain the result plainly:
 
 - Portfolio value or card ROI: `crdits summary --json`
+- Past-year bookkeeping: `crdits summary --year YYYY --json`
 - Expiring credits or renewals: `crdits due --days 30 --json`
 - Best card: `crdits recommend dining --amount 80 --merchant "Restaurant" --json`
 - Wallet inventory: `crdits wallet list --json`
 
 State the dated point-value assumption and source when it changes the recommendation. Do not describe editorial point values as guaranteed cash value. Normal wallet summaries use the public catalog valuation automatically; never ask the user to assign a value to each credit.
+
+Recommendations separate unconditional earn from `conditional_alternatives`. A merchant name alone does not confirm eligibility. Read [commands.md](references/commands.md) for rule confirmation, booking channel and remaining-cap context. Ask only for missing constraints that could change the answer; never assume activation, partner eligibility or unused capacity.
 
 For Bilt Palladium catch-all recommendations, preserve the catalog's full condition: 3.33X means 2X base points plus 1.33X derived from earning 4% Bilt Cash and redeeming it at $30 per 1,000 housing points. Apply it only under the Flexible Bilt Cash option while housing unlock capacity remains—approximately the first 75% of monthly rent or mortgage in everyday spend. State that cap whenever Bilt wins; do not present 3.33X as unconditional or uncapped.
 
@@ -39,11 +42,13 @@ First inspect the benefit's `tracking_type` in `crdits summary --json`. Its beha
 - `enrollment`: a one-time activation such as DashPass or Priority Pass. Mark it active once; the state persists.
 - `reference`: an informational or conditional perk. Do not invent a usage balance.
 
-Record only spend benefits with:
+Use `use` only for additional spend usage:
 
 ```text
 crdits use --card CARD --benefit BENEFIT_ID --amount USD --date YYYY-MM-DD --note TEXT
 ```
+
+For “I used $X in Q2,” corrections, or clearing a mistaken total, read the period's current `used_usd` and use `set-used --previous CURRENT_TOTAL --amount NEW_TOTAL`. Pass a unique `--request-id` for a write and reuse it only when retrying that exact request after an uncertain response. Never retry a conflict by silently changing `--previous`; refresh and reconcile first. See [commands.md](references/commands.md). Corrections retain dated allocations and audit history; 0 clears a total without erasing that history.
 
 Monthly, quarterly, and semiannual credits are independent reset periods. Current and retrospective bookkeeping are both supported. Before recording one, inspect `summary --json`, select the exact current or past `periods` entry, and pass its key with `--period YYYY-MM`, `--period YYYY-QN`, or `--period YYYY-HN`. Ensure `--date` falls between that entry's `start` and `end`; the service rejects mismatched and future periods. Never carry usage across a reset boundary. If the user names a past period such as July, H1, or Q2 but does not know the exact date, use that period's end date only after explicitly noting that it is a period-end bookkeeping marker rather than a known transaction date.
 
@@ -85,6 +90,11 @@ Assign public valuations consistently:
 When a reward multiplier combines currencies, store the component rates, conversion, eligibility condition, cap formula, source, and as-of date. Bilt Cash is a separate non-cash currency: for the conservative housing-points method, value each nominal $1 at one-third dollar using the 1-cent Bilt Points cash floor, even though Bilt advertises separate dollar-for-dollar partner redemptions.
 
 The CLI archives a replaced definition in the card's `history` before writing the new version. After any catalog mutation:
+
+When editing an existing benefit or reward, pass its stable `--id`, especially
+when renaming its title. Omitted fields are preserved. Website saves write the
+backend's local catalog, while a remote skill's catalog commands edit its own
+checkout; reconcile those public changes explicitly before claiming publication.
 
 1. Run `crdits catalog validate --json`.
 2. Inspect the Git diff for only the intended `catalog/cards/*.json` change.

@@ -1,4 +1,5 @@
-import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, writeFile, open, unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 
 const CATEGORY_TERMS = {
@@ -314,6 +315,11 @@ export function validateCard(card) {
   if (!Array.isArray(card?.reward_rules)) errors.push("reward_rules must be an array");
   if (!Array.isArray(card?.benefits)) errors.push("benefits must be an array");
   for (const rule of [card?.base_reward, ...(card?.reward_rules ?? [])].filter(Boolean)) {
+    if (rule.constraints) for (const key of ["categories", "merchants", "channels"]) {
+      const value = rule.constraints[key];
+      if (value != null && (!Array.isArray(value) || !value.length || value.some(item => typeof item !== "string" || !item.trim()))) errors.push(`reward rule ${rule.id} ${key} must be a nonempty string array`);
+    }
+    if (rule.cap_usd != null && (!Number.isFinite(Number(rule.cap_usd)) || Number(rule.cap_usd) < 0)) errors.push(`reward rule ${rule.id} has an invalid cap`);
     if (rule.components) {
       const componentRate = rule.components.reduce((sum, component) => sum + Number(component.rate), 0);
       if (!Number.isFinite(componentRate) || Math.abs(componentRate - Number(rule.rate)) > 0.005) {
@@ -386,7 +392,7 @@ export async function writeCard(catalogDir, card) {
   if (errors.length) throw new Error(errors.join("; "));
   await mkdir(catalogDir, { recursive: true });
   const destination = path.join(catalogDir, `${card.slug}.json`);
-  const temporary = `${destination}.tmp`;
+  const temporary = `${destination}.${randomUUID()}.tmp`;
   await writeFile(temporary, `${JSON.stringify(card, null, 2)}\n`, "utf8");
   await rename(temporary, destination);
   return destination;
@@ -401,11 +407,16 @@ export async function importCatalogCsv(csvPath, catalogDir) {
 
 async function updateCard(catalogDir, cardSlug, updater) {
   const file = path.join(catalogDir, `${slugify(cardSlug)}.json`);
-  const card = JSON.parse(await readFile(file, "utf8"));
-  const updated = updater(structuredClone(card));
-  updated.verified_at = updated.verified_at || new Date().toISOString().slice(0, 10);
-  await writeCard(catalogDir, updated);
-  return updated;
+  let lock;
+  try { lock = await open(`${file}.lock`, "wx", 0o600); }
+  catch (error) { if (error.code === "EEXIST") throw new Error("Catalog update already in progress; retry after it finishes"); throw error; }
+  try {
+    const card = JSON.parse(await readFile(file, "utf8"));
+    const updated = updater(structuredClone(card));
+    updated.verified_at = updated.verified_at || new Date().toISOString().slice(0, 10);
+    await writeCard(catalogDir, updated);
+    return updated;
+  } finally { await lock.close(); await unlink(`${file}.lock`); }
 }
 
 function archive(card, type, value) {
@@ -419,6 +430,13 @@ export async function upsertBenefit(catalogDir, cardSlug, input) {
     const existingIndex = card.benefits.findIndex((benefit) => benefit.id === id);
     const existing = existingIndex >= 0 ? card.benefits[existingIndex] : null;
     if (existing) archive(card, "benefit", existing);
+    // An edit is a patch, not a replacement. Omitted valuations and provenance
+    // must survive a simple title/amount correction from either client.
+    const changes = input;
+    if (existing) input = { ...existing, valuation_method: existing.valuation?.method,
+      valuation_value_usd: existing.valuation?.value_usd, valuation_basis: existing.valuation?.basis,
+      valuation_source_url: existing.valuation?.source_url, valuation_as_of: existing.valuation?.as_of, ...input };
+    if (input.valuation_method === "face_value" && Object.hasOwn(changes, "amount_usd") && !Object.hasOwn(changes, "valuation_value_usd")) input.valuation_value_usd = changes.amount_usd;
     const amount = numberOrNull(input.amount_usd);
     const pointsAmount = numberOrNull(input.points_amount);
     const trackingType = input.tracking_type || (input.enrollment_required ? "enrollment" : amount == null ? "reference" : "spend");
@@ -433,6 +451,7 @@ export async function upsertBenefit(catalogDir, cardSlug, input) {
       asOf: input.valuation_as_of || input.verified_at || input.valid_from || new Date().toISOString().slice(0, 10),
     });
     const next = {
+      ...existing,
       id,
       title: input.title,
       kind: input.kind || "statement_credit",
@@ -461,7 +480,7 @@ export async function upsertBenefit(catalogDir, cardSlug, input) {
     if (input.source_url && !card.sources.some((source) => source.url === input.source_url)) {
       card.sources.push({ kind: "benefits", url: input.source_url });
     }
-    card.verified_at = input.verified_at || next.valid_from;
+    card.verified_at = input.verified_at || card.verified_at;
     return card;
   });
 }
@@ -472,7 +491,9 @@ export async function upsertRewardRule(catalogDir, cardSlug, input) {
     const existingIndex = card.reward_rules.findIndex((rule) => rule.id === id);
     const existing = existingIndex >= 0 ? card.reward_rules[existingIndex] : null;
     if (existing) archive(card, "reward_rule", existing);
+    if (existing) input = { ...existing, ...input };
     const next = {
+      ...existing,
       id,
       category: input.category || "other",
       label: input.label || input.title || `${input.rate}${input.rate_type === "cashback_percent" ? "%" : "X"} ${input.category}`,
@@ -492,7 +513,7 @@ export async function upsertRewardRule(catalogDir, cardSlug, input) {
     if (input.source_url && !card.sources.some((source) => source.url === input.source_url)) {
       card.sources.push({ kind: "rewards", url: input.source_url });
     }
-    card.verified_at = input.verified_at || next.valid_from;
+    card.verified_at = input.verified_at || card.verified_at;
     return card;
   });
 }

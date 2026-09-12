@@ -48,7 +48,16 @@
       "cap_usd": null,
       "conditional": false,
       "valid_from": "2026-08-25",
-      "valid_to": null
+      "valid_to": null,
+      "constraints": {
+        "categories": [
+          "hotels",
+          "car-rental"
+        ],
+        "channels": [
+          "capital-one-travel"
+        ]
+      }
     },
     {
       "id": "travel-2",
@@ -67,7 +76,16 @@
       "cap_usd": null,
       "conditional": false,
       "valid_from": "2026-08-25",
-      "valid_to": null
+      "valid_to": null,
+      "constraints": {
+        "categories": [
+          "flights",
+          "vacation-rental"
+        ],
+        "channels": [
+          "capital-one-travel"
+        ]
+      }
     }
   ],
   "benefits": [

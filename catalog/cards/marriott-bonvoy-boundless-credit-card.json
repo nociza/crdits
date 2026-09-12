@@ -45,7 +45,15 @@
       "cap_usd": null,
       "conditional": false,
       "valid_from": "2026-08-25",
-      "valid_to": null
+      "valid_to": null,
+      "constraints": {
+        "categories": [
+          "hotels"
+        ],
+        "merchants": [
+          "marriott"
+        ]
+      }
     },
     {
       "id": "dining-2",
@@ -59,10 +67,18 @@
       "rate": 3,
       "rate_type": "points_multiplier",
       "activation_required": false,
-      "cap_usd": null,
+      "cap_usd": 6000,
       "conditional": false,
       "valid_from": "2026-08-25",
-      "valid_to": null
+      "valid_to": null,
+      "constraints": {
+        "categories": [
+          "groceries",
+          "gas",
+          "dining"
+        ]
+      },
+      "cap_group": "annual-grocery-gas-dining"
     }
   ],
   "benefits": [

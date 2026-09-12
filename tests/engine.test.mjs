@@ -81,9 +81,13 @@ test("Bilt Palladium uses the sourced 3.33X catch-all strategy and conservative 
   const db = openDatabase(":memory:");
   const wallet = addWalletCard(db, { catalog_slug: bilt.slug, nickname: "My Bilt" });
   const result = recommendCard({ catalog: [bilt], db, category: "other", amount: 100, asOf: "2026-08-28" });
-  assert.equal(result.recommendation[0].rate, 3.333333);
-  assert.equal(result.recommendation[0].reward_value_usd, 7.33);
-  assert.match(result.recommendation[0].rule, /75% of monthly housing spend/);
+  assert.equal(result.recommendation[0].rate, 2);
+  assert.equal(result.recommendation[0].reward_value_usd, 4.4);
+  assert.match(result.recommendation[0].conditional_alternatives[0].rule, /75% of monthly housing spend/);
+  const context = { confirmed_rules: [`${bilt.slug}:${bilt.base_reward.id}`], remaining_caps: { [`${bilt.slug}:${bilt.base_reward.id}`]: 50 } };
+  const capped = recommendCard({ catalog: [bilt], db, category: "other", amount: 100, context, asOf: "2026-08-28" });
+  assert.equal(capped.recommendation[0].rate, 3.333333);
+  assert.equal(capped.recommendation[0].reward_value_usd, 5.87); // first $50 boosted, remainder at 2X
 
   const dashboard = buildDashboard({ catalog: [bilt], db, asOf: "2026-08-28" });
   const annualBiltCash = dashboard.cards[0].benefits.find((benefit) => benefit.id === "bilt-cash-annually");

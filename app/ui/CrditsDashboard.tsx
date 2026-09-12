@@ -1,5 +1,7 @@
 "use client";
 
+import { CatalogEditor } from "./CatalogEditor";
+
 /* eslint-disable @next/next/no-img-element */
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -85,6 +87,7 @@ type CatalogCard = {
 };
 
 type Reminder = {
+  benefit_id?: string;
   type: string;
   severity: "urgent" | "upcoming";
   wallet_card_id: number;
@@ -117,6 +120,7 @@ type Dashboard = {
   cards: WalletCard[];
   reminders: Reminder[];
   offers: Offer[];
+  offer_history?: (Offer & { status: string })[];
   catalog_cards: CatalogCard[];
 };
 
@@ -132,6 +136,7 @@ type Recommendation = {
     total_value_usd: number;
     reward_value_usd: number;
     offer_value_usd: number;
+    conditional_alternatives?: { rule_id: string; rule: string; reason: string }[];
   }>;
 };
 
@@ -160,6 +165,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "content-type": "application/json", ...(init?.headers || {}) },
     cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
@@ -185,7 +191,7 @@ function CreditPeriods({ cadence, periods, asOf, onSelect }: { cadence: string; 
   return (
     <div className={`credit-periods has-${periods.length} is-${cadence}`} aria-label="Credit periods">
       {periods.map((period) => {
-        const selectable = period.start <= asOf && period.remaining_usd > 0;
+        const selectable = period.start <= asOf;
         const detail = period.status === "used"
           ? `${usd.format(period.amount_usd)} used`
           : period.status === "partial"
@@ -196,7 +202,7 @@ function CreditPeriods({ cadence, periods, asOf, onSelect }: { cadence: string; 
                 ? `${usd.format(period.amount_usd)} next`
                 : `${usd.format(period.remaining_usd)} left`;
         return (
-          <button type="button" className={`credit-period is-${period.status} ${period.is_current ? "is-current" : ""}`} key={period.key} aria-current={period.is_current ? "true" : undefined} disabled={!selectable} onClick={() => onSelect(period)} title={selectable ? `Log ${period.label} use` : period.status === "upcoming" ? `Upcoming period: ${period.start} through ${period.end}` : `${period.label} is fully used`}>
+          <button type="button" className={`credit-period is-${period.status} ${period.is_current ? "is-current" : ""}`} key={period.key} aria-current={period.is_current ? "true" : undefined} disabled={!selectable} onClick={() => onSelect(period)} title={selectable ? `Set ${period.label} used total` : period.status === "upcoming" ? `Upcoming period: ${period.start} through ${period.end}` : `${period.label} is fully used`}>
             <small>{period.label}</small><strong>{detail}</strong><i>{period.is_current ? "Current" : period.status}</i>
           </button>
         );
@@ -210,35 +216,65 @@ function UsageModal({ card, benefit, asOf, periodKey, onSubmit, onCancel }: {
   benefit: Benefit;
   asOf: string;
   periodKey: string | null;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   onCancel: () => void;
 }) {
   const selectedPeriod = benefit.periods.find((period) => period.key === periodKey);
   const usedAt = selectedPeriod && !selectedPeriod.is_current ? selectedPeriod.end : asOf;
-  const defaultAmount = selectedPeriod?.remaining_usd ?? benefit.remaining_usd ?? 0;
+  const previousTotal = selectedPeriod?.used_usd ?? benefit.used_usd;
+  const defaultAmount = previousTotal || selectedPeriod?.amount_usd || benefit.amount_usd || 0;
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const submitting = useRef(false);
+  const [requestId] = useState(() => crypto.randomUUID());
+  const [history, setHistory] = useState<{ id: number; period_key: string; before_usd: number; after_usd: number; created_at: string }[] | null>(null);
+  const [historyError, setHistoryError] = useState(false);
   const amountInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onCancel(); };
-    document.addEventListener("keydown", onKeyDown);
+    const dialog = dialogRef.current;
+    dialog?.showModal();
     amountInput.current?.focus();
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onCancel]);
+    amountInput.current?.select();
+    return () => dialog?.close();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    api<typeof history>(`/v1/usage/history?card=${card.id}&benefit=${encodeURIComponent(benefit.id)}`)
+      .then(value => { if (active) setHistory(value); })
+      .catch(() => { if (active) setHistoryError(true); });
+    return () => { active = false; };
+  }, [card.id, benefit.id]);
 
   return (
-    <div className="usage-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
+    <dialog ref={dialogRef} className="usage-modal-backdrop" onCancel={onCancel}>
       <section className="usage-modal" role="dialog" aria-modal="true" aria-labelledby="usage-modal-title">
-        <header><div><span>{card.nickname}</span><h3 id="usage-modal-title">{selectedPeriod ? `Log ${selectedPeriod.label}` : "Log credit use"}</h3></div><button type="button" aria-label="Close" onClick={onCancel}>×</button></header>
+        <header><div><span>{card.nickname}</span><h3 id="usage-modal-title">{selectedPeriod ? `Set ${selectedPeriod.label} total` : "Set credit total"}</h3></div><button type="button" aria-label="Close" onClick={onCancel}>×</button></header>
         <p>{benefit.title}</p>
         {selectedPeriod ? <small>{selectedPeriod.start} – {selectedPeriod.end} · {usd.format(selectedPeriod.remaining_usd)} left</small> : null}
-        <form onSubmit={onSubmit}>
+        <form onSubmit={async (event) => {
+          event.preventDefault();
+          if (submitting.current) return;
+          submitting.current = true;
+          setSaving(true);
+          try { setSaveError(null); await onSubmit(event); } catch (error) { setSaveError(error instanceof Error ? error.message : "Save failed"); } finally { submitting.current = false; setSaving(false); }
+        }}>
           <input name="period_key" type="hidden" value={selectedPeriod?.key || ""} />
           <input name="used_at" type="hidden" value={usedAt} />
-          <label>Amount used<span><b>$</b><input ref={amountInput} name="amount_usd" type="number" step="0.01" min="0.01" max={selectedPeriod?.remaining_usd ?? benefit.remaining_usd ?? undefined} defaultValue={defaultAmount || ""} required /></span></label>
-          <div><button type="button" className="ghost" onClick={onCancel}>Cancel</button><button>Save use</button></div>
+          <input name="expected_total_usd" type="hidden" value={previousTotal} />
+          <input name="request_id" type="hidden" value={requestId} />
+          <label>Total used this period<span><b>$</b><input ref={amountInput} name="amount_usd" type="number" step="0.01" min="0" max={selectedPeriod?.amount_usd ?? benefit.amount_usd ?? undefined} defaultValue={defaultAmount} required /></span></label>
+          <div><button type="button" className="ghost" onClick={onCancel}>Cancel</button><button disabled={saving || !requestId}>{saving ? "Saving…" : "Save total"}</button></div>
         </form>
+        {saveError && <p role="alert">{saveError}</p>}
+        <details><summary>Correction history</summary>
+          {historyError ? <p role="status">History unavailable. Close and reopen to retry.</p> : history === null ? <p>Loading…</p> : history.length ? <ul>{history.map(item => <li key={item.id}>{item.period_key}: {usd.format(item.before_usd)} → {usd.format(item.after_usd)} · {item.created_at} UTC</li>)}</ul> : <p>No corrections yet. Earlier ledger entries are retained.</p>}
+          <p>Enter 0 to clear a mistaken total. Corrections remain in your private audit trail.</p>
+        </details>
       </section>
-    </div>
+    </dialog>
   );
 }
 
@@ -252,6 +288,8 @@ function CardArtwork({ card, compact = false }: { card: Pick<WalletCard, "name" 
 
 export function CrditsDashboard() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [year, setYear] = useState(new Date().getFullYear());
+  const latestRequest = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"overview" | "wallet" | "catalog">("overview");
@@ -262,16 +300,18 @@ export function CrditsDashboard() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
+    const request = ++latestRequest.current;
     try {
-      setError(null);
-      const data = await api<Dashboard>("/v1/dashboard");
+      const data = await api<Dashboard>(`/v1/dashboard?year=${year}`);
+      if (request !== latestRequest.current) return;
       setDashboard(data);
+      setError(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to load crdits");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [year]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void reload(); }, 0);
@@ -279,6 +319,52 @@ export function CrditsDashboard() {
   }, [reload]);
 
   const urgent = dashboard?.reminders.filter((item) => item.severity === "urgent") ?? [];
+  useEffect(() => {
+    const refresh = () => { if (!document.hidden) void reload(); };
+    refresh();
+    const timer = window.setInterval(refresh, 60_000);
+    window.addEventListener("focus", refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [reload]);
+
+  function openReminder(item: { wallet_card_id: number; benefit_id?: string; expires_on: string }) {
+    const card = dashboard?.cards.find(card => card.id === item.wallet_card_id);
+    const benefit = card?.benefits.find(benefit => benefit.id === item.benefit_id);
+    if (card && benefit?.tracking_type === "spend") {
+      const period = benefit.periods.find(period => period.end === item.expires_on);
+      setEdit({ mode: "usage", card, benefit, periodKey: period?.key || null });
+    } else openCard(item.wallet_card_id);
+  }
+
+  function openCard(cardId: number) {
+    setTab("wallet");
+    history.replaceState(null, "", `?tab=wallet&card=${cardId}`);
+    window.setTimeout(() => {
+      const card = document.getElementById(`wallet-card-${cardId}`);
+      const group = card?.closest("details");
+      if (group) group.open = true;
+      card?.scrollIntoView({ block: "start", behavior: "auto" });
+      card?.focus({ preventScroll: true });
+    }, 0);
+  }
+
+  const hasDashboard = Boolean(dashboard);
+  useEffect(() => {
+    if (!hasDashboard) return;
+    const query = new URLSearchParams(window.location.search);
+    const cardId = Number(query.get("card"));
+    if (query.get("tab") !== "wallet" || !cardId) return;
+    const timer = window.setTimeout(() => {
+      setTab("wallet");
+      window.setTimeout(() => {
+        const card = document.getElementById(`wallet-card-${cardId}`);
+        const group = card?.closest("details"); if (group) group.open = true;
+        card?.scrollIntoView({ block: "start" });
+      }, 0);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [hasDashboard]);
+
   const walletById = useMemo(() => new Map((dashboard?.cards ?? []).map((card) => [card.id, card])), [dashboard]);
   const attentionCards = dashboard?.cards.filter((card) => card.needs_attention) ?? [];
   const otherCards = dashboard?.cards.filter((card) => !card.needs_attention) ?? [];
@@ -289,8 +375,11 @@ export function CrditsDashboard() {
       await work();
       await reload();
       setNotice(message);
+      return null;
     } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : "Update failed");
+      const message = reason instanceof Error ? reason.message : "Update failed";
+      setNotice(message);
+      return message;
     }
   }
 
@@ -303,6 +392,7 @@ export function CrditsDashboard() {
         category: String(form.get("category") || "other"),
         merchant: String(form.get("merchant") || ""),
         amount: String(form.get("amount") || "100"),
+        context: JSON.stringify({ channel: form.get("channel") || undefined }),
       });
       setRecommendation(await api<Recommendation>(`/v1/recommend?${params}`));
     } catch (reason) {
@@ -350,17 +440,20 @@ export function CrditsDashboard() {
     event.preventDefault();
     if (!edit) return;
     const data = new FormData(event.currentTarget);
-    await mutate("Usage recorded. The ledger and projections are updated.", async () => {
-      await api("/v1/usage", { method: "POST", body: JSON.stringify({
+    const failure = await mutate("Period total saved. Previous entries remain in the private audit trail.", async () => {
+      await api("/v1/usage/period", { method: "POST", body: JSON.stringify({
         wallet_card_id: edit.card.id,
         benefit_id: edit.benefit.id,
         amount_usd: Number(data.get("amount_usd")),
+        expected_total_usd: Number(data.get("expected_total_usd")),
+        request_id: data.get("request_id"),
         used_at: data.get("used_at"),
         period_key: data.get("period_key") || null,
         note: data.get("note") || null,
       }) });
       setEdit(null);
     });
+    if (failure) throw new Error(failure);
   }
 
   async function activateBenefit(card: WalletCard, benefit: Benefit) {
@@ -430,7 +523,7 @@ export function CrditsDashboard() {
     }
 
     return (
-      <article className="wallet-card" key={card.id}>
+      <article id={`wallet-card-${card.id}`} tabIndex={-1} className="wallet-card" key={card.id}>
         <aside className="wallet-card-rail">
           <CardArtwork card={card} />
           <div className="card-identity">
@@ -452,27 +545,6 @@ export function CrditsDashboard() {
     );
   }
 
-  async function updateCatalog(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const kind = String(data.get("update_kind"));
-    const slug = String(data.get("card_slug"));
-    const body = Object.fromEntries([...data.entries()].filter(([key, value]) => !["update_kind", "card_slug"].includes(key) && value !== ""));
-    if (kind !== "benefit") {
-      delete body.tracking_type;
-      delete body.points_amount;
-      delete body.valuation_method;
-      delete body.valuation_value_usd;
-    }
-    const route = kind === "benefit" ? "benefits" : kind === "reward" ? "rewards" : "";
-    const method = kind === "facts" ? "PATCH" : "POST";
-    const url = kind === "facts" ? `/v1/catalog/cards/${slug}` : `/v1/catalog/cards/${slug}/${route}`;
-    await mutate("Public catalog updated in the repository. Review and commit the generated diff.", async () => {
-      await api(url, { method, body: JSON.stringify(body) });
-      form.reset();
-    });
-  }
 
   return (
     <main className="app-shell">
@@ -482,7 +554,7 @@ export function CrditsDashboard() {
         </button>
         <nav aria-label="Primary navigation">
           {(["overview", "wallet", "catalog"] as const).map((item) => (
-            <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>
+            <button key={item} aria-pressed={tab === item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>
           ))}
         </nav>
         <div className="privacy-badge"><i /> local ledger</div>
@@ -490,6 +562,7 @@ export function CrditsDashboard() {
 
       {notice ? <button className="notice" onClick={() => setNotice(null)}>{notice}<span>×</span></button> : null}
 
+      <label className="year-selector">Bookkeeping year <select aria-label="Bookkeeping year" value={year} onChange={event => { setYear(Number(event.target.value)); setEdit(null); }}>{Array.from({ length: new Date().getFullYear() - 2019 }, (_, index) => new Date().getFullYear() - index).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
       {error ? (
         <section className="empty-state">
           <small>LOCAL API UNAVAILABLE</small>
@@ -499,7 +572,7 @@ export function CrditsDashboard() {
         </section>
       ) : null}
 
-      {!error && tab === "overview" ? (
+      {(dashboard || !error) && tab === "overview" ? (
         <>
           <section className="hero">
             <div>
@@ -508,16 +581,16 @@ export function CrditsDashboard() {
               <p className="hero-copy">See what is available, what needs attention, and which card to use next. Personal activity stays in your private ledger.</p>
             </div>
             <div className="net-orb">
-              <span>Available now</span>
+              <span>Remaining this year</span>
               <strong>{dashboard ? usd.format(dashboard.metrics.credits_remaining_usd) : "—"}</strong>
               <small>{dashboard?.reminders.length ?? 0} reminder{dashboard?.reminders.length === 1 ? "" : "s"} · {attentionCards.length} card{attentionCards.length === 1 ? "" : "s"} to review</small>
             </div>
           </section>
 
           <section className="metrics" aria-label="Portfolio metrics">
-            <Metric label="Credits available" value={dashboard?.metrics.credits_remaining_usd ?? 0} detail={`${usd.format(dashboard?.metrics.expected_remaining_usd ?? 0)} using sourced catalog values`} />
-            <Metric label="Used this year" value={dashboard?.metrics.realized_ytd_usd ?? 0} detail="Recorded in your private ledger" tone="good" />
-            <Metric label="Projected net" value={dashboard?.metrics.projected_net_usd ?? 0} detail={`Used value minus ${usd.format(dashboard?.metrics.annual_fees_usd ?? 0)} in annual fees`} tone={(dashboard?.metrics.projected_net_usd ?? 0) >= 0 ? "good" : "warn"} />
+            <Metric label="Remaining this year" value={dashboard?.metrics.credits_remaining_usd ?? 0} detail={`${usd.format(dashboard?.metrics.expected_remaining_usd ?? 0)} using sourced catalog values`} />
+            <Metric label="Used / credited this year" value={dashboard?.metrics.realized_ytd_usd ?? 0} detail="Recorded in your private ledger" tone="good" />
+            <Metric label="Net value this year" value={dashboard?.metrics.projected_net_usd ?? 0} detail={`Used value minus ${usd.format(dashboard?.metrics.annual_fees_usd ?? 0)} in annual fees`} tone={(dashboard?.metrics.projected_net_usd ?? 0) >= 0 ? "good" : "warn"} />
           </section>
 
           <section className="overview-grid">
@@ -533,7 +606,7 @@ export function CrditsDashboard() {
                   <div className={`reminder ${item.severity}`} key={`${item.type}-${item.wallet_card_id}-${item.expires_on}-${item.title}`}>
                     <span className="date-tile"><b>{new Date(`${item.expires_on}T00:00:00`).toLocaleDateString("en-US", { month: "short" })}</b><strong>{item.expires_on.slice(-2)}</strong></span>
                     <div><strong>{item.title}</strong><small>{item.detail} · {item.card_name}</small></div>
-                    <i>{item.severity === "urgent" ? "now" : "soon"}</i>
+                    <button onClick={() => openReminder(item)}>{item.benefit_id ? "Open credit" : "Open card"} →</button>
                   </div>
                 ))}
               </div>
@@ -543,19 +616,21 @@ export function CrditsDashboard() {
               <p className="eyebrow">QUICK PICK</p>
               <h2>Which card should I use?</h2>
               <form className="recommend-form" onSubmit={recommend}>
-                <label>Purchase category<select name="category" defaultValue="dining"><option>dining</option><option>groceries</option><option>gas</option><option>travel</option><option>transit</option><option>streaming</option><option>drugstores</option><option>other</option></select></label>
+                <label>Purchase category<select name="category" defaultValue="dining"><option>dining</option><option>groceries</option><option>gas</option><option>travel</option><option>hotels</option><option>flights</option><option>car-rental</option><option>vacation-rental</option><option>transit</option><option>streaming</option><option>drugstores</option><option>other</option></select></label>
                 <label>Merchant <input name="merchant" placeholder="Optional, e.g. Whole Foods" /></label>
                 <label>Amount <span className="money-input"><i>$</i><input name="amount" type="number" min="0" step="0.01" defaultValue="100" /></span></label>
-                <button disabled={recommendBusy}>{recommendBusy ? "Calculating…" : "Pick my card →"}</button>
+                <label>Booking channel<select name="channel"><option value="">Not specified</option><option value="direct">Direct</option><option value="online">Online grocery</option><option value="bilt-travel">Bilt Travel</option><option value="capital-one-travel">Capital One Travel</option><option value="chase-travel">Chase Travel</option><option value="amex-travel">Amex Travel</option></select></label><button disabled={recommendBusy}>{recommendBusy ? "Calculating…" : "Pick my card →"}</button>
               </form>
               {recommendation?.recommendation[0] ? (
                 <div className="recommendation-result">
-                  <small>BEST EXPECTED RETURN</small>
+                  <small>ESTIMATED RETURN</small>
                   <strong>{recommendation.recommendation[0].nickname}{recommendation.recommendation[0].last_four ? ` •${recommendation.recommendation[0].last_four}` : ""}</strong>
                   <p>{recommendation.recommendation[0].rule}</p>
                   <span>{usdPrecise.format(recommendation.recommendation[0].total_value_usd)} expected value</span>
                 </div>
               ) : null}
+            <p className="recommendation-note">Editorial point values are estimates, not guaranteed cash. Restricted bonuses and unknown spending caps are excluded unless eligibility is confirmed.</p>
+              {recommendation && <details><summary>Conditional rates to check</summary>{recommendation.recommendation.map(item => <div key={item.wallet_card_id}>{item.conditional_alternatives?.map(alternative => <p key={alternative.rule_id}><strong>{item.nickname}: {alternative.rule}</strong><br />{alternative.reason}</p>)}</div>)}</details>}
             </article>
           </section>
 
@@ -563,14 +638,14 @@ export function CrditsDashboard() {
             <div className="review-heading"><div><p className="eyebrow">YOUR WALLET</p><h2>Cards to review</h2><span>Spendable credits come first. Automatic perks and quiet cards stay out of the way.</span></div><button onClick={() => setTab("wallet")}>Open wallet →</button></div>
             <div className="review-cards">
               {(attentionCards.length ? attentionCards : dashboard?.cards.slice(0, 4) || []).map((card) => (
-                <button key={card.id} onClick={() => setTab("wallet")}><CardArtwork card={card} compact /><span><small>{card.issuer}</small><strong>{card.nickname}</strong><em>{card.actionable_benefits_count ? `${card.actionable_benefits_count} benefit${card.actionable_benefits_count === 1 ? "" : "s"} to review` : "Caught up"}</em></span><b>{usd.format(card.benefits.filter((benefit) => benefit.tracking_type === "spend").reduce((total, benefit) => total + (benefit.remaining_usd || 0), 0))}<small>available</small></b><i>→</i></button>
+                <button key={card.id} onClick={() => openCard(card.id)}><CardArtwork card={card} compact /><span><small>{card.issuer}</small><strong>{card.nickname}</strong><em>{card.actionable_benefits_count ? `${card.actionable_benefits_count} benefit${card.actionable_benefits_count === 1 ? "" : "s"} to review` : "Caught up"}</em></span><b>{usd.format(card.benefits.filter((benefit) => benefit.tracking_type === "spend").reduce((total, benefit) => total + (benefit.remaining_usd || 0), 0))}<small>available</small></b><i>→</i></button>
               ))}
             </div>
           </section>
         </>
       ) : null}
 
-      {!error && tab === "wallet" ? (
+      {dashboard && tab === "wallet" ? (
         <section className="section-page">
           <div className="section-title"><div><p className="eyebrow">LOCAL SQLITE</p><h1>Your wallet</h1><p>Each physical card has its own private usage ledger; values come from the public catalog.</p></div><span>{dashboard?.cards.length ?? 0} active</span></div>
           <div className="wallet-grid">
@@ -583,11 +658,13 @@ export function CrditsDashboard() {
               <article className="panel form-panel"><p className="eyebrow">WALLET</p><h2>Add a card</h2><form onSubmit={addWalletCard} className="stack-form"><label>Card product<select name="catalog_slug" required defaultValue=""><option value="" disabled>Choose from catalog</option>{dashboard?.catalog_cards.map((card) => <option key={card.slug} value={card.slug}>{card.issuer} · {card.short_name}</option>)}</select></label><label>Nickname<input name="nickname" placeholder="e.g. Aspire" /></label><label>Last four<input name="last_four" inputMode="numeric" maxLength={4} placeholder="Optional" /></label><div className="split-fields"><label>Opened<input name="opened_on" type="date" /></label><label>Membership year starts<input name="membership_year_start" type="date" /></label></div><button>Add to wallet</button></form></article>
               <article className="panel form-panel"><p className="eyebrow">TARGETED · LOCAL ONLY</p><h2>Add an offer</h2><form onSubmit={addOffer} className="stack-form"><label>Card<select name="wallet_card_id" required>{dashboard?.cards.map((card) => <option key={card.id} value={card.id}>{card.nickname}</option>)}</select></label><div className="split-fields"><label>Merchant<input name="merchant" required /></label><label>Reward $<input name="reward_amount_usd" type="number" min="0" step="0.01" /></label></div><label>Offer<input name="title" placeholder="Spend $100, get $20" required /></label><div className="split-fields"><label>Spend requirement $<input name="spend_requirement_usd" type="number" min="0" /></label><label>Expires<input name="expires_on" type="date" /></label></div><label className="check"><input name="activated" type="checkbox" /> Activated</label><button>Save offer</button></form></article>
           </div></details>
-          {dashboard?.offers.length ? <article className="panel offer-table"><div className="panel-heading"><div><p className="eyebrow">SAVED OFFERS</p><h2>Targeted coupons</h2></div></div>{dashboard.offers.map((offer) => <div key={offer.id}><strong>{offer.merchant}</strong><span>{offer.title}</span><small>{walletById.get(offer.wallet_card_id)?.nickname} · {offer.activated ? "activated" : "not activated"} · {offer.expires_on || "no expiry"}</small><b>{offer.reward_amount_usd ? usd.format(offer.reward_amount_usd) : "—"}</b></div>)}</article> : null}
+          {dashboard?.offers.length ? <article className="panel offer-table"><div className="panel-heading"><div><p className="eyebrow">SAVED OFFERS</p><h2>Targeted coupons</h2></div></div>{dashboard.offers.map((offer) => <div key={offer.id}><strong>{offer.merchant}</strong><span>{offer.title}</span><small>{walletById.get(offer.wallet_card_id)?.nickname} · {offer.activated ? "activated" : "not activated"} · {offer.expires_on || "no expiry"}</small><b>{offer.reward_amount_usd ? usd.format(offer.reward_amount_usd) : "—"}</b><span className="offer-actions">{!offer.activated && <button onClick={() => void mutate("Marked enrolled locally; issuer enrollment must be completed separately.", () => api(`/v1/offers/${offer.id}`, { method: "PATCH", body: JSON.stringify({ activated: true }) }))}>Mark enrolled</button>}<button onClick={() => void mutate("Offer marked used.", () => api(`/v1/offers/${offer.id}`, { method: "PATCH", body: JSON.stringify({ status: "used" }) }))}>Mark used</button><button onClick={() => void mutate("Offer archived.", () => api(`/v1/offers/${offer.id}`, { method: "PATCH", body: JSON.stringify({ status: "expired" }) }))}>Archive</button></span><details><summary>Edit offer</summary><form onSubmit={event => { event.preventDefault(); const form = new FormData(event.currentTarget); void mutate("Offer updated.", () => api(`/v1/offers/${offer.id}`, { method: "PATCH", body: JSON.stringify({ title: form.get("title"), reward_amount_usd: form.get("reward") === "" ? null : Number(form.get("reward")), expires_on: form.get("expires") || null }) })); }}><label>Title<input name="title" defaultValue={offer.title} required /></label><label>Reward $<input name="reward" type="number" step="0.01" min="0" defaultValue={offer.reward_amount_usd ?? ""} /></label><label>Expires<input name="expires" type="date" defaultValue={offer.expires_on || ""} /></label><button>Save offer</button></form></details></div>)}</article> : null}
         </section>
       ) : null}
 
-      {!error && tab === "catalog" ? (
+      {tab === "wallet" && Boolean(dashboard?.offer_history?.length) && <details className="offer-history"><summary>Used and archived offers</summary>{dashboard?.offer_history?.map(offer => <div key={offer.id}><strong>{offer.merchant}: {offer.title}</strong><span> · {offer.status}</span><button onClick={() => void mutate("Offer restored; check its expiry before use.", () => api(`/v1/offers/${offer.id}`, { method: "PATCH", body: JSON.stringify({ status: "available" }) }))}>Restore</button></div>)}</details>}
+
+      {dashboard && tab === "catalog" ? (
         <section className="section-page">
           <div className="section-title"><div><p className="eyebrow">PUBLIC · VERSIONED · GIT</p><h1>Card catalog</h1><p>Community facts live here. Personal usage and targeted offers never do.</p></div><span>{dashboard?.catalog_cards.length ?? 0} cards</span></div>
           <div className="catalog-layout">
@@ -596,28 +673,7 @@ export function CrditsDashboard() {
                 <div key={card.slug}><CardArtwork card={card} compact /><div><strong>{card.name}</strong><small>{card.benefits_count} benefits · {card.reward_rules_count} reward rules · verified {card.verified_at || "never"}</small></div><span>{card.point_value_cents == null ? "cash / unknown" : `${card.point_value_cents}¢ / point`}</span></div>
               ))}
             </article>
-            <article className="panel form-panel catalog-editor">
-              <p className="eyebrow">STRUCTURED UPDATE</p><h2>Update the repository</h2>
-              <p>Every replacement archives the prior definition before writing the new one.</p>
-              <form className="stack-form" onSubmit={updateCatalog}>
-                <label>Card<select name="card_slug" required>{dashboard?.catalog_cards.map((card) => <option key={card.slug} value={card.slug}>{card.short_name}</option>)}</select></label>
-                <label>Update type<select name="update_kind" defaultValue="benefit"><option value="benefit">Benefit / credit</option><option value="reward">Reward category</option><option value="facts">Fee or point value</option></select></label>
-                <label>Title or label<input name="title" placeholder="e.g. Dining credit" /></label>
-                <div className="split-fields"><label>Benefit behavior<select name="tracking_type" defaultValue="spend"><option value="spend">Spendable credit</option><option value="automatic">Automatic</option><option value="enrollment">Activate once</option><option value="reference">Reference only</option></select></label><label>Points amount<input name="points_amount" placeholder="e.g. 10000" type="number" step="1" /></label></div>
-                <div className="split-fields"><label>Benefit amount<input name="amount_usd" placeholder="USD value" type="number" step="0.01" /></label><label>Reward rate<input name="rate" placeholder="e.g. 4" type="number" step="0.01" /></label></div>
-                <div className="split-fields"><label>Cadence<select name="cadence" defaultValue="annual"><option>monthly</option><option>quarterly</option><option>semiannual</option><option>annual</option><option>anniversary</option><option>one_time</option></select></label><label>Category<input name="category" placeholder="dining" /></label></div>
-                <div className="split-fields"><label>Rate type<select name="rate_type" defaultValue="points_multiplier"><option value="points_multiplier">Points multiplier</option><option value="cashback_percent">Cashback percent</option></select></label><label>Match terms<input name="match_terms" placeholder="dining, restaurants" /></label></div>
-                <div className="split-fields"><label>Annual fee<input name="annual_fee_usd" type="number" step="0.01" /></label><label>Point value ¢<input name="point_value_cents" type="number" step="0.01" /></label></div>
-                <div className="split-fields"><label>Catalog value method<select name="valuation_method" defaultValue="face_value"><option value="face_value">Issuer face value</option><option value="points">Points valuation</option><option value="market_estimate">Market estimate</option><option value="excluded">Exclude from ROI</option></select></label><label>Catalog value $<input name="valuation_value_usd" type="number" min="0" step="0.01" placeholder="Defaults from amount" /></label></div>
-                <label>Official benefit source URL<input name="source_url" type="url" placeholder="https://issuer.example/…" /></label>
-                <label>Valuation source URL<input name="valuation_source_url" type="url" placeholder="https://thepointsguy.com/…" /></label>
-                <label>Valuation basis<input name="valuation_basis" placeholder="Face value, or points × sourced cents per point" /></label>
-                <label>Effective from<input name="valid_from" type="date" defaultValue={dashboard?.as_of} /></label>
-                <label>Valuation as of<input name="valuation_as_of" type="date" defaultValue={dashboard?.as_of} /></label>
-                <label>Details<textarea name="description" rows={3} placeholder="Trigger, enrollment, restrictions, and relevant terms" /></label>
-                <button>Write catalog update</button>
-              </form>
-            </article>
+            <CatalogEditor cards={dashboard?.catalog_cards || []} onSaved={reload} />
           </div>
         </section>
       ) : null}

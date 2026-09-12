@@ -45,7 +45,9 @@ function help() {
   console.log(`crdits — local credit-card value ledger
 
 Usage:
-  crdits summary [--json]
+  crdits summary [--year YYYY] [--json]
+  crdits history --card WALLET_ID --benefit ID
+  crdits set-used --card ID_OR_SLUG --benefit ID --amount TOTAL --previous CURRENT_TOTAL --date YYYY-MM-DD --period PERIOD --request-id ID
   crdits due [--days 30] [--json]
   crdits recommend <category> [--merchant NAME] [--amount 100] [--json]
   crdits use --card ID_OR_SLUG --benefit ID --amount USD [--date YYYY-MM-DD] [--period YYYY-MM|YYYY-QN|YYYY-HN] [--note TEXT]
@@ -72,14 +74,14 @@ async function main() {
   if (!command || command === "help" || flags.help) return help();
 
   if (command === "summary") {
-    const dashboard = await wallet.dashboard();
+    const dashboard = await wallet.dashboard({ year: flags.year });
     if (json) return output(dashboard, { json });
     console.log(`As of ${dashboard.as_of}`);
     console.log(`Realized YTD:       ${money(dashboard.metrics.realized_ytd_usd)}`);
     console.log(`Credits remaining:  ${money(dashboard.metrics.credits_remaining_usd)}`);
     console.log(`Expected remaining: ${money(dashboard.metrics.expected_remaining_usd)}`);
     console.log(`Annual fees:        ${money(dashboard.metrics.annual_fees_usd)}`);
-    console.log(`Projected net:      ${money(dashboard.metrics.projected_net_usd)} (realized value minus annual fees)`);
+    console.log(`Net value this year: ${money(dashboard.metrics.projected_net_usd)} (used/credited value minus annual fees)`);
     return;
   }
 
@@ -93,16 +95,19 @@ async function main() {
 
   if (command === "recommend") {
     const category = subcommand || flags.category || "";
-    const result = await wallet.recommend({ category, merchant: flags.merchant || "", amount: flags.amount || 100 });
+    const result = await wallet.recommend({ category, merchant: flags.merchant || "", amount: flags.amount || 100, context: flags.context ? JSON.parse(flags.context) : {} });
     if (json) return output(result, { json });
     const best = result.recommendation[0];
     if (!best) return console.log("Add an active card to your wallet first.");
     console.log(`${best.nickname}${best.last_four ? ` •${best.last_four}` : ""}`);
     console.log(`${best.rule} · estimated value ${money(best.total_value_usd)} on ${money(result.amount_usd)}`);
+    for (const alternative of best.conditional_alternatives || []) console.log(`Conditional: ${alternative.rule} — ${alternative.reason} (${alternative.rule_id})`);
     return;
   }
 
-  if (command === "use") {
+  if (command === "history") return output(await wallet.usageHistory(flags.card, flags.benefit), { json: true });
+
+  if (command === "use" || command === "set-used") {
     const item = await wallet.addUsage({
       card: flags.card,
       benefit_id: flags.benefit,
@@ -110,7 +115,9 @@ async function main() {
       used_at: flags.date,
       period_key: flags.period,
       note: flags.note,
-    });
+      expected_total_usd: flags.previous,
+      request_id: flags["request-id"],
+    }, { replace: command === "set-used" });
     return output(json ? item : `Recorded ${money(item.amount_usd)} of ${item.benefit_id} on ${item.used_at}.`, { json });
   }
 

@@ -5,6 +5,7 @@ import {
   listUsage,
   listWalletCards,
 } from "./db.mjs";
+import { rewardEligibility, unconditionalBase } from "./rewards.mjs";
 
 const DAY_MS = 86_400_000;
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -118,7 +119,7 @@ function trackingType(benefit) {
   return "spend";
 }
 
-function cycleAmount(benefit, card, preference) {
+export function cycleAmount(benefit, card, preference) {
   if (preference.face_value_override != null) return Number(preference.face_value_override);
   if (benefit.amount_usd != null) return Number(benefit.amount_usd);
   if (benefit.points_amount != null && card.reward_currency?.point_value_cents != null) {
@@ -127,7 +128,7 @@ function cycleAmount(benefit, card, preference) {
   return null;
 }
 
-function catalogValue(benefit, card, preference) {
+export function catalogValue(benefit, card, preference) {
   if (preference.face_value_override != null) return Number(preference.face_value_override);
   if (benefit.valuation?.method === "excluded") return null;
   if (benefit.valuation?.value_usd != null) return Number(benefit.valuation.value_usd);
@@ -334,8 +335,8 @@ function feeRenewalReminder(wallet, card, asOf, threshold) {
   };
 }
 
-export function buildDashboard({ catalog, db, asOf = new Date().toISOString().slice(0, 10), reminderDays = 30 }) {
-  const wallet = listWalletCards(db);
+export function buildDashboard({ catalog, db, asOf = new Date().toISOString().slice(0, 10), reminderDays = 30, includeClosed = false }) {
+  const wallet = listWalletCards(db, { includeClosed });
   const usage = listUsage(db);
   const preferences = listPreferences(db);
   const benefitStatuses = listBenefitStatuses(db);
@@ -388,6 +389,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
     const loggedRealized = usage
       .filter((item) => item.wallet_card_id === walletCard.id && item.used_at >= yearStart && item.used_at <= asOf)
       .reduce((sum, item) => {
+        if (item.value_ratio != null) return sum + Number(item.amount_usd) * Number(item.value_ratio);
         const benefit = benefitMap.get(item.benefit_id);
         if (!benefit || trackingType(benefit) !== "spend") return sum;
         const preference = preferenceFor(preferenceMap, walletCard.id, benefit);
@@ -470,6 +472,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
     metrics: {
       realized_ytd_usd: round(realizedYtd),
       credits_remaining_usd: round(creditsRemaining),
+      credits_available_now_usd: round(cards.reduce((sum, card) => sum + card.benefits.filter(benefit => benefit.tracking_type === "spend").reduce((total, benefit) => total + (benefit.remaining_usd || 0), 0), 0)),
       expected_remaining_usd: round(expectedRemaining),
       targeted_offers_usd: round(offersAvailable),
       annual_fees_usd: round(annualFees),
@@ -478,6 +481,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
     cards,
     reminders: reminders.sort((a, b) => a.expires_on.localeCompare(b.expires_on)),
     offers,
+    offer_history: listOffers(db).filter(offer => offer.status !== "available" || (offer.expires_on && offer.expires_on < asOf)),
     catalog_cards: catalog.map((card) => ({
       slug: card.slug,
       name: card.name,
@@ -505,17 +509,10 @@ function rewardValue(rule, card, amount) {
   return 0;
 }
 
-function ruleMatches(rule, query) {
-  const valid = (!rule.valid_from || query.asOf >= rule.valid_from) && (!rule.valid_to || query.asOf <= rule.valid_to);
-  if (!valid) return false;
-  if (rule.conditional && !query.merchant) return false;
-  const haystack = `${query.category} ${query.merchant || ""}`.toLowerCase();
-  if (rule.category && haystack.includes(String(rule.category).toLowerCase())) return true;
-  return (rule.match_terms || []).some((term) => haystack.includes(String(term).toLowerCase()));
-}
-
-export function recommendCard({ catalog, db, category, merchant = "", amount = 100, asOf = new Date().toISOString().slice(0, 10) }) {
+export function recommendCard({ catalog, db, category, merchant = "", amount = 100, context = {}, asOf = new Date().toISOString().slice(0, 10) }) {
   if (!category && !merchant) throw new Error("category or merchant is required");
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error("amount must be a positive number");
+  if (!context || typeof context !== "object" || Array.isArray(context)) throw new Error("context must be an object");
   const wallet = listWalletCards(db);
   const offers = listOffers(db, { activeOn: asOf });
   const catalogMap = new Map(catalog.map((card) => [card.slug, card]));
@@ -523,12 +520,24 @@ export function recommendCard({ catalog, db, category, merchant = "", amount = 1
   for (const walletCard of wallet) {
     const card = catalogMap.get(walletCard.catalog_slug);
     if (!card) continue;
-    const matches = card.reward_rules.filter((rule) => ruleMatches(rule, { category, merchant, asOf }));
-    const rule = matches.sort((a, b) => rewardValue(b, card, amount) - rewardValue(a, card, amount))[0] || card.base_reward;
-    const baseValue = rewardValue(rule, card, amount);
+    const base = unconditionalBase(card.base_reward, asOf);
+    const candidates = [{ rule: base, value: rewardValue(base, card, amount) }];
+    const conditional = [];
+    for (const rule of [...card.reward_rules, card.base_reward].filter(Boolean)) {
+      const eligibility = rewardEligibility(rule, { category, merchant, asOf, context }, card.slug, { base: rule === card.base_reward });
+      if (!eligibility.matches) continue;
+      if (!eligibility.eligible) {
+        conditional.push({ rule_id: eligibility.key, rule: rule.label, rate: rule.rate, reason: eligibility.reason });
+        continue;
+      }
+      const bonusSpend = Math.min(amount, eligibility.limit);
+      candidates.push({ rule, value: rewardValue(rule, card, bonusSpend) + rewardValue(base, card, amount - bonusSpend) });
+    }
+    const best = candidates.sort((a, b) => b.value - a.value)[0];
+    const { rule, value: baseValue } = best;
     const matchingOffers = offers.filter((offer) => {
       if (offer.wallet_card_id !== walletCard.id || !offer.activated || !merchant) return false;
-      return merchant.toLowerCase().includes(offer.merchant.toLowerCase()) || offer.merchant.toLowerCase().includes(merchant.toLowerCase());
+      return merchant.trim().toLowerCase() === offer.merchant.trim().toLowerCase();
     });
     const offerValue = matchingOffers.reduce((sum, offer) => {
       if (offer.spend_requirement_usd && amount < offer.spend_requirement_usd) return sum;
@@ -549,12 +558,15 @@ export function recommendCard({ catalog, db, category, merchant = "", amount = 1
       offer_value_usd: round(offerValue),
       total_value_usd: round(baseValue + offerValue),
       matching_offers: matchingOffers.map((offer) => offer.title),
+      conditional_alternatives: conditional,
+      verified_earn: rule != null,
     });
   }
   return {
     category,
     merchant,
     amount_usd: Number(amount),
+    assumptions: "Estimates use catalog point valuations, not cash guarantees. Restricted bonuses require explicit eligibility and remaining-cap context; merchant coding may differ.",
     recommendation: results.sort((a, b) => b.total_value_usd - a.total_value_usd),
   };
 }
