@@ -84,6 +84,11 @@ export function enumerateCycles(benefit, walletCard, rangeStartInput, rangeEndIn
       const anchorDate = utcDate(anchor);
       const start = clampDay(year, anchorDate.getUTCMonth(), anchorDate.getUTCDate());
       const next = clampDay(year + 1, anchorDate.getUTCMonth(), anchorDate.getUTCDate());
+      if (benefit.minimum_membership_years && walletCard.opened_on) {
+        const opened = utcDate(walletCard.opened_on);
+        const firstEligible = clampDay(opened.getUTCFullYear() + benefit.minimum_membership_years, opened.getUTCMonth(), opened.getUTCDate());
+        if (start < firstEligible) continue;
+      }
       push(start, addDays(next, -1), `${year}-anniversary`);
     }
   }
@@ -123,7 +128,7 @@ export function cycleAmount(benefit, card, preference) {
   if (preference.face_value_override != null) return Number(preference.face_value_override);
   if (benefit.amount_usd != null) return Number(benefit.amount_usd);
   if (benefit.points_amount != null && card.reward_currency?.point_value_cents != null) {
-    return Number(benefit.points_amount) * Number(card.reward_currency.point_value_cents) / 100;
+    return Number(benefit.points_amount) * Number(benefit.valuation?.point_value_cents ?? card.reward_currency.point_value_cents) / 100;
   }
   return null;
 }
@@ -217,19 +222,20 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
       valuation_source_url: benefit.valuation?.source_url || null,
       valuation_as_of: benefit.valuation?.as_of || null,
       used_usd: 0,
-      remaining_usd: null,
-      expected_value_usd: null,
+      remaining_usd: behavior === "automatic" ? 0 : null,
+      expected_value_usd: behavior === "automatic" && countsTowardValue(benefit) && catalog != null
+        ? round(catalog * preference.probability * preference.personal_value_percent) : null,
       probability: preference.probability,
       personal_value_percent: preference.personal_value_percent,
       cycle_start: null,
       expires_on: null,
       days_remaining: null,
-      status: savedStatus?.status || null,
+      status: behavior === "automatic" ? "automatic" : savedStatus?.status || null,
       activated_on: savedStatus?.activated_on || null,
       requires_membership_year: true,
       counts_toward_value: countsTowardValue(benefit),
       periods: [],
-      is_actionable: true,
+      is_actionable: behavior === "spend",
     };
   }
   const windows = enumerateCycles(benefit, wallet, asOf, asOf);
@@ -302,6 +308,13 @@ function automaticProjection(benefit, card, wallet, preference, year, asOf) {
   if (catalog == null) return { realized: 0, expected: 0 };
   const yearStart = `${year}-01-01`;
   const yearEnd = `${year}-12-31`;
+  // An annual automatic grant does not need a usage entry or a made-up award
+  // date. With no anniversary recorded, recognize its annual value once; the
+  // spend-credit balance and expiration stay unknown until an anchor is saved.
+  if (benefit.cadence === "anniversary" && !membershipAnchor(wallet) &&
+      effectiveDuring(benefit, utcDate(yearStart), utcDate(yearEnd))) {
+    return { realized: Number(catalog) * preference.probability * preference.personal_value_percent, expected: 0 };
+  }
   let realized = 0;
   let expected = 0;
   for (const window of enumerateCycles(benefit, wallet, yearStart, yearEnd)) {

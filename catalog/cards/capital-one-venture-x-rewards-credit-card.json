@@ -91,48 +91,50 @@
   "benefits": [
     {
       "id": "annual-capital-one-travel-credit",
-      "title": "annual Capital One Travel credit",
-      "kind": "statement_credit",
+      "title": "$300 annual Capital One Travel credit",
+      "kind": "travel_credit",
       "tracking_type": "spend",
       "amount_usd": 300,
       "cadence": "anniversary",
       "interval_years": null,
-      "description": "$300 annual Capital One Travel credit",
+      "description": "$300 available at Capital One Travel checkout, usable across multiple bookings; unused credit expires at the next account anniversary. No miles earned on the credit-funded amount.",
       "eligibility": null,
       "enrollment_required": false,
       "valid_from": "2026-08-25",
       "valid_to": null,
-      "source_url": "https://www.capitalone.com/credit-cards/travel-and-miles/",
+      "source_url": "https://www.capitalone.com/credit-cards/",
       "valuation": {
         "method": "face_value",
         "value_usd": 300,
         "basis": "Issuer-stated $300 maximum per account-anniversary travel-credit period",
-        "source_url": "https://www.capitalone.com/credit-cards/travel-and-miles/",
-        "as_of": "2026-08-28"
+        "source_url": "https://www.capitalone.com/credit-cards/",
+        "as_of": "2026-10-01"
       },
       "source_group": "recurring"
     },
     {
       "id": "10-000-anniversary-miles-each-year",
       "title": "10,000 anniversary miles each year",
-      "kind": "statement_credit",
+      "kind": "anniversary_bonus",
       "tracking_type": "automatic",
       "amount_usd": null,
       "points_amount": 10000,
+      "minimum_membership_years": 1,
       "cadence": "anniversary",
       "interval_years": null,
-      "description": "10,000 anniversary miles each year",
+      "description": "10,000 miles awarded automatically each year starting with the first account anniversary; counted at the $100 travel-redemption value. No usage logging needed.",
       "eligibility": null,
       "enrollment_required": false,
       "valid_from": "2026-08-25",
       "valid_to": null,
-      "source_url": "https://www.capitalone.com/credit-cards/travel-and-miles/",
+      "source_url": "https://www.capitalone.com/credit-cards/",
       "valuation": {
         "method": "points",
-        "value_usd": 185,
-        "basis": "10,000 miles at TPG's August 2026 valuation of 1.85 cents per mile",
-        "source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
-        "as_of": "2026-08-03"
+        "value_usd": 100,
+        "point_value_cents": 1,
+        "basis": "Conservative fixed travel-redemption value: 10,000 miles at 1 cent per mile. Transfer-partner upside is excluded from the automatic annual-fee offset.",
+        "source_url": "https://www.capitalone.com/credit-cards/",
+        "as_of": "2026-10-01"
       },
       "source_group": "annual_or_anniversary"
     },
@@ -170,7 +172,7 @@
   "notes": "Portal credits require Capital One Travel. Lounge guest/access rules can change and should be versioned separately from the core card row",
   "valid_from": "2026-08-25",
   "valid_to": null,
-  "verified_at": "2026-08-28",
+  "verified_at": "2026-10-01",
   "sources": [
     {
       "kind": "primary",
@@ -190,6 +192,34 @@
     }
   ],
   "history": [
+    {
+      "type": "benefit",
+      "superseded_at": "2026-10-01T00:00:00Z",
+      "value": {
+        "id": "10-000-anniversary-miles-each-year",
+        "title": "10,000 anniversary miles each year",
+        "kind": "statement_credit",
+        "tracking_type": "automatic",
+        "amount_usd": null,
+        "points_amount": 10000,
+        "cadence": "anniversary",
+        "interval_years": null,
+        "description": "10,000 anniversary miles each year",
+        "eligibility": null,
+        "enrollment_required": false,
+        "valid_from": "2026-08-25",
+        "valid_to": null,
+        "source_url": "https://www.capitalone.com/credit-cards/travel-and-miles/",
+        "valuation": {
+          "method": "points",
+          "value_usd": 185,
+          "basis": "10,000 miles at TPG's August 2026 valuation of 1.85 cents per mile",
+          "source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+          "as_of": "2026-08-03"
+        },
+        "source_group": "annual_or_anniversary"
+      }
+    },
     {
       "type": "benefit",
       "superseded_at": "2026-08-27T22:57:49Z",

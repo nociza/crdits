@@ -121,7 +121,9 @@ test("automatic and enrollment benefits never behave like spend credits", () => 
   let dashboard = buildDashboard({ catalog: [behaviorCard], db, asOf: "2026-08-26", reminderDays: 30 });
   const missingAnchor = dashboard.cards[0].benefits.find((item) => item.id === "anniversary-points");
   assert.equal(missingAnchor.requires_membership_year, true);
-  assert.equal(missingAnchor.remaining_usd, null);
+  assert.equal(missingAnchor.remaining_usd, 0);
+  assert.equal(missingAnchor.is_actionable, false);
+  assert.equal(dashboard.cards[0].automatic_realized_ytd_usd, 200);
 
   updateWalletCard(db, wallet.id, { membership_year_start: "2026-06-01" });
   setBenefitStatus(db, { wallet_card_id: wallet.id, benefit_id: "membership", status: "active", activated_on: "2026-08-01" });

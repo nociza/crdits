@@ -270,6 +270,7 @@ function UsageModal({ card, benefit, asOf, periodKey, onSubmit, onCancel }: {
           <input name="expected_total_usd" type="hidden" value={previousTotal} />
           <input name="request_id" type="hidden" value={requestId} />
           <label>Total used this period<span><b>$</b><input ref={amountInput} name="amount_usd" type="number" step="0.01" min="0" max={selectedPeriod?.amount_usd ?? benefit.amount_usd ?? undefined} defaultValue={defaultAmount} required /></span></label>
+          {benefit.requires_membership_year ? <label>Current membership year started<input name="membership_year_start" type="date" max={asOf} required /><small>Save this once to track the annual credit and its expiry.</small></label> : null}
           <div><button type="button" className="ghost" onClick={onCancel}>Cancel</button><button disabled={saving || !requestId}>{saving ? "Saving…" : "Save total"}</button></div>
         </form>
         {saveError && <p role="alert">{saveError}</p>}
@@ -445,6 +446,9 @@ export function CrditsDashboard() {
     if (!edit) return;
     const data = new FormData(event.currentTarget);
     const failure = await mutate("Period total saved. Previous entries remain in the private audit trail.", async () => {
+      if (data.get("membership_year_start")) {
+        await api(`/v1/wallet/cards/${edit.card.id}`, { method: "PATCH", body: JSON.stringify({ membership_year_start: data.get("membership_year_start") }) });
+      }
       await api("/v1/usage/period", { method: "POST", body: JSON.stringify({
         wallet_card_id: edit.card.id,
         benefit_id: edit.benefit.id,
@@ -493,12 +497,12 @@ export function CrditsDashboard() {
         : benefit.amount_usd == null ? "Included automatically" : `${usd.format(benefit.amount_usd)} automatic value`;
       const enrollmentLabel = benefit.status === "active" ? `Active${benefit.activated_on ? ` since ${benefit.activated_on}` : ""}` : "Activate once";
       const detail = benefit.requires_membership_year
-        ? "Set this card’s membership-year date for an accurate renewal countdown"
+        ? benefit.tracking_type === "automatic" ? "Annual automatic value · anniversary date not set" : "Set the anniversary date when logging use to calculate the credit expiry"
         : benefit.tracking_type === "spend"
           ? benefit.periods.length ? RESET_CADENCE_DETAILS[benefit.cadence] : `${benefit.cadence.replaceAll("_", " ")} · expires ${benefit.expires_on}`
           : benefit.description;
-      const value = benefit.requires_membership_year
-        ? "Date needed"
+      const value = benefit.requires_membership_year && benefit.tracking_type === "spend"
+        ? `${usd.format(benefit.amount_usd ?? 0)} annual · date needed`
         : benefit.tracking_type === "spend"
           ? `${usd.format(benefit.remaining_usd ?? 0)} left`
           : benefit.tracking_type === "automatic"
@@ -518,7 +522,7 @@ export function CrditsDashboard() {
           <div className="benefit-value"><strong>{value}</strong>{benefit.tracking_type === "spend" ? <small>{usd.format(benefit.used_usd)} used</small> : <small className="behavior-label">{benefit.counts_toward_value ? "Included in value" : "Not deducted or counted"}</small>}</div>
           {benefit.periods.length ? <CreditPeriods cadence={benefit.cadence} periods={benefit.periods} asOf={dashboard?.as_of || ""} onSelect={(period) => setEdit({ mode: "usage", card, benefit, periodKey: period.key })} /> : benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <Progress used={benefit.used_usd} total={benefit.amount_usd} /> : null}
           <div className="benefit-actions">
-            {benefit.tracking_type === "spend" && !benefit.requires_membership_year && !benefit.periods.length ? <button type="button" className="is-primary" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: null })}>Log use</button> : null}
+            {benefit.tracking_type === "spend" && !benefit.periods.length ? <button type="button" className="is-primary" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: null })}>Log use</button> : null}
             {benefit.tracking_type === "enrollment" && benefit.status !== "active" ? <button type="button" className="is-primary" onClick={() => void activateBenefit(card, benefit)}>Mark active</button> : null}
             <span className="catalog-valuation" title={benefit.valuation_basis || undefined}>{valuationLabel}{benefit.valuation_source_url ? <a href={benefit.valuation_source_url} target="_blank" rel="noreferrer">Source ↗</a> : null}</span>
           </div>

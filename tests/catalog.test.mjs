@@ -20,7 +20,7 @@ test("seed catalog is valid and preserves the eleven provided products", async (
   assert.equal(aspire.benefits.find((item) => item.id === "hilton-resort-credit").cadence, "semiannual");
   assert.equal(aspire.benefits.find((item) => item.id === "clear-credit-per-calendar-year").amount_usd, 219);
   assert.equal(bilt.benefits.find((item) => item.id === "annual-bilt-travel-hotel-credit").valid_from, "2026-01-01");
-  assert.equal(ventureX.benefits.find((item) => item.id === "10-000-anniversary-miles-each-year").valuation.value_usd, 185);
+  assert.equal(ventureX.benefits.find((item) => item.id === "10-000-anniversary-miles-each-year").valuation.value_usd, 100);
   assert.equal(sapphire.benefits.find((item) => item.id === "doordash-grocery-daily-essentials-benefit-while-eligible-dashpass-terms-apply").valid_from, "2026-01-01");
   assert.ok(cards.every((card) => card.benefits.every((benefit) => benefit.valuation && benefit.source_url)));
 });
@@ -28,6 +28,21 @@ test("seed catalog is valid and preserves the eleven provided products", async (
 test("seed research dates preserve the full current-year benefit history", () => {
   const [benefit] = parseBenefits("$10 monthly dining credit", "", "2026-08-25");
   assert.equal(benefit.valid_from, "2026-01-01");
+});
+
+test("community title edits preserve a benefit-specific fixed point valuation", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "crdits-valuation-"));
+  try {
+    const card = (await loadCatalog(repositoryCatalog.pathname)).find(c => c.slug === "capital-one-venture-x-rewards-credit-card");
+    await writeCard(directory, card);
+    const updated = await upsertBenefit(directory, card.slug, { id: "10-000-anniversary-miles-each-year", title: "Automatic anniversary miles" });
+    const bonus = updated.benefits.find(b => b.id === "10-000-anniversary-miles-each-year");
+    assert.equal(bonus.valuation.value_usd, 100);
+    assert.equal(bonus.valuation.point_value_cents, 1);
+    assert.equal(bonus.minimum_membership_years, 1);
+    assert.equal(updated.reward_currency.point_value_cents, 1.85);
+    assert.deepEqual(validateCard(updated), []);
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
 test("catalog updates archive the previous definition", async () => {

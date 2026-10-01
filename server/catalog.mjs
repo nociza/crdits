@@ -340,6 +340,9 @@ export function validateCard(card) {
       errors.push(`benefit ${benefit.id ?? "unknown"} needs a valid tracking_type`);
     }
     if (!benefit.source_url) errors.push(`benefit ${benefit.id ?? "unknown"} needs an official source_url`);
+    if (benefit.minimum_membership_years != null && (!Number.isInteger(benefit.minimum_membership_years) || benefit.minimum_membership_years < 0)) {
+      errors.push(`benefit ${benefit.id ?? "unknown"} minimum_membership_years must be a nonnegative integer`);
+    }
     if (!benefit.valuation || !["face_value", "points", "market_estimate", "excluded"].includes(benefit.valuation.method)) {
       errors.push(`benefit ${benefit.id ?? "unknown"} needs a valid valuation`);
     } else {
@@ -359,7 +362,8 @@ export function validateCard(card) {
         errors.push(`benefit ${benefit.id ?? "unknown"} face_value must equal amount_usd`);
       }
       if (benefit.valuation.method === "points") {
-        const calculated = Number(benefit.points_amount) * Number(card.reward_currency?.point_value_cents) / 100;
+        const pointValue = benefit.valuation.point_value_cents ?? card.reward_currency?.point_value_cents;
+        const calculated = Number(benefit.points_amount) * Number(pointValue) / 100;
         if (!Number.isFinite(calculated) || Math.abs(calculated - Number(benefit.valuation.value_usd)) > 0.005) {
           errors.push(`benefit ${benefit.id ?? "unknown"} points valuation must match points_amount × point_value_cents`);
         }
@@ -435,7 +439,8 @@ export async function upsertBenefit(catalogDir, cardSlug, input) {
     const changes = input;
     if (existing) input = { ...existing, valuation_method: existing.valuation?.method,
       valuation_value_usd: existing.valuation?.value_usd, valuation_basis: existing.valuation?.basis,
-      valuation_source_url: existing.valuation?.source_url, valuation_as_of: existing.valuation?.as_of, ...input };
+      valuation_source_url: existing.valuation?.source_url, valuation_as_of: existing.valuation?.as_of,
+      valuation_point_value_cents: existing.valuation?.point_value_cents, ...input };
     if (input.valuation_method === "face_value" && Object.hasOwn(changes, "amount_usd") && !Object.hasOwn(changes, "valuation_value_usd")) input.valuation_value_usd = changes.amount_usd;
     const amount = numberOrNull(input.amount_usd);
     const pointsAmount = numberOrNull(input.points_amount);
@@ -446,7 +451,7 @@ export async function upsertBenefit(catalogDir, cardSlug, input) {
       trackingType,
       amount,
       pointsAmount,
-      pointValueCents: card.reward_currency?.point_value_cents,
+      pointValueCents: input.valuation_point_value_cents ?? card.reward_currency?.point_value_cents,
       sourceUrl: valuationSourceUrl,
       asOf: input.valuation_as_of || input.verified_at || input.valid_from || new Date().toISOString().slice(0, 10),
     });
@@ -472,6 +477,7 @@ export async function upsertBenefit(catalogDir, cardSlug, input) {
         basis: input.valuation_basis || defaultValuation.basis,
         source_url: valuationSourceUrl,
         as_of: input.valuation_as_of || defaultValuation.as_of,
+        ...(input.valuation_point_value_cents != null ? { point_value_cents: numberOrNull(input.valuation_point_value_cents) } : {}),
       },
       source_group: input.source_group || "community_update",
     };

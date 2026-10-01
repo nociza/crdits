@@ -6,6 +6,42 @@ import { createService } from "../server/service.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
+test("Venture X counts the automatic $100 bonus and caps the loggable $300 anniversary credit", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-01" });
+  const wallet = await service.addWalletCard({ catalog_slug: "capital-one-venture-x-rewards-credit-card", nickname: "Venture X" });
+  let result = (await service.dashboard()).cards[0];
+  assert.equal(result.automatic_realized_ytd_usd, 100);
+  assert.equal(result.projected_net_usd, -295);
+  assert.equal(result.benefits.find(b => b.id === "10-000-anniversary-miles-each-year").is_actionable, false);
+  assert.equal(result.benefits.find(b => b.id === "annual-capital-one-travel-credit").requires_membership_year, true);
+  await assert.rejects(service.addUsage({ wallet_card_id: wallet.id, benefit_id: "annual-capital-one-travel-credit", amount_usd: 300 }), /anniversary/);
+  service.updateWalletCard(wallet.id, { membership_year_start: "2026-05-01", opened_on: "2024-05-01" });
+  const input = { wallet_card_id: wallet.id, benefit_id: "annual-capital-one-travel-credit", used_at: "2026-10-01", amount_usd: 125 };
+  await service.addUsage(input);
+  result = (await service.dashboard()).cards[0];
+  assert.equal(result.benefits.find(b => b.id === input.benefit_id).remaining_usd, 175);
+  assert.equal(result.automatic_realized_ytd_usd, 100);
+  await service.addUsage({ ...input, amount_usd: 175 });
+  await assert.rejects(service.addUsage({ ...input, amount_usd: 1 }), /cannot exceed/);
+  result = (await service.dashboard()).cards[0];
+  assert.equal(result.logged_realized_ytd_usd, 300);
+  assert.equal(result.realized_ytd_usd, 400);
+  assert.equal(result.projected_net_usd, 5);
+  assert.equal(result.benefits.find(b => b.id === input.benefit_id).expires_on, "2027-04-30");
+  await assert.rejects(service.addUsage({ ...input, benefit_id: "10-000-anniversary-miles-each-year" }), /does not use the spend ledger/);
+  service.db.close();
+});
+
+test("Venture X anniversary miles begin at the first anniversary when opening date is known", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-01" });
+  await service.addWalletCard({ catalog_slug: "capital-one-venture-x-rewards-credit-card", opened_on: "2026-05-01" });
+  const card = (await service.dashboard()).cards[0];
+  assert.equal(card.automatic_realized_ytd_usd, 0);
+  assert.equal(card.projected_net_usd, -395);
+  assert.equal(card.benefits.some(b => b.id === "10-000-anniversary-miles-each-year"), false);
+  service.db.close();
+});
+
 test("period corrections are capped, duplicate-safe, concurrency checked and auditable", async () => {
   const service = createService({ root, dbPath: ":memory:", asOf: "2026-08-27" });
   const wallet = await service.addWalletCard({ catalog_slug: "hilton-honors-american-express-aspire-card", nickname: "Test" });
