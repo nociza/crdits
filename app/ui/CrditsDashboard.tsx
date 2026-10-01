@@ -275,7 +275,7 @@ function UsageModal({ card, benefit, asOf, periodKey, onSubmit, onCancel }: {
           <input name="expected_total_usd" type="hidden" value={previousTotal} />
           <input name="request_id" type="hidden" value={requestId} />
           <input name="usage_mode" type="hidden" value={usageMode} />
-          <label>{usageMode === "add" ? "Amount used now" : "Total used this period"}<span><b>$</b><input key={usageMode} ref={amountInput} name="amount_usd" type="number" step="0.01" min={usageMode === "add" ? "0.01" : "0"} max={usageMode === "add" ? remaining : limit} defaultValue={usageMode === "add" ? undefined : defaultAmount} required /></span></label>
+          <label>{usageMode === "add" ? "Amount used now" : "Total used this period"}<span><b>$</b><input key={usageMode} ref={amountInput} name="amount_usd" type="number" step="0.01" min={usageMode === "add" ? "0.01" : "0"} max={usageMode === "add" ? remaining : limit} defaultValue={usageMode === "add" ? undefined : selectedPeriod ? defaultAmount : previousTotal} required /></span></label>
           {benefit.requires_membership_year ? <label>Current membership year started<input name="membership_year_start" type="date" max={asOf} required /><small>Save this once to track the annual credit and its expiry.</small></label> : null}
           {!selectedPeriod && usageMode === "add" ? <button type="button" className="ghost" disabled={saving || remaining <= 0} onClick={() => {
             const input = amountInput.current;
