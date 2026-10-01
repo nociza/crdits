@@ -179,6 +179,8 @@ repository.
 npm run check
 ```
 
+Automatic anniversary grants offset the active membership year's annual fee once, even when its start was in the previous calendar year. They do not become spend-ledger entries, and renewal never counts both the old and new grant together. Calendar-based grants retain their calendar-year behavior; known opening dates still enforce first-anniversary eligibility.
+
 Tests cover catalog import, recurring and anniversary cycles, automatic and enrollment behavior, partial usage, expected value, recommendations, SQLite isolation, and the server-rendered application shell.
 
 ## License

@@ -7,6 +7,29 @@ import { creditUsageTotal } from "../app/ui/credit-usage.ts";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
+test("automatic anniversary value offsets the active membership year across January without doubling at renewal", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-01" });
+  const wallet = await service.addWalletCard({ catalog_slug: "capital-one-venture-x-rewards-credit-card", membership_year_start: "2025-11-03" });
+  const card = (await service.dashboard()).cards[0];
+  assert.equal(card.automatic_realized_ytd_usd, 100);
+  assert.equal(card.logged_realized_ytd_usd, 0);
+  assert.equal(card.projected_net_usd, -295);
+  const travel = card.benefits.find(item => item.id === "annual-capital-one-travel-credit");
+  assert.equal(travel.used_usd, 0);
+  assert.equal(travel.remaining_usd, 300);
+  assert.equal(travel.expires_on, "2026-11-02");
+  const { buildDashboard } = await import("../server/engine.mjs");
+  const { loadCatalog } = await import("../server/catalog.mjs");
+  const catalog = await loadCatalog(path.join(root, "catalog/cards"));
+  for (const asOf of ["2026-11-02", "2026-11-03", "2026-12-31", "2027-01-01"]) {
+    const renewal = buildDashboard({ db: service.db, catalog, asOf }).cards[0];
+    assert.equal(renewal.automatic_realized_ytd_usd, 100, asOf);
+    assert.equal(renewal.projected_net_usd, -295, asOf);
+    assert.equal(service.usageHistory(wallet.id, "10-000-anniversary-miles-each-year").length, 0);
+  }
+  service.db.close();
+});
+
 test("November anniversary expires November 2 and partial/full logs reset on November 3", async () => {
   const service = createService({ root, dbPath: ":memory:", asOf: "2026-11-02" });
   const wallet = await service.addWalletCard({ catalog_slug: "capital-one-venture-x-rewards-credit-card", membership_year_start: "2025-11-03" });

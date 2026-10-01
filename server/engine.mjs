@@ -315,6 +315,13 @@ function automaticProjection(benefit, card, wallet, preference, year, asOf) {
       effectiveDuring(benefit, utcDate(yearStart), utcDate(yearEnd))) {
     return { realized: Number(catalog) * preference.probability * preference.personal_value_percent, expected: 0 };
   }
+  // Anniversary grants offset the current membership year's fee, even when
+  // that year began before January. Recognize its already-started grant once,
+  // not both the prior and next anniversary in a calendar-year projection.
+  if (benefit.cadence === "anniversary" && membershipAnchor(wallet)) {
+    const current = enumerateCycles(benefit, wallet, asOf, asOf)[0];
+    if (current) return { realized: Number(catalog) * preference.probability * preference.personal_value_percent, expected: 0 };
+  }
   let realized = 0;
   let expected = 0;
   for (const window of enumerateCycles(benefit, wallet, yearStart, yearEnd)) {
