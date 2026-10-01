@@ -1,6 +1,7 @@
 "use client";
 
 import { CatalogEditor } from "./CatalogEditor";
+import { creditUsageTotal } from "./credit-usage";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -222,6 +223,9 @@ function UsageModal({ card, benefit, asOf, periodKey, onSubmit, onCancel }: {
   const selectedPeriod = benefit.periods.find((period) => period.key === periodKey);
   const usedAt = selectedPeriod && !selectedPeriod.is_current ? selectedPeriod.end : asOf;
   const previousTotal = selectedPeriod?.used_usd ?? benefit.used_usd;
+  const limit = selectedPeriod?.amount_usd ?? benefit.amount_usd ?? 0;
+  const remaining = Math.max(0, Math.round((limit - previousTotal) * 100) / 100);
+  const [usageMode, setUsageMode] = useState<"add" | "total">(selectedPeriod ? "total" : "add");
   const defaultAmount = previousTotal || selectedPeriod?.amount_usd || benefit.amount_usd || 0;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [saving, setSaving] = useState(false);
@@ -255,9 +259,10 @@ function UsageModal({ card, benefit, asOf, periodKey, onSubmit, onCancel }: {
   return (
     <dialog ref={dialogRef} className="usage-modal-backdrop" onCancel={onCancel}>
       <section className="usage-modal" role="dialog" aria-modal="true" aria-labelledby="usage-modal-title">
-        <header><div><span>{card.nickname}</span><h3 id="usage-modal-title">{selectedPeriod ? `Set ${selectedPeriod.label} total` : "Set credit total"}</h3></div><button type="button" aria-label="Close" onClick={onCancel}>×</button></header>
+        <header><div><span>{card.nickname}</span><h3 id="usage-modal-title">{selectedPeriod ? `Set ${selectedPeriod.label} total` : usageMode === "add" ? "Log credit use" : "Correct credit total"}</h3></div><button type="button" aria-label="Close" onClick={onCancel}>×</button></header>
         <p>{benefit.title}</p>
         {selectedPeriod ? <small>{selectedPeriod.start} – {selectedPeriod.end} · {usd.format(selectedPeriod.remaining_usd)} left</small> : null}
+        {!selectedPeriod ? <small>{usd.format(previousTotal)} used · {usd.format(remaining)} left{benefit.expires_on ? ` · expires ${benefit.expires_on}` : ""}</small> : null}
         <form onSubmit={async (event) => {
           event.preventDefault();
           if (submitting.current) return;
@@ -269,12 +274,20 @@ function UsageModal({ card, benefit, asOf, periodKey, onSubmit, onCancel }: {
           <input name="used_at" type="hidden" value={usedAt} />
           <input name="expected_total_usd" type="hidden" value={previousTotal} />
           <input name="request_id" type="hidden" value={requestId} />
-          <label>Total used this period<span><b>$</b><input ref={amountInput} name="amount_usd" type="number" step="0.01" min="0" max={selectedPeriod?.amount_usd ?? benefit.amount_usd ?? undefined} defaultValue={defaultAmount} required /></span></label>
+          <input name="usage_mode" type="hidden" value={usageMode} />
+          <label>{usageMode === "add" ? "Amount used now" : "Total used this period"}<span><b>$</b><input key={usageMode} ref={amountInput} name="amount_usd" type="number" step="0.01" min={usageMode === "add" ? "0.01" : "0"} max={usageMode === "add" ? remaining : limit} defaultValue={usageMode === "add" ? undefined : defaultAmount} required /></span></label>
           {benefit.requires_membership_year ? <label>Current membership year started<input name="membership_year_start" type="date" max={asOf} required /><small>Save this once to track the annual credit and its expiry.</small></label> : null}
-          <div><button type="button" className="ghost" onClick={onCancel}>Cancel</button><button disabled={saving || !requestId}>{saving ? "Saving…" : "Save total"}</button></div>
+          {!selectedPeriod && usageMode === "add" ? <button type="button" className="ghost" disabled={saving || remaining <= 0} onClick={() => {
+            const input = amountInput.current;
+            if (!input) return;
+            input.value = remaining.toFixed(2);
+            input.form?.requestSubmit();
+          }}>Use full remaining credit ({usd.format(remaining)})</button> : null}
+          <div><button type="button" className="ghost" onClick={onCancel}>Cancel</button><button disabled={saving || !requestId || (usageMode === "add" && remaining <= 0)}>{saving ? "Saving…" : usageMode === "add" ? "Log amount" : "Save total"}</button></div>
         </form>
         {saveError && <p role="alert">{saveError}</p>}
         <details><summary>Correction history</summary>
+          {!selectedPeriod ? <button type="button" className="ghost" disabled={saving} onClick={() => setUsageMode(usageMode === "add" ? "total" : "add")}>{usageMode === "add" ? "Correct period total" : "Back to logging an amount"}</button> : null}
           {historyError ? <p role="status">History unavailable. Close and reopen to retry.</p> : history === null ? <p>Loading…</p> : history.length ? <ul>{history.map(item => <li key={item.id}>{item.period_key}: {usd.format(item.before_usd)} → {usd.format(item.after_usd)} · {item.created_at} UTC</li>)}</ul> : <p>No corrections yet. Earlier ledger entries are retained.</p>}
           <p>Enter 0 to clear a mistaken total. Corrections remain in your private audit trail.</p>
         </details>
@@ -445,6 +458,7 @@ export function CrditsDashboard() {
     event.preventDefault();
     if (!edit) return;
     const data = new FormData(event.currentTarget);
+    const total = creditUsageTotal(Number(data.get("amount_usd")), Number(data.get("expected_total_usd")), edit.benefit.periods.find(period => period.key === data.get("period_key"))?.amount_usd ?? edit.benefit.amount_usd ?? 0, data.get("usage_mode") === "add" ? "add" : "total");
     const failure = await mutate("Period total saved. Previous entries remain in the private audit trail.", async () => {
       if (data.get("membership_year_start")) {
         await api(`/v1/wallet/cards/${edit.card.id}`, { method: "PATCH", body: JSON.stringify({ membership_year_start: data.get("membership_year_start") }) });
@@ -452,7 +466,7 @@ export function CrditsDashboard() {
       await api("/v1/usage/period", { method: "POST", body: JSON.stringify({
         wallet_card_id: edit.card.id,
         benefit_id: edit.benefit.id,
-        amount_usd: Number(data.get("amount_usd")),
+        amount_usd: total,
         expected_total_usd: Number(data.get("expected_total_usd")),
         request_id: data.get("request_id"),
         used_at: data.get("used_at"),

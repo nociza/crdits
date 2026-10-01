@@ -3,8 +3,35 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { createService } from "../server/service.mjs";
+import { creditUsageTotal } from "../app/ui/credit-usage.ts";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+
+test("November anniversary expires November 2 and partial/full logs reset on November 3", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-11-02" });
+  const wallet = await service.addWalletCard({ catalog_slug: "capital-one-venture-x-rewards-credit-card", membership_year_start: "2025-11-03" });
+  const benefitId = "annual-capital-one-travel-credit";
+  const travel = () => service.dashboard().then(data => data.cards[0].benefits.find(item => item.id === benefitId));
+  let benefit = await travel();
+  assert.equal(benefit.expires_on, "2026-11-02");
+  for (const [amount, expected] of [[125, 125], [50, 175], [125, 300]]) {
+    const total = creditUsageTotal(amount, benefit.used_usd, benefit.amount_usd, "add");
+    await service.addUsage({ wallet_card_id: wallet.id, benefit_id: benefitId, used_at: "2026-11-02", amount_usd: total, expected_total_usd: benefit.used_usd, request_id: `nov-use-${expected}` }, { replace: true });
+    benefit = await travel();
+    assert.equal(benefit.used_usd, expected);
+  }
+  assert.equal(benefit.remaining_usd, 0);
+  const { buildDashboard } = await import("../server/engine.mjs");
+  const { loadCatalog } = await import("../server/catalog.mjs");
+  const renewed = buildDashboard({ db: service.db, catalog: await loadCatalog(path.join(root, "catalog/cards")), asOf: "2026-11-03" });
+  const reset = renewed.cards[0].benefits.find(item => item.id === benefitId);
+  assert.equal(reset.used_usd, 0);
+  assert.equal(reset.remaining_usd, 300);
+  assert.equal(reset.expires_on, "2027-11-02");
+  assert.equal(renewed.cards[0].automatic_realized_ytd_usd, 100);
+  assert.equal(service.usageHistory(wallet.id, benefitId).length, 3);
+  service.db.close();
+});
 
 test("Venture X counts the automatic $100 bonus and caps the loggable $300 anniversary credit", async () => {
   const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-01" });
