@@ -97,6 +97,29 @@ function migrate(db) {
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS benefit_period_evidence (
+      wallet_card_id INTEGER NOT NULL REFERENCES wallet_cards(id),
+      benefit_id TEXT NOT NULL,
+      period_key TEXT NOT NULL,
+      period_start TEXT NOT NULL,
+      period_end TEXT NOT NULL,
+      assessment TEXT NOT NULL CHECK (assessment IN ('used', 'likely_used', 'not_used')),
+      note TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(wallet_card_id, benefit_id, period_key)
+    );
+    CREATE TABLE IF NOT EXISTS benefit_evidence_changes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      request_id TEXT UNIQUE,
+      wallet_card_id INTEGER NOT NULL REFERENCES wallet_cards(id),
+      benefit_id TEXT NOT NULL,
+      period_key TEXT NOT NULL,
+      before_json TEXT,
+      result TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_usage_card_benefit_date
       ON benefit_usage(wallet_card_id, benefit_id, used_at);
     CREATE INDEX IF NOT EXISTS idx_offers_card_expiry
@@ -394,6 +417,45 @@ export function usageHistory(db, walletCardId, benefitId) {
     const saved = JSON.parse(result);
     return { ...row, before_value_usd: saved.before_value_usd ?? null, after_value_usd: saved.after_value_usd ?? null, redemption_method: saved.redemption_method || null };
   });
+}
+
+export function listPeriodEvidence(db) {
+  return db.prepare("SELECT * FROM benefit_period_evidence ORDER BY period_start, wallet_card_id, benefit_id").all();
+}
+
+// Evidence is a private assessment, not a monetary ledger entry. Keeping it
+// separate prevents a likely redemption or small order charge from becoming
+// invented realized value. A reported assessment can never erase actual usage.
+export function writePeriodEvidence(db, input, period) {
+  if (!["used", "likely_used", "not_used"].includes(input.assessment)) throw new Error("invalid evidence assessment");
+  if (typeof input.note !== "string" || !input.note.trim() || input.note.length > 5000) throw new Error("evidence note must contain 1–5000 characters");
+  if (!Number.isFinite(input.expected_total_usd) || input.expected_total_usd < 0) throw new Error("expected_total_usd is required for evidence");
+  if (typeof input.request_id !== "string" || input.request_id.length < 8 || input.request_id.length > 128) throw new Error("invalid request_id");
+  const payload = JSON.stringify({ wallet_card_id: input.wallet_card_id, benefit_id: input.benefit_id, period, assessment: input.assessment, note: input.note.trim(), expected_total_usd: input.expected_total_usd });
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const replay = db.prepare("SELECT payload, result FROM benefit_evidence_changes WHERE request_id = ?").get(input.request_id);
+    if (replay) {
+      if (replay.payload !== payload) throw new Error("request_id already used for a different evidence update");
+      db.exec("COMMIT");
+      return JSON.parse(replay.result);
+    }
+    const total = listUsage(db, { walletCardId: input.wallet_card_id, start: period.start, end: period.end }).filter(row => row.benefit_id === input.benefit_id).reduce((sum, row) => sum + row.amount_usd, 0);
+    if (Math.abs(total - input.expected_total_usd) > 0.005) throw new Error("This period changed in another session. Refresh before saving evidence.");
+    if (input.assessment === "used" && total <= 0) throw new Error("Record the credit amount before marking it used");
+    if (input.assessment !== "used" && total > 0) throw new Error("Recorded usage already exists; correct it explicitly before changing this assessment");
+    const key = [input.wallet_card_id, input.benefit_id, period.key];
+    const before = db.prepare("SELECT * FROM benefit_period_evidence WHERE wallet_card_id = ? AND benefit_id = ? AND period_key = ?").get(...key);
+    const result = { ...db.prepare(`INSERT INTO benefit_period_evidence (wallet_card_id, benefit_id, period_key, period_start, period_end, assessment, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(wallet_card_id, benefit_id, period_key) DO UPDATE SET
+      period_start = excluded.period_start, period_end = excluded.period_end,
+      assessment = excluded.assessment, note = excluded.note, updated_at = CURRENT_TIMESTAMP
+      RETURNING *`).get(...key, period.start, period.end, input.assessment, input.note.trim()) };
+    db.prepare("INSERT INTO benefit_evidence_changes (request_id, wallet_card_id, benefit_id, period_key, before_json, result, payload) VALUES (?, ?, ?, ?, ?, ?, ?)").run(input.request_id, ...key, before ? JSON.stringify(before) : null, JSON.stringify(result), payload);
+    db.exec("COMMIT");
+    return result;
+  } catch (error) { db.exec("ROLLBACK"); throw error; }
 }
 
 export function listPreferences(db) {

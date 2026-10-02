@@ -54,6 +54,7 @@ export function createApiClient({
     },
     addUsage: (input, { replace = false } = {}) => request(replace ? "v1/usage/period" : "v1/usage", { method: "POST", body: input }),
     usageHistory: (card, benefit) => request(`v1/usage/history?card=${encodeURIComponent(card)}&benefit=${encodeURIComponent(benefit)}`),
+    setPeriodEvidence: (input) => request("v1/usage/evidence", { method: "POST", body: input }),
     setBenefitStatus: (input) => request("v1/benefit-status", { method: "POST", body: input }),
     addOffer: (input) => request("v1/offers", { method: "POST", body: input }),
     updateOffer: (id, input) => request(`v1/offers/${encodeURIComponent(id)}`, { method: "PATCH", body: input }),

@@ -233,18 +233,18 @@
       "amount_usd": 10,
       "cadence": "monthly",
       "interval_years": null,
-      "description": "up to $10/month DoorDash grocery/daily-essentials benefit while eligible DashPass terms apply",
+      "description": "Up to $10 per calendar month on one eligible DoorDash non-restaurant order with the card used to activate DashPass. Unused value does not roll over; fees, taxes and gratuity are excluded. Other promotions may be combined, but only up to $10 belongs to this card benefit.",
       "eligibility": null,
       "enrollment_required": false,
-      "valid_from": "2026-01-01",
+      "valid_from": "2024-08-01",
       "valid_to": null,
-      "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
+      "source_url": "https://www.chase.com/digital/resources/terms-of-use/sapphire-doordash",
       "valuation": {
         "method": "face_value",
         "value_usd": 10,
         "basis": "Issuer-stated $10 maximum per monthly DoorDash promo period",
-        "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
-        "as_of": "2026-08-28"
+        "source_url": "https://www.chase.com/digital/resources/terms-of-use/sapphire-doordash",
+        "as_of": "2026-10-02"
       },
       "source_group": "recurring"
     },
@@ -330,6 +330,14 @@
   "valid_to": null,
   "verified_at": "2026-08-28",
   "sources": [
+    {
+      "kind": "benefits",
+      "url": "https://media.chase.com/news/chase-doordash-benefits"
+    },
+    {
+      "kind": "benefits",
+      "url": "https://www.chase.com/digital/resources/terms-of-use/sapphire-doordash"
+    },
     {
       "kind": "primary",
       "url": "https://media.chase.com/news/Meet-the-New-Chase-Sapphire-Preferred"

@@ -1,8 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cardCreditState, catalogStatus, creditActions, creditViewUrl } from "../app/ui/credit-state.ts";
+import { cardCreditState, catalogStatus, creditActions, creditViewUrl, periodEvidenceState } from "../app/ui/credit-state.ts";
 
 const credit = { tracking_type: "spend", remaining_usd: 200, used_usd: 0, requires_membership_year: false, attention_reason: null, periods: [] };
+
+test("reported likely use never presents as confirmed value and explicit ledger use takes precedence", () => {
+  const period = { used_usd: 0, evidence: { assessment: "likely_used", note: "Partial evidence" } };
+  assert.deepEqual(periodEvidenceState(period), { label: "Likely used", detail: "Not counted", unconfirmed: true });
+  assert.deepEqual(periodEvidenceState({ ...period, evidence: { ...period.evidence, assessment: "not_used" } }), { label: "Not used", detail: "Reported", unconfirmed: false });
+  assert.equal(periodEvidenceState({ ...period, used_usd: 10 }), null);
+  assert.equal(periodEvidenceState({ used_usd: 0 }), null);
+  assert.deepEqual(periodEvidenceState({ ...period, evidence: { ...period.evidence, assessment: "used" } }), { label: "Reported used", detail: "Not counted", unconfirmed: true });
+});
 
 test("catalog confirmation labels never call assumptions or legacy terms verified", () => {
   assert.equal(catalogStatus("CONFIRMED"), "Product confirmed");

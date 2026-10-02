@@ -3,6 +3,7 @@ import {
   listOffers,
   listPreferences,
   listUsage,
+  listPeriodEvidence,
   listWalletCards,
 } from "./db.mjs";
 import { rewardEligibility, unconditionalBase } from "./rewards.mjs";
@@ -213,7 +214,7 @@ function resetPeriodStatus({ remaining, used, start, end, asOf }) {
   return used > 0 ? "partial" : "available";
 }
 
-function resetPeriodTimeline(benefit, card, wallet, preference, usage, asOf) {
+function resetPeriodTimeline(benefit, card, wallet, preference, usage, evidence, asOf) {
   if (trackingType(benefit) !== "spend" || !isResetCadence(benefit.cadence)) return [];
   const face = cycleAmount(benefit, card, preference);
   if (face == null) return [];
@@ -237,11 +238,12 @@ function resetPeriodTimeline(benefit, card, wallet, preference, usage, asOf) {
       remaining_usd: round(remaining),
       status: resetPeriodStatus({ remaining, used, start: window.start, end: window.end, asOf }),
       is_current: isCurrent,
+      evidence: evidence.get(`${wallet.id}:${benefit.id}:${window.key}`) || null,
     };
   });
 }
 
-function currentCycleState(benefit, card, wallet, preference, usage, savedStatus, asOf) {
+function currentCycleState(benefit, card, wallet, preference, usage, evidence, savedStatus, asOf) {
   const behavior = trackingType(benefit);
   const face = cycleAmount(benefit, card, preference);
   const catalog = catalogValue(benefit, card, preference);
@@ -326,7 +328,7 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
     activated_on: savedStatus?.activated_on || null,
     requires_membership_year: false,
     counts_toward_value: countsTowardValue(benefit),
-    periods: resetPeriodTimeline(benefit, card, wallet, preference, usage, asOf),
+    periods: resetPeriodTimeline(benefit, card, wallet, preference, usage, evidence, asOf),
     is_actionable: (behavior === "spend" && remaining > 0) || (behavior === "enrollment" && status !== "active"),
   };
 }
@@ -407,6 +409,7 @@ function feeRenewalReminder(wallet, card, asOf, threshold) {
 export function buildDashboard({ catalog, db, asOf = new Date().toISOString().slice(0, 10), reminderDays = 30, includeClosed = false }) {
   const wallet = listWalletCards(db, { includeClosed });
   const usage = listUsage(db);
+  const evidence = new Map(listPeriodEvidence(db).map(item => [`${item.wallet_card_id}:${item.benefit_id}:${item.period_key}`, item]));
   const preferences = listPreferences(db);
   const benefitStatuses = listBenefitStatuses(db);
   const offers = listOffers(db, { activeOn: asOf });
@@ -430,7 +433,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
       const preference = preferenceFor(preferenceMap, walletCard.id, definition);
       const benefit = resolveBenefitSchedule(definition, preference);
       const savedStatus = statusMap.get(`${walletCard.id}:${benefit.id}`) || null;
-      const state = currentCycleState(benefit, card, walletCard, preference, usage, savedStatus, asOf);
+      const state = currentCycleState(benefit, card, walletCard, preference, usage, evidence, savedStatus, asOf);
       if (state) {
         const threshold = preference.reminder_days ?? reminderDays;
         state.attention_reason = state.tracking_type === "spend" && state.requires_membership_year ? "date_needed"

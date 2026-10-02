@@ -20,11 +20,12 @@ import {
   setWalletCardStatus,
   updateWalletCard,
   writePeriodUsage,
+  writePeriodEvidence,
   listPreferences,
   usageHistory,
   updateOffer,
 } from "./db.mjs";
-import { buildDashboard, enumerateCycles, recommendCard, cycleAmount, catalogValue, resolveBenefitSchedule } from "./engine.mjs";
+import { buildDashboard, enumerateCycles, recommendCard, cycleAmount, catalogValue, resolveBenefitSchedule, isResetCadence } from "./engine.mjs";
 import { readFile, readdir } from "node:fs/promises";
 
 export function projectPaths(root = process.env.CRDITS_ROOT || process.cwd()) {
@@ -138,6 +139,25 @@ export function createService(options = {}) {
 
     usageHistory(walletCardId, benefitId) {
       return usageHistory(db, Number(walletCardId), benefitId);
+    },
+
+    async setPeriodEvidence(input) {
+      const wallet = findWalletCard(db, input.wallet_card_id || input.card);
+      if (!wallet) throw new Error("wallet card not found");
+      const card = (await catalog()).find(item => item.slug === wallet.catalog_slug);
+      const definition = card?.benefits.find(item => item.id === input.benefit_id);
+      if (!definition || definition.tracking_type !== "spend") throw new Error("evidence requires a spend-tracked benefit");
+      const preference = listPreferences(db).find(item => item.wallet_card_id === wallet.id && item.benefit_id === definition.id) || {};
+      const benefit = resolveBenefitSchedule(definition, preference);
+      if (!isResetCadence(benefit.cadence)) throw new Error("evidence requires a period-tracked benefit");
+      if (Object.hasOwn(input, "period_schedule_id") && input.period_schedule_id !== (benefit.period_schedule_id || null)) throw new Error("The offer schedule changed. Refresh before saving evidence.");
+      const date = input.used_at;
+      const parsed = new Date(`${date}T00:00:00Z`);
+      if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) throw new Error("used_at must be a valid YYYY-MM-DD date");
+      if (date > today()) throw new Error("evidence cannot be recorded in a future period");
+      const period = enumerateCycles(benefit, wallet, date, date).find(item => item.key === input.period_key);
+      if (!period) throw new Error("evidence date does not fall inside the selected eligible period");
+      return writePeriodEvidence(db, { ...input, wallet_card_id: wallet.id }, period);
     },
 
     async catalogCard(slug) {

@@ -55,6 +55,16 @@ including a next-year window, and never recur after the promotion ends. Changing
 the schedule preserves existing usage dates and values and counts only one
 cohort. A future-year window is displayed but is not added to this year's total.
 
+Period evidence is separate from money. A month can carry a private **likely
+used** or **not used** assessment and its supporting notes, without inventing a
+credit. Likely use is labeled **Not counted**; only explicit ledger amounts
+affect net value. Open a period to read its evidence and confirm or correct the
+amount. Public card definitions and generic evidence-handling code may be
+shared; personal receipts, assessments, card identifiers and history remain
+only in SQLite. The authenticated `POST /v1/usage/evidence` endpoint requires
+the exact period, a bounded note, an idempotency request ID, and the expected
+recorded total, and cannot silently clear existing usage.
+
 “Net value this year” means used/credited value minus annual fees. Remaining
 this year includes future reset periods and is not an available-now balance.
 New ledger entries store their valuation ratio; legacy entries are pinned once

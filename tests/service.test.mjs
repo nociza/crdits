@@ -7,6 +7,68 @@ import { creditUsageTotal } from "../app/ui/credit-usage.ts";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
+test("past-year evidence persists privately without inventing a credit or an exact transaction date", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-02" });
+  const wallet = await service.addWalletCard({ catalog_slug: "chase-sapphire-preferred" });
+  const benefitId = "doordash-grocery-daily-essentials-benefit-while-eligible-dashpass-terms-apply";
+  const input = { wallet_card_id: wallet.id, benefit_id: benefitId, used_at: "2025-10-31", period_key: "2025-10", assessment: "likely_used", note: "Reported small checkout charge; discount not identified. Order date unknown.", expected_total_usd: 0, request_id: "generic-evidence-2025" };
+  const saved = await service.setPeriodEvidence(input);
+  assert.equal(saved.period_start, "2025-10-01");
+  assert.equal(saved.period_end, "2025-10-31");
+  assert.deepEqual(await service.setPeriodEvidence(input), saved);
+  assert.equal(service.db.prepare("SELECT count(*) AS n FROM benefit_evidence_changes").get().n, 1);
+  assert.equal(service.db.prepare("SELECT count(*) AS n FROM benefit_usage").get().n, 0);
+  const historical = await service.dashboard({ year: 2025 });
+  assert.equal(historical.metrics.realized_ytd_usd, 0);
+  const period = historical.cards[0].benefits.find(item => item.id === benefitId).periods.find(item => item.key === "2025-10");
+  assert.equal(period.evidence.assessment, "likely_used");
+  assert.equal(period.used_usd, 0);
+  assert.equal(period.evidence.note, input.note);
+  await assert.rejects(service.setPeriodEvidence({ ...input, note: "Changed" }), /request_id/);
+  await assert.rejects(service.setPeriodEvidence({ ...input, request_id: "invalid-claim", assessment: "used" }), /Record the credit/);
+  await assert.rejects(service.setPeriodEvidence({ ...input, request_id: "invalid-date", used_at: "2025-02-30" }), /valid YYYY/);
+  await assert.rejects(service.setPeriodEvidence({ ...input, request_id: "future-report", used_at: "2026-11-30", period_key: "2026-11" }), /future/);
+  await assert.rejects(service.setPeriodEvidence({ ...input, request_id: "wrong-period", period_key: "2025-11" }), /selected eligible period/);
+  await assert.rejects(service.setPeriodEvidence({ ...input, request_id: "invalid-status", assessment: "maybe" }), /invalid evidence/);
+  await assert.rejects(service.setPeriodEvidence({ ...input, request_id: "unknown-benefit", benefit_id: "unknown" }), /spend-tracked/);
+  await assert.rejects(service.setPeriodEvidence({ ...input, request_id: "before-offer", used_at: "2024-07-31", period_key: "2024-07" }), /selected eligible period/);
+  await service.setPeriodEvidence({ ...input, request_id: "reassessed-example", assessment: "not_used", note: "Owner corrected the earlier assessment" });
+  const audit = service.db.prepare("SELECT before_json, result FROM benefit_evidence_changes ORDER BY id DESC LIMIT 1").get();
+  assert.equal(JSON.parse(audit.before_json).assessment, "likely_used");
+  assert.equal(JSON.parse(audit.result).assessment, "not_used");
+  assert.equal(service.db.prepare("SELECT count(*) AS n FROM benefit_usage").get().n, 0);
+  service.db.close();
+});
+
+test("only recorded card-credit amounts affect net value; evidence cannot overwrite monetary use", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-02" });
+  const wallet = await service.addWalletCard({ catalog_slug: "chase-sapphire-preferred" });
+  const benefitId = "doordash-grocery-daily-essentials-benefit-while-eligible-dashpass-terms-apply";
+  const base = { wallet_card_id: wallet.id, benefit_id: benefitId };
+  await service.setPeriodEvidence({ ...base, used_at: "2026-01-31", period_key: "2026-01", assessment: "likely_used", note: "Unidentified discount", expected_total_usd: 0, request_id: "uncertain-example" });
+  await service.setPeriodEvidence({ ...base, used_at: "2026-03-31", period_key: "2026-03", assessment: "not_used", note: "No qualifying orders", expected_total_usd: 0, request_id: "unused-example" });
+  for (const month of [2, 4, 7, 8]) {
+    const date = new Date(Date.UTC(2026, month, 0)).toISOString().slice(0, 10);
+    const periodKey = date.slice(0, 7);
+    await assert.rejects(service.addUsage({ ...base, used_at: date, amount_usd: 14 }), /cannot exceed the \$10 credit/);
+    await service.addUsage({ ...base, used_at: date, amount_usd: 10 });
+    await service.setPeriodEvidence({ ...base, used_at: date, period_key: periodKey, assessment: "used", note: "Owner-reported redemption; additional discounts excluded", expected_total_usd: 10, request_id: `used-example-${month}` });
+  }
+  const dashboard = await service.dashboard();
+  assert.equal(dashboard.metrics.realized_ytd_usd, 40);
+  assert.equal(dashboard.metrics.projected_net_usd, -55);
+  const credit = dashboard.cards[0].benefits.find(item => item.id === benefitId);
+  assert.equal(credit.remaining_usd, 10); // evidence for old months does not consume October
+  assert.equal(credit.periods.find(item => item.key === "2026-01").used_usd, 0);
+  assert.equal(credit.periods.filter(item => item.evidence?.assessment === "used").length, 4);
+  const conflict = { ...base, used_at: "2026-02-28", period_key: "2026-02", assessment: "not_used", note: "Cannot silently clear a ledger", request_id: "conflicting-report" };
+  await assert.rejects(service.setPeriodEvidence({ ...conflict, expected_total_usd: 0 }), /another session/);
+  await assert.rejects(service.setPeriodEvidence({ ...conflict, expected_total_usd: 10 }), /Recorded usage already exists/);
+  assert.equal((await service.dashboard()).metrics.realized_ytd_usd, 40);
+  assert.equal(service.db.prepare("SELECT count(*) AS n FROM benefit_evidence_changes").get().n, 6);
+  service.db.close();
+});
+
 test("offer selection persists privately, preserves preferences and leaves all ledger entries untouched", async () => {
   const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-02" });
   const wallet = await service.addWalletCard({ catalog_slug: "marriott-bonvoy-boundless-credit-card" });

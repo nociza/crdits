@@ -2,7 +2,7 @@
 
 import { CatalogEditor } from "./CatalogEditor";
 import { creditUsageTotal } from "./credit-usage";
-import { cardCreditState, catalogStatus, creditActions, creditViewUrl } from "./credit-state";
+import { cardCreditState, catalogStatus, creditActions, creditViewUrl, periodEvidenceState } from "./credit-state";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -55,6 +55,7 @@ type BenefitPeriod = {
   remaining_usd: number;
   status: "used" | "partial" | "expired" | "upcoming" | "available";
   is_current: boolean;
+  evidence?: { assessment: "used" | "likely_used" | "not_used"; note: string } | null;
 };
 
 type WalletCard = {
@@ -203,7 +204,8 @@ function CreditPeriods({ cadence, periods, asOf, qualifying = false, onSelect }:
     <div className={`credit-periods has-${periods.length} is-${cadence}`} aria-label="Credit periods">
       {periods.map((period) => {
         const selectable = period.start <= asOf;
-        const detail = period.status === "used"
+        const assessment = periodEvidenceState(period);
+        const detail = assessment?.label || (period.status === "used"
           ? `${usd.format(period.amount_usd)} used`
           : period.status === "partial"
             ? period.is_current ? `${usd.format(period.remaining_usd)} left` : `${usd.format(period.used_usd)} used`
@@ -211,10 +213,10 @@ function CreditPeriods({ cadence, periods, asOf, qualifying = false, onSelect }:
               ? "Ended"
               : period.status === "upcoming"
                 ? `${usd.format(period.amount_usd)} next`
-                : `${usd.format(period.remaining_usd)} ${qualifying ? "to earn" : "left"}`;
+                : `${usd.format(period.remaining_usd)} ${qualifying ? "to earn" : "left"}`);
         return (
-          <button type="button" className={`credit-period is-${period.status} ${period.is_current ? "is-current" : ""}`} key={period.key} aria-current={period.is_current ? "true" : undefined} disabled={!selectable} onClick={() => onSelect(period)} title={selectable ? `${period.used_usd > 0 ? "Edit" : "Log"} ${period.label} usage` : `Upcoming period: ${period.start} through ${period.end}`}>
-            <small>{period.label}</small>{cadence === "custom" ? <span className="period-dates">{period.start} – {period.end}</span> : null}<strong>{detail}</strong><i>{period.is_current ? period.status === "used" ? "Used · current" : "Current" : period.status}</i>
+          <button type="button" className={`credit-period is-${period.status} ${period.is_current ? "is-current" : ""} ${assessment?.unconfirmed ? "is-unconfirmed" : ""}`} key={period.key} aria-current={period.is_current ? "true" : undefined} disabled={!selectable} onClick={() => onSelect(period)} title={`${selectable ? `${period.used_usd > 0 ? "Edit" : "Log"} ${period.label} usage` : `Upcoming period: ${period.start} through ${period.end}`}${period.evidence ? ` · Reported evidence: ${period.evidence.note}` : ""}`}>
+            <small>{period.label}</small>{cadence === "custom" ? <span className="period-dates">{period.start} – {period.end}</span> : null}<strong>{detail}</strong><i>{assessment?.detail || (period.is_current ? period.status === "used" ? "Used · current" : "Current" : period.status)}</i>
           </button>
         );
       })}
@@ -256,7 +258,7 @@ function UsageModal({ card, benefit, asOf, periodKey, initialMode, onSubmit, onC
   const limit = selectedPeriod?.amount_usd ?? benefit.amount_usd ?? 0;
   const remaining = Math.max(0, Math.round((limit - previousTotal) * 100) / 100);
   const [usageMode, setUsageMode] = useState<"add" | "total">(selectedPeriod || remaining <= 0 ? "total" : initialMode || "add");
-  const defaultAmount = previousTotal || selectedPeriod?.amount_usd || benefit.amount_usd || 0;
+  const defaultAmount = selectedPeriod?.evidence?.assessment === "not_used" && previousTotal === 0 ? 0 : previousTotal || selectedPeriod?.amount_usd || benefit.amount_usd || 0;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -292,6 +294,7 @@ function UsageModal({ card, benefit, asOf, periodKey, initialMode, onSubmit, onC
         <header><div><span>{card.nickname}</span><h3 id="usage-modal-title">{selectedPeriod ? `Set ${selectedPeriod.label} total` : usageMode === "add" ? "Log credit use" : "Correct credit total"}</h3></div><button type="button" aria-label="Close" onClick={onCancel}>×</button></header>
         <p>{benefit.title}</p>
         {selectedPeriod ? <small>{selectedPeriod.start} – {selectedPeriod.end} · {usd.format(selectedPeriod.remaining_usd)} left</small> : null}
+        {selectedPeriod?.evidence ? <p className="period-evidence-note"><strong>Reported evidence</strong><br />{selectedPeriod.evidence.note}{selectedPeriod.evidence.assessment === "likely_used" && !previousTotal ? <><br />Likely use is not counted in net value. Save an amount only when confirmed.</> : null}</p> : null}
         {!selectedPeriod ? <small>{usd.format(previousTotal)} used · {usd.format(remaining)} left{benefit.expires_on ? ` · expires ${benefit.expires_on}` : ""}</small> : null}
         {benefit.qualifying_spend ? <p className="credit-earning-rule">Spend {usd.format(benefit.qualifying_spend.amount_usd)} directly with airlines in this window to earn {usd.format(limit)}. Enter the statement credit received, not the purchase amount. {benefit.qualifying_spend.posting_delay}</p> : null}
         <form onSubmit={async (event) => {

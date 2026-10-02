@@ -17,6 +17,14 @@ export function creditActions(benefit: Credit) {
   };
 }
 
+export function periodEvidenceState(period: { used_usd: number; evidence?: { assessment: "used" | "likely_used" | "not_used"; note: string } | null }) {
+  // Explicit monetary bookkeeping takes precedence over an earlier report.
+  // Reports alone never imply an amount or contribute to realized card value.
+  if (period.used_usd > 0 || !period.evidence) return null;
+  if (period.evidence.assessment === "not_used") return { label: "Not used", detail: "Reported", unconfirmed: false };
+  return { label: period.evidence.assessment === "likely_used" ? "Likely used" : "Reported used", detail: "Not counted", unconfirmed: true };
+}
+
 export function cardCreditState(card: { benefits: Credit[] }) {
   const credits = card.benefits.filter(benefit => benefit.tracking_type === "spend");
   const available = credits.filter(benefit => (benefit.remaining_usd ?? 0) > 0).length;
