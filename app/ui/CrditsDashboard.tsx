@@ -1,9 +1,10 @@
 "use client";
+import { EntryPerks } from "./EntryPerks";
 
 import { CatalogEditor } from "./CatalogEditor";
 import { FreeNightAwards, type FreeNightAward } from "./FreeNightAwards";
 import { creditUsageTotal } from "./credit-usage";
-import { availableCreditValue, cardCreditState, catalogStatus, creditActions, creditViewUrl, periodEvidenceState } from "./credit-state";
+import { availableCreditValue, cardCreditState, catalogStatus, creditActions, creditViewUrl, isEntryPerk, periodEvidenceState } from "./credit-state";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -571,9 +572,10 @@ export function CrditsDashboard() {
   }
 
   function renderWalletCard(card: WalletCard) {
-    const spendBenefits = card.benefits.filter((benefit) => benefit.tracking_type === "spend");
+    const entryBenefits = card.benefits.filter(isEntryPerk);
+    const spendBenefits = card.benefits.filter((benefit) => benefit.tracking_type === "spend" && !isEntryPerk(benefit));
     const awardBenefits = card.benefits.filter(benefit => benefit.tracking_type === "award");
-    const includedBenefits = card.benefits.filter((benefit) => benefit.tracking_type !== "spend" && benefit.tracking_type !== "award");
+    const includedBenefits = card.benefits.filter((benefit) => benefit.tracking_type !== "spend" && benefit.tracking_type !== "award" && !isEntryPerk(benefit));
     const state = cardCreditState(card);
     const enrollmentCount = includedBenefits.filter(benefit => benefit.tracking_type === "enrollment" && benefit.status !== "active").length;
 
@@ -641,6 +643,7 @@ export function CrditsDashboard() {
             const failure = await mutate("Free-night award saved in your private ledger.", () => api("/v1/awards", { method: "POST", body: JSON.stringify({ ...input, wallet_card_id: card.id, benefit_id: benefit.id }) }));
             if (failure) throw new Error(failure);
           }} />)}
+          <EntryPerks count={entryBenefits.length}><div className="benefit-list">{entryBenefits.map(benefit => renderBenefit(benefit, benefit.tracking_type !== "spend"))}</div></EntryPerks>
           {includedBenefits.length ? <details className="included-benefits"><summary><span>Included perks &amp; statuses</span><small>{enrollmentCount ? `${enrollmentCount} activation${enrollmentCount === 1 ? "" : "s"} not recorded` : "Automatic and recorded perks"}</small></summary><p className="muted">Activation is recorded locally. Complete enrollment with the issuer separately. Perks and statuses do not offset the annual fee.</p><div className="benefit-list">{includedBenefits.map((benefit) => renderBenefit(benefit, true))}</div></details> : null}
         </section>
       </article>

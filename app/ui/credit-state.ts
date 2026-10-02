@@ -1,5 +1,7 @@
 // One policy for overview badges, wallet ordering, and available actions.
 type Credit = {
+  id?: string;
+  title?: string;
   tracking_type: string;
   counts_toward_value?: boolean;
   remaining_usd: number | null;
@@ -10,6 +12,10 @@ type Credit = {
   awards?: { status: string }[];
   annual_award?: boolean;
 };
+
+export function isEntryPerk(benefit: { id?: string; title?: string }) {
+  return /\b(?:priority[- ]pass|clear(?:[- +]|\b)|global[- ]entry|tsa[- ]precheck)\b/i.test(`${benefit.id || ""} ${benefit.title || ""}`);
+}
 
 export function availableCreditValue(card: { benefits: Credit[] }) {
   return card.benefits.filter(benefit => benefit.counts_toward_value && benefit.tracking_type === "spend")
@@ -34,7 +40,7 @@ export function periodEvidenceState(period: { used_usd: number; evidence?: { ass
 }
 
 export function cardCreditState(card: { benefits: Credit[] }) {
-  const credits = card.benefits.filter(benefit => benefit.tracking_type === "spend");
+  const credits = card.benefits.filter(benefit => benefit.tracking_type === "spend" && !isEntryPerk(benefit));
   const available = credits.filter(benefit => (benefit.remaining_usd ?? 0) > 0).length;
   const dateNeeded = credits.filter(benefit => benefit.requires_membership_year).length;
   const expiring = credits.filter(benefit => (benefit.remaining_usd ?? 0) > 0 && benefit.attention_reason === "expiring").length;

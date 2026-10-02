@@ -1,6 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { availableCreditValue, cardCreditState, catalogStatus, creditActions, creditViewUrl, periodEvidenceState } from "../app/ui/credit-state.ts";
+import { availableCreditValue, cardCreditState, catalogStatus, creditActions, creditViewUrl, isEntryPerk, periodEvidenceState } from "../app/ui/credit-state.ts";
+
+test("entry perks group independently and never promote a card or inflate available-credit badges", () => {
+  for (const id of ["priority-pass-access", "clear-credit-per-calendar-year", "global-entry-tsa-precheck-credit-per-eligible-period"]) {
+    const entry = {id, tracking_type: "spend", remaining_usd: 219, used_usd: 0, requires_membership_year: false, attention_reason: "expiring", periods: []};
+    assert.equal(isEntryPerk(entry), true);
+    assert.equal(cardCreditState({benefits: [entry]}).visible, false);
+    assert.equal(cardCreditState({benefits: [entry]}).warning, false);
+    const hotel = {...entry, id: "hotel-credit", title: "Hotel credit", remaining_usd: 100, attention_reason: null};
+    assert.equal(isEntryPerk(hotel), false);
+    assert.equal(cardCreditState({benefits: [entry, hotel]}).available, 1);
+  }
+  assert.equal(isEntryPerk({title: "CLEAR+ membership"}), true);
+  assert.equal(isEntryPerk({title: "Hilton Diamond status"}), false);
+});
 
 test("available-now credit value excludes entry perks and separately tracked free nights", () => {
   const benefit = {tracking_type: "spend", remaining_usd: 100, used_usd: 0, requires_membership_year: false, periods: []};

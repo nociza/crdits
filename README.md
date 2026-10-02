@@ -70,6 +70,10 @@ this year includes future reset periods and is not an available-now balance.
 Priority Pass, CLEAR and Global Entry/TSA PreCheck are excluded from net,
 potential value, annual remaining and available-now totals. Their individual
 benefit balances and usage history remain trackable without contributing value.
+Each wallet card keeps these benefits in a collapsed **Show entry perks**
+section. Expand it to view or edit their history; collapse it again with
+**Hide entry perks**. They do not inflate available-credit badges or promote
+an otherwise quiet card into the main wallet list.
 New ledger entries store their valuation ratio; legacy entries are pinned once
 at migration-time catalog values, not asserted historical redemption prices.
 Historical fees and benefits remain limited by the definitions actually recorded
