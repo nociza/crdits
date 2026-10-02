@@ -141,6 +141,7 @@
     {
       "id": "global-entry-tsa-precheck-credit-per-eligible-period",
       "title": "Global Entry/TSA PreCheck credit per eligible period",
+      "net_value_policy": "excluded",
       "kind": "statement_credit",
       "tracking_type": "spend",
       "amount_usd": 120,

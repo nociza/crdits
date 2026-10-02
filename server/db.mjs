@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { migrateAwards } from "./awards.mjs";
 
 function ensureParent(file) {
   if (file === ":memory:") return;
@@ -151,6 +152,7 @@ function migrate(db) {
     result TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  migrateAwards(db);
 }
 
 export function listWalletCards(db, { includeClosed = false } = {}) {

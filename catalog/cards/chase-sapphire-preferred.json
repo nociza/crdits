@@ -251,6 +251,7 @@
     {
       "id": "global-entry-tsa-precheck-nexus-credit-every-4-years",
       "title": "Global Entry/TSA PreCheck/NEXUS credit every 4 years",
+      "net_value_policy": "excluded",
       "kind": "statement_credit",
       "tracking_type": "spend",
       "amount_usd": 120,

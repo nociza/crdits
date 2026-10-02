@@ -7,6 +7,7 @@ import {
   listWalletCards,
 } from "./db.mjs";
 import { rewardEligibility, unconditionalBase } from "./rewards.mjs";
+import { listAwards, awardState } from "./awards.mjs";
 
 const DAY_MS = 86_400_000;
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -176,9 +177,9 @@ export function catalogValue(benefit, card, preference) {
 }
 
 function countsTowardValue(benefit) {
-  if (benefit.valuation?.method === "excluded") return false;
+  if (benefit.net_value_policy === "excluded" || benefit.valuation?.method === "excluded") return false;
   const behavior = trackingType(benefit);
-  return behavior === "spend" || (behavior === "automatic" && Number(benefit.points_amount) > 0);
+  return behavior === "spend" || behavior === "award" || (behavior === "automatic" && Number(benefit.points_amount) > 0);
 }
 
 function preferenceFor(map, walletCardId, benefit) {
@@ -288,7 +289,7 @@ function currentCycleState(benefit, card, wallet, preference, usage, evidence, s
   const used = behavior === "spend" ? usageFor(usage, wallet.id, benefit.id, window.start, window.end) : 0;
   const remaining = behavior === "spend" && face != null ? Math.max(0, Number(face) - used) : behavior === "automatic" ? 0 : null;
   const remainingShare = behavior === "spend" && face > 0 && remaining != null ? remaining / face : 0;
-  const expected = behavior === "spend" && remaining != null && catalog != null
+  const expected = behavior === "spend" && countsTowardValue(benefit) && remaining != null && catalog != null
     ? catalog * remainingShare * preference.probability * preference.personal_value_percent
     : behavior === "automatic" && countsTowardValue(benefit) && catalog != null
       ? catalog * preference.probability * preference.personal_value_percent
@@ -315,7 +316,7 @@ function currentCycleState(benefit, card, wallet, preference, usage, evidence, s
     valuation_source_url: benefit.valuation?.source_url || null,
     valuation_as_of: benefit.valuation?.as_of || null,
     used_usd: round(used),
-    used_value_usd: round(usedValueFor(usage, wallet.id, benefit.id, window.start, window.end, benefit.redemption_policy ? 0 : face > 0 ? (catalog ?? 0) / face : 0)),
+    used_value_usd: countsTowardValue(benefit) ? round(usedValueFor(usage, wallet.id, benefit.id, window.start, window.end, benefit.redemption_policy ? 0 : face > 0 ? (catalog ?? 0) / face : 0)) : 0,
     redemption_options: benefit.redemption_policy?.options || [],
     remaining_usd: remaining == null ? null : round(remaining),
     expected_value_usd: expected == null ? null : round(expected),
@@ -348,7 +349,7 @@ function annualProjection(benefit, card, wallet, preference, usage, year, asOf) 
     const cycleRemaining = Math.max(0, Number(face) - used);
     remaining += cycleRemaining;
     const remainingShare = face > 0 ? cycleRemaining / face : 0;
-    expected += (catalog ?? 0) * remainingShare * preference.probability * preference.personal_value_percent;
+    if (countsTowardValue(benefit)) expected += (catalog ?? 0) * remainingShare * preference.probability * preference.personal_value_percent;
   }
   return { remaining, expected };
 }
@@ -384,14 +385,20 @@ function automaticProjection(benefit, card, wallet, preference, year, asOf) {
   return { realized, expected };
 }
 
-function feeRenewalReminder(wallet, card, asOf, threshold) {
+function nextAnniversary(wallet, asOf) {
   const anchor = membershipAnchor(wallet);
   if (!anchor) return null;
   const anchorDate = utcDate(anchor);
   const today = utcDate(asOf);
   let next = clampDay(today.getUTCFullYear(), anchorDate.getUTCMonth(), anchorDate.getUTCDate());
   if (next < today) next = clampDay(today.getUTCFullYear() + 1, anchorDate.getUTCMonth(), anchorDate.getUTCDate());
-  const days = daysUntil(iso(next), asOf);
+  return iso(next);
+}
+
+function feeRenewalReminder(wallet, card, asOf, threshold) {
+  const next = nextAnniversary(wallet, asOf);
+  if (!next) return null;
+  const days = daysUntil(next, asOf);
   if (days > threshold) return null;
   const fee = wallet.annual_fee_override ?? card.annual_fee_usd;
   return {
@@ -401,7 +408,7 @@ function feeRenewalReminder(wallet, card, asOf, threshold) {
     card_name: card.name,
     title: `${card.short_name || card.name} renews in ${days} day${days === 1 ? "" : "s"}`,
     detail: fee == null ? "Review this card before renewal" : `$${round(fee, 0)} annual fee`,
-    expires_on: iso(next),
+    expires_on: next,
     remaining_usd: null,
   };
 }
@@ -409,6 +416,7 @@ function feeRenewalReminder(wallet, card, asOf, threshold) {
 export function buildDashboard({ catalog, db, asOf = new Date().toISOString().slice(0, 10), reminderDays = 30, includeClosed = false }) {
   const wallet = listWalletCards(db, { includeClosed });
   const usage = listUsage(db);
+  const awards = listAwards(db);
   const evidence = new Map(listPeriodEvidence(db).map(item => [`${item.wallet_card_id}:${item.benefit_id}:${item.period_key}`, item]));
   const preferences = listPreferences(db);
   const benefitStatuses = listBenefitStatuses(db);
@@ -428,10 +436,47 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
     let expected = 0;
     let automaticRealized = 0;
     let automaticExpected = 0;
+    let awardRealized = 0;
     const benefitStates = [];
     for (const definition of card.benefits) {
       const preference = preferenceFor(preferenceMap, walletCard.id, definition);
       const benefit = resolveBenefitSchedule(definition, preference);
+      if (trackingType(benefit) === "award") {
+        const certificate = awardState(awards.filter(item => item.wallet_card_id === walletCard.id && item.benefit_id === benefit.id), asOf, preference);
+        const available = certificate.awards.filter(item => item.status === "available");
+        const unknownExpiry = certificate.awards.some(item => item.status === "unknown_expiry");
+        const expiresOn = available.map(item => item.expires_on).filter(Boolean).sort()[0] || null;
+        const threshold = preference.reminder_days ?? reminderDays;
+        const days = expiresOn ? daysUntil(expiresOn, asOf) : null;
+        const counted = countsTowardValue(benefit);
+        benefitStates.push({
+          id: benefit.id, title: benefit.title, kind: benefit.kind, cadence: benefit.cadence, description: benefit.description,
+          tracking_type: "award", certificate_policy: benefit.certificate_policy, awards: certificate.awards,
+          amount_usd: null, points_amount: null, catalog_value_usd: catalogValue(benefit, card, preference),
+          valuation_method: benefit.valuation.method, valuation_basis: benefit.valuation.basis,
+          valuation_source_url: benefit.valuation.source_url, valuation_as_of: benefit.valuation.as_of,
+          used_usd: 0, used_value_usd: counted ? certificate.realized : 0,
+          remaining_usd: certificate.remaining,
+          expected_value_usd: counted ? certificate.expected : 0, probability: preference.probability,
+          personal_value_percent: preference.personal_value_percent, expires_on: expiresOn, days_remaining: days,
+          status: null, activated_on: null, requires_membership_year: false, counts_toward_value: counted,
+          periods: [], is_actionable: unknownExpiry || available.length > 0 || (certificate.awards.length === 0 && benefit.certificate_policy.annual_grant !== false),
+          annual_award: benefit.certificate_policy.annual_grant !== false,
+          next_anniversary_on: benefit.certificate_policy.annual_grant !== false ? nextAnniversary(walletCard, asOf) : null,
+          attention_reason: unknownExpiry ? "award_date_needed" : days != null && days <= threshold ? "expiring" : null,
+        });
+        remaining += certificate.remaining;
+        if (counted) { expected += certificate.expected; awardRealized += certificate.realized; }
+        for (const award of available) {
+          if (award.days_remaining == null || award.days_remaining > threshold) continue;
+          reminders.push({ type: "award", severity: award.days_remaining <= 5 ? "urgent" : "upcoming",
+            wallet_card_id: walletCard.id, card_name: card.name, benefit_id: benefit.id, award_id: award.id,
+            title: `${benefit.title} expires in ${award.days_remaining} day${award.days_remaining === 1 ? "" : "s"}`,
+            detail: `${award.label} · $${round(award.value_usd, 0)} estimated value; counts only after use`,
+            expires_on: award.expires_on, remaining_usd: award.value_usd });
+        }
+        continue;
+      }
       const savedStatus = statusMap.get(`${walletCard.id}:${benefit.id}`) || null;
       const state = currentCycleState(benefit, card, walletCard, preference, usage, evidence, savedStatus, asOf);
       if (state) {
@@ -464,8 +509,11 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
     const loggedRealized = usage
       .filter((item) => item.wallet_card_id === walletCard.id && item.used_at >= yearStart && item.used_at <= asOf)
       .reduce((sum, item) => {
-        if (item.value_ratio != null) return sum + Number(item.amount_usd) * Number(item.value_ratio);
         const benefit = benefitMap.get(item.benefit_id);
+        // The current exclusion policy wins even over a previously pinned
+        // value ratio. Preserve the ledger, but never leak excluded perks into net.
+        if (benefit && (!countsTowardValue(benefit) || trackingType(benefit) !== "spend")) return sum;
+        if (item.value_ratio != null) return sum + Number(item.amount_usd) * Number(item.value_ratio);
         if (!benefit || trackingType(benefit) !== "spend") return sum;
         const preference = preferenceFor(preferenceMap, walletCard.id, benefit);
         const nominalValue = cycleAmount(benefit, card, preference);
@@ -473,7 +521,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
         if (!(nominalValue > 0) || sourcedValue == null) return sum;
         return sum + Number(item.amount_usd) * Number(sourcedValue) / Number(nominalValue);
       }, 0);
-    const realized = loggedRealized + automaticRealized;
+    const realized = loggedRealized + automaticRealized + awardRealized;
     expected += automaticExpected;
     const annualFee = walletCard.annual_fee_override ?? card.annual_fee_usd ?? 0;
     const feeReminder = feeRenewalReminder(walletCard, card, asOf, reminderDays);
@@ -481,7 +529,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
     // Unspent credit is availability, not a problem. Unrecorded enrollment is
     // optional setup and must not promote an otherwise fully used card.
     const actionableStates = benefitStates.filter((state) => state.attention_reason);
-    const hasSpendableCredits = benefitStates.some(state => state.tracking_type === "spend" && (state.remaining_usd > 0 || state.requires_membership_year));
+    const hasSpendableCredits = benefitStates.some(state => state.tracking_type === "spend" && (state.remaining_usd > 0 || state.requires_membership_year) || state.tracking_type === "award" && ((state.annual_award && state.awards.length === 0) || state.awards.some(item => item.status === "available" || item.status === "unknown_expiry")));
     const nextAction = actionableStates
       .map((state) => state.expires_on)
       .filter(Boolean)
@@ -499,6 +547,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
       offer_ecosystem: card.offer_ecosystem,
       logged_realized_ytd_usd: round(loggedRealized),
       automatic_realized_ytd_usd: round(automaticRealized),
+      award_realized_ytd_usd: round(awardRealized),
       realized_ytd_usd: round(realized),
       remaining_usd: round(remaining),
       expected_remaining_usd: round(expected),
@@ -552,7 +601,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
     metrics: {
       realized_ytd_usd: round(realizedYtd),
       credits_remaining_usd: round(creditsRemaining),
-      credits_available_now_usd: round(cards.reduce((sum, card) => sum + card.benefits.filter(benefit => benefit.tracking_type === "spend").reduce((total, benefit) => total + (benefit.remaining_usd || 0), 0), 0)),
+      credits_available_now_usd: round(cards.reduce((sum, card) => sum + card.benefits.filter(benefit => benefit.tracking_type === "spend" || benefit.tracking_type === "award").reduce((total, benefit) => total + (benefit.remaining_usd || 0), 0), 0)),
       expected_remaining_usd: round(expectedRemaining),
       targeted_offers_usd: round(offersAvailable),
       annual_fees_usd: round(annualFees),

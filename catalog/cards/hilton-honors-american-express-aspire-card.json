@@ -168,6 +168,7 @@
     {
       "id": "clear-credit-per-calendar-year",
       "title": "CLEAR+ credit per calendar year",
+      "net_value_policy": "excluded",
       "kind": "statement_credit",
       "tracking_type": "spend",
       "amount_usd": 219,
@@ -192,7 +193,7 @@
       "id": "1-hilton-free-night-reward-on-opening-and-each-renewal",
       "title": "1 Hilton Free Night Reward on opening and each renewal",
       "kind": "certificate",
-      "tracking_type": "reference",
+      "tracking_type": "award",
       "amount_usd": null,
       "cadence": "anniversary",
       "interval_years": null,
@@ -203,13 +204,20 @@
       "valid_to": null,
       "source_url": "https://www.americanexpress.com/us/credit-cards/card/hilton-honors-aspire/",
       "valuation": {
-        "method": "excluded",
-        "value_usd": 0,
-        "basis": "Free-night redemption varies by property and is not counted automatically",
-        "source_url": "https://www.americanexpress.com/us/credit-cards/card/hilton-honors-aspire/",
-        "as_of": "2026-08-28"
+        "method": "market_estimate",
+        "value_usd": 521,
+        "basis": "Certificate-specific reasonable redemption estimate adjusted for restrictions; not a statistical average or guaranteed cash savings. Counts only after an actual stay.",
+        "source_url": "https://frequentmiler.com/what-are-hotel-free-night-certificates-worth/",
+        "as_of": "2026-10-02"
       },
-      "source_group": "annual_or_anniversary"
+      "source_group": "annual_or_anniversary",
+      "certificate_policy": {
+        "expires": true,
+        "expiry_months": 12,
+        "stay_deadline": "checkout_by",
+        "rule": "One standard-room Free Night Reward upon opening and each membership year. Standard validity is 12 months from issuance. Complete the stay by the actual award expiration date; booking alone is not use.",
+        "source_url": "https://www.americanexpress.com/content/dam/amex/en-us/company/legal/cardmember-agreements/public-site-2024-q2-pdf-cmas/cps-lending/hilton-honors-american-express-aspire-card-06-30-2024.pdf"
+      }
     },
     {
       "id": "complimentary-hilton-honors-diamond-status",

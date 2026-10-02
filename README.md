@@ -154,11 +154,58 @@ npm run crdits -- catalog upsert-reward \
 
 The dashboard provides the same structured writer. Review and commit its catalog diff through the normal Git workflow.
 
-Each catalog benefit declares how it behaves: `spend` for finite credits, `automatic` for issuer-applied bonuses and included statuses, `enrollment` for activate-once memberships, or `reference` for informational perks. Only spend benefits create usage-ledger entries. Membership-year anchors remain private and drive true anniversary windows and annual-fee countdowns.
+Each catalog benefit declares how it behaves: `spend` for finite credits, `award` for individual free-night certificates, `automatic` for issuer-applied bonuses and included statuses, `enrollment` for activate-once memberships, or `reference` for informational perks. Only spend benefits create usage-ledger entries. Awards use separate private issuance/redemption records. Membership-year anchors remain private and drive true anniversary windows and annual-fee countdowns.
 
 Monthly, quarterly, and semiannual spend credits are displayed as separate Jan–Dec, Q1–Q4, or H1–H2 periods, including expired, current, used, and upcoming states. Select any available current or closed period tile, enter the amount in the one-field popup, and save; the current period uses today's date while retrospective entries use that period's closing date. Usage is applied only to its named, dated period and never carries across a reset boundary; future and fully used periods are disabled.
 
-Memberships, lounge access, hotel status, and elite-night credits are tracked as entitlements but carry an explicit catalog value of $0 and never reduce the annual fee. Automatic point currency, such as anniversary miles, is valued only when the catalog has both a points amount and a dated point valuation. Free-night certificates remain visible but excluded until the catalog has a defensible, source-backed valuation policy for that certificate.
+Memberships, lounge access, hotel status, and elite-night credits are tracked as entitlements but carry an explicit catalog value of $0 and never reduce the annual fee. Automatic point currency, such as anniversary miles, is valued only when the catalog has both a points amount and a dated point valuation. `net_value_policy: "excluded"` also keeps CLEAR and Global Entry/TSA PreCheck reimbursements out of net and expected counted value, even if older usage rows have a positive saved valuation ratio. Their balances and private usage remain trackable; no history is deleted.
+
+### Hotel free-night awards
+
+Hyatt Category 1–4, Marriott Boundless 35K and Hilton Aspire awards now use
+certificate-specific, source-linked defaults, not point ceilings or invented
+cash equivalents. These are editorial reasonable redemption estimates, not
+measured statistical averages. All three standard certificates expire 12 months
+from issuance/deposit; actual hotel-account dates are authoritative. Card
+anniversaries never fabricate an award or its expiry.
+
+**Add award** records actual expiry with the catalog value prefilled. Issuance
+can remain unknown; a separate observation date never pretends to be issuance.
+Bonus Marriott 50K certificates have their own sourced default, separate from
+the anniversary 35K award. Extra certificates are individually labeled, not
+assumed earned automatically. The next card-anniversary date is displayed
+separately; it is not a guarantee of immediate award issuance.
+**Use free night** asks for the actual stay date and defaults to that sourced
+value; an optional value adjustment excludes extra points, fees and unrelated
+savings. Expiring awards contribute $0 to net until used. Non-expiring awards
+count once in their issuance year without a use log, never again at redemption.
+There are currently no non-expiring certificates in the owned-card catalog.
+Available recorded awards enter remaining/potential value and expiry reminders;
+unknown issuance never manufactures a balance or countdown. Hyatt stays must
+check out before expiry; Marriott check-in can be on expiry; Hilton stays must
+be completed by expiry. Booking alone is not a completed stay.
+
+Used/expired awards have a collapsed history and retrospective correction form.
+For a known completed stay whose exact date is unknown, a bookkeeping year can
+be recorded separately and labeled confirmed or estimated. This counts in that
+year without fabricating a stay date. A used historical award may have unknown
+issuance/expiry; its expiring classification remains explicit so a missing date
+can never accidentally turn it into an automatic non-expiring grant.
+Removed mistakes retain an audit record. Revisions reject stale changes and
+request IDs make retries duplicate-safe. Catalog changes do not reprice saved
+awards. Hotel cards with an award to track remain in the main wallet even if
+they have no dollar credits.
+
+The authenticated `POST /v1/awards` endpoint accepts `wallet_card_id`,
+`benefit_id`, `expires_on`, optional `issued_on`/`label`, and `request_id`.
+Non-expiring certificates require a known issuance date for annual recognition.
+Use/correction supplies `id`, `expected_revision`, and `used_on` (null clears
+an incorrect dated redemption), or `used_year` with `used_year_confidence` for
+year-only bookkeeping; clearing both fields removes an incorrect redemption.
+`value_usd` is optional and defaults to the sourced
+per-award estimate; `voided: true` retires a mistaken record without deletion.
+CLI: `crdits award save --help` lists the same fields. All dates, award labels,
+amounts and audit history are private SQLite data; never enter certificate codes.
 
 Venture X's automatic 10,000 anniversary miles use the $100 fixed travel-redemption value for annual-fee accounting. A benefit can provide `valuation.point_value_cents` for this purpose while the card's transfer-partner estimate remains available for purchase recommendations. Without an anniversary date, annual automatic point grants are recognized once in the selected year; their exact award date is unknown. A known opening date enforces any `minimum_membership_years` requirement. Spend-credit balances and expirations require the real anniversary: **Log use** asks for the current membership-year start once, saves it privately, and then records the amount. The $300 Capital One Travel credit is capped per anniversary period and can be logged across multiple bookings. Annual credit popups accept an **amount used now**, adding it to prior usage, or **Use full remaining credit** to close the balance in one click. Correction history provides a separate total-replacement mode, including zero to clear a mistaken entry. These writes retain the existing concurrency checks, request deduplication and private audit trail.
 

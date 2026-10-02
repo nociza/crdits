@@ -27,6 +27,7 @@ import {
 } from "./db.mjs";
 import { buildDashboard, enumerateCycles, recommendCard, cycleAmount, catalogValue, resolveBenefitSchedule, isResetCadence } from "./engine.mjs";
 import { readFile, readdir } from "node:fs/promises";
+import { writeAward } from "./awards.mjs";
 
 export function projectPaths(root = process.env.CRDITS_ROOT || process.cwd()) {
   return {
@@ -139,6 +140,15 @@ export function createService(options = {}) {
 
     usageHistory(walletCardId, benefitId) {
       return usageHistory(db, Number(walletCardId), benefitId);
+    },
+
+    async saveAward(input) {
+      const wallet = findWalletCard(db, input.wallet_card_id || input.card);
+      if (!wallet) throw new Error("wallet card not found");
+      const card = (await catalog()).find(item => item.slug === wallet.catalog_slug);
+      const benefit = card?.benefits.find(item => item.id === input.benefit_id);
+      if (!benefit) throw new Error("benefit not found for wallet card");
+      return writeAward(db, { ...input, wallet_card_id: wallet.id }, benefit, today());
     },
 
     async setPeriodEvidence(input) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { CatalogEditor } from "./CatalogEditor";
+import { FreeNightAwards, type FreeNightAward } from "./FreeNightAwards";
 import { creditUsageTotal } from "./credit-usage";
 import { cardCreditState, catalogStatus, creditActions, creditViewUrl, periodEvidenceState } from "./credit-state";
 
@@ -19,7 +20,11 @@ type Benefit = {
   period_schedule_options?: { id: string; label: string }[];
   eligibility?: string | null;
   enrollment?: string | null;
-  tracking_type: "spend" | "automatic" | "enrollment" | "reference";
+  tracking_type: "spend" | "automatic" | "enrollment" | "reference" | "award";
+  certificate_policy?: { expires: boolean; expiry_months: number | null; rule: string; source_url: string; stay_deadline: string };
+  awards?: FreeNightAward[];
+  annual_award?: boolean;
+  next_anniversary_on?: string | null;
   amount_usd: number | null;
   points_amount: number | null;
   used_usd: number;
@@ -42,7 +47,7 @@ type Benefit = {
   counts_toward_value: boolean;
   periods: BenefitPeriod[];
   is_actionable: boolean;
-  attention_reason?: "expiring" | "date_needed" | null;
+  attention_reason?: "expiring" | "date_needed" | "award_date_needed" | null;
 };
 
 type BenefitPeriod = {
@@ -567,7 +572,8 @@ export function CrditsDashboard() {
 
   function renderWalletCard(card: WalletCard) {
     const spendBenefits = card.benefits.filter((benefit) => benefit.tracking_type === "spend");
-    const includedBenefits = card.benefits.filter((benefit) => benefit.tracking_type !== "spend");
+    const awardBenefits = card.benefits.filter(benefit => benefit.tracking_type === "award");
+    const includedBenefits = card.benefits.filter((benefit) => benefit.tracking_type !== "spend" && benefit.tracking_type !== "award");
     const state = cardCreditState(card);
     const enrollmentCount = includedBenefits.filter(benefit => benefit.tracking_type === "enrollment" && benefit.status !== "active").length;
 
@@ -608,7 +614,7 @@ export function CrditsDashboard() {
             {actions.edit ? <button type="button" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: null, initialMode: "total" })}>Edit usage</button> : null}
             {actions.setDate ? <button type="button" onClick={() => setCardEdit(card.id)}>Set anniversary</button> : null}
             {benefit.tracking_type === "enrollment" && benefit.status !== "active" ? <button type="button" onClick={() => void activateBenefit(card, benefit)}>Record as active</button> : null}
-            <span className="catalog-valuation" title={benefit.valuation_basis || undefined}>{valuationLabel}{benefit.valuation_source_url ? <a href={benefit.valuation_source_url} target="_blank" rel="noreferrer">Source ↗</a> : null}</span>
+            <span className="catalog-valuation" title={benefit.valuation_basis || undefined}>{valuationLabel}{benefit.tracking_type === "spend" && !benefit.counts_toward_value ? " · excluded from net value" : ""}{benefit.valuation_source_url ? <a href={benefit.valuation_source_url} target="_blank" rel="noreferrer">Source ↗</a> : null}</span>
           </div>
         </div>
       );
@@ -629,8 +635,12 @@ export function CrditsDashboard() {
           {cardEdit === card.id ? <form className="inline-editor membership-editor" onSubmit={(event) => saveMembershipYear(event, card)}><label className="wide">Start date from annual-fee record<input name="membership_year_start" type="date" defaultValue={card.membership_year_start || ""} required /></label><button>Save date</button><button type="button" className="ghost" onClick={() => setCardEdit(null)}>Cancel</button></form> : null}
         </aside>
         <section className="wallet-card-body">
-          <header className="benefits-heading"><div><p className="eyebrow">CREDIT BALANCES</p><h3>{state.available ? `${state.available} credit${state.available === 1 ? "" : "s"} available` : state.dateNeeded ? "Set anniversary to track credits" : "No credits available"}</h3></div></header>
+          <header className="benefits-heading"><div><p className="eyebrow">CREDITS &amp; AWARDS</p><h3>{state.available ? `${state.available} credit${state.available === 1 ? "" : "s"} available` : awardBenefits.length ? "Free-night awards" : state.dateNeeded ? "Set anniversary to track credits" : "No credits available"}</h3></div></header>
           <div className="benefit-list spend-benefits">{spendBenefits.map((benefit) => renderBenefit(benefit))}</div>
+          {awardBenefits.map(benefit => <FreeNightAwards key={`${benefit.id}:${year}`} benefit={benefit} asOf={dashboard?.as_of || ""} onSave={async input => {
+            const failure = await mutate("Free-night award saved in your private ledger.", () => api("/v1/awards", { method: "POST", body: JSON.stringify({ ...input, wallet_card_id: card.id, benefit_id: benefit.id }) }));
+            if (failure) throw new Error(failure);
+          }} />)}
           {includedBenefits.length ? <details className="included-benefits"><summary><span>Included perks &amp; statuses</span><small>{enrollmentCount ? `${enrollmentCount} activation${enrollmentCount === 1 ? "" : "s"} not recorded` : "Automatic and recorded perks"}</small></summary><p className="muted">Activation is recorded locally. Complete enrollment with the issuer separately. Perks and statuses do not offset the annual fee.</p><div className="benefit-list">{includedBenefits.map((benefit) => renderBenefit(benefit, true))}</div></details> : null}
         </section>
       </article>
@@ -681,7 +691,7 @@ export function CrditsDashboard() {
 
           <section className="metrics" aria-label="Portfolio metrics">
             <Metric label={`Remaining ${yearLabel}`} value={dashboard?.metrics.credits_remaining_usd ?? null} detail="Unspent current and upcoming periods; excludes expired balances" />
-            <Metric label={`Used / credited ${yearLabel}`} value={dashboard?.metrics.realized_ytd_usd ?? null} detail="Logged value plus automatic anniversary rewards" tone="good" />
+            <Metric label={`Used / credited ${yearLabel}`} value={dashboard?.metrics.realized_ytd_usd ?? null} detail="Used credits and hotel nights plus automatic rewards; excludes lounge, CLEAR and entry perks" tone="good" />
             <Metric label={`Net value ${yearLabel}`} value={dashboard?.metrics.projected_net_usd ?? null} detail={dashboard ? `Used value minus ${usd.format(dashboard.metrics.annual_fees_usd)} in annual fees` : "Waiting for the private ledger"} tone={dashboard ? dashboard.metrics.projected_net_usd >= 0 ? "good" : "warn" : "neutral"} />
           </section>
 

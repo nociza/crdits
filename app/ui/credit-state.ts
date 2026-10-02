@@ -4,8 +4,10 @@ type Credit = {
   remaining_usd: number | null;
   used_usd: number;
   requires_membership_year: boolean;
-  attention_reason?: "expiring" | "date_needed" | null;
+  attention_reason?: "expiring" | "date_needed" | "award_date_needed" | null;
   periods: unknown[];
+  awards?: { status: string }[];
+  annual_award?: boolean;
 };
 
 export function creditActions(benefit: Credit) {
@@ -30,10 +32,15 @@ export function cardCreditState(card: { benefits: Credit[] }) {
   const available = credits.filter(benefit => (benefit.remaining_usd ?? 0) > 0).length;
   const dateNeeded = credits.filter(benefit => benefit.requires_membership_year).length;
   const expiring = credits.filter(benefit => (benefit.remaining_usd ?? 0) > 0 && benefit.attention_reason === "expiring").length;
-  const label = dateNeeded ? "Anniversary date needed" : expiring
+  const certificates = card.benefits.filter(benefit => benefit.tracking_type === "award");
+  const awardAvailable = certificates.flatMap(benefit => benefit.awards || []).filter(award => award.status === "available").length;
+  const awardsToTrack = certificates.filter(benefit => benefit.annual_award !== false && !benefit.awards?.length).length;
+  const awardExpiring = certificates.filter(benefit => benefit.attention_reason === "expiring").length;
+  const expiryNeeded = certificates.some(benefit => benefit.attention_reason === "award_date_needed");
+  const label = expiryNeeded ? "Free-night expiry date needed" : awardExpiring ? "Free night expiring soon" : dateNeeded ? "Anniversary date needed" : expiring
     ? `${expiring} credit${expiring === 1 ? "" : "s"} expiring soon`
-    : available ? `${available} credit${available === 1 ? "" : "s"} available` : "No credits available";
-  return { available, dateNeeded, expiring, label, warning: dateNeeded > 0 || expiring > 0, visible: available > 0 || dateNeeded > 0 };
+    : available ? `${available} credit${available === 1 ? "" : "s"} available` : awardAvailable ? `${awardAvailable} free night${awardAvailable === 1 ? "" : "s"} available` : awardsToTrack ? "Free night to track" : "No credits available";
+  return { available, dateNeeded, expiring, awardAvailable, awardsToTrack, label, warning: expiryNeeded || dateNeeded > 0 || expiring > 0 || awardExpiring > 0, visible: expiryNeeded || available > 0 || dateNeeded > 0 || awardAvailable > 0 || awardsToTrack > 0 };
 }
 
 export function creditViewUrl(tab: "overview" | "wallet" | "catalog", year: number, cardId?: number) {

@@ -380,9 +380,15 @@ export function validateCard(card) {
     benefitIds.add(benefit.id);
     if (!benefit.title) errors.push(`benefit ${benefit.id ?? "unknown"} needs a title`);
     if (!benefit.cadence) errors.push(`benefit ${benefit.id ?? "unknown"} needs a cadence`);
-    if (!["spend", "automatic", "enrollment", "reference"].includes(benefit.tracking_type)) {
+    if (!["spend", "automatic", "enrollment", "reference", "award"].includes(benefit.tracking_type)) {
       errors.push(`benefit ${benefit.id ?? "unknown"} needs a valid tracking_type`);
     }
+    if (benefit.net_value_policy != null && !["included", "excluded"].includes(benefit.net_value_policy)) errors.push(`benefit ${benefit.id} has an invalid net_value_policy`);
+    if (benefit.tracking_type === "award") {
+      const policy = benefit.certificate_policy;
+      if (benefit.kind !== "certificate" || !policy || typeof policy.expires !== "boolean" || !policy.source_url || !policy.rule || !["checkout_before", "checkout_by", "checkin_by"].includes(policy.stay_deadline) || (policy.expires && (!Number.isInteger(policy.expiry_months) || policy.expiry_months <= 0)) || (!policy.expires && policy.expiry_months != null) || benefit.valuation?.method !== "market_estimate" || benefit.amount_usd != null) errors.push(`benefit ${benefit.id} needs valid certificate terms and an estimated per-award valuation`);
+      if (policy?.annual_grant != null && typeof policy.annual_grant !== "boolean") errors.push(`benefit ${benefit.id} annual_grant must be boolean`);
+    } else if (benefit.certificate_policy) errors.push(`benefit ${benefit.id} certificate_policy requires award tracking`);
     if (!benefit.source_url) errors.push(`benefit ${benefit.id ?? "unknown"} needs an official source_url`);
     if (benefit.minimum_membership_years != null && (!Number.isInteger(benefit.minimum_membership_years) || benefit.minimum_membership_years < 0)) {
       errors.push(`benefit ${benefit.id ?? "unknown"} minimum_membership_years must be a nonnegative integer`);
@@ -509,6 +515,8 @@ export async function upsertBenefit(catalogDir, cardSlug, input) {
       title: input.title,
       ...(Object.hasOwn(input, "qualifying_spend") ? { qualifying_spend: input.qualifying_spend } : {}),
       ...(Object.hasOwn(input, "period_schedules") ? { period_schedules: input.period_schedules, default_schedule_id: input.default_schedule_id } : {}),
+      ...(Object.hasOwn(input, "net_value_policy") ? { net_value_policy: input.net_value_policy } : {}),
+      ...(Object.hasOwn(input, "certificate_policy") ? { certificate_policy: input.certificate_policy } : {}),
       kind: input.kind || "statement_credit",
       tracking_type: trackingType,
       amount_usd: amount,

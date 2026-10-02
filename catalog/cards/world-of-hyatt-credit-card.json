@@ -144,7 +144,7 @@
       "id": "1-category-1-4-free-night-award",
       "title": "1 Category 1-4 Free Night Award",
       "kind": "certificate",
-      "tracking_type": "reference",
+      "tracking_type": "award",
       "amount_usd": null,
       "cadence": "anniversary",
       "interval_years": null,
@@ -155,13 +155,20 @@
       "valid_to": null,
       "source_url": "https://creditcards.chase.com/travel-credit-cards/world-of-hyatt",
       "valuation": {
-        "method": "excluded",
-        "value_usd": 0,
-        "basis": "Free-night redemption varies by property and is not counted automatically",
-        "source_url": "https://creditcards.chase.com/travel-credit-cards/world-of-hyatt",
-        "as_of": "2026-08-28"
+        "method": "market_estimate",
+        "value_usd": 240,
+        "basis": "Certificate-specific reasonable redemption estimate adjusted for restrictions; not a statistical average or guaranteed cash savings. Counts only after an actual stay.",
+        "source_url": "https://frequentmiler.com/what-are-hotel-free-night-certificates-worth/",
+        "as_of": "2026-10-02"
       },
-      "source_group": "annual_or_anniversary"
+      "source_group": "annual_or_anniversary",
+      "certificate_policy": {
+        "expires": true,
+        "expiry_months": 12,
+        "stay_deadline": "checkout_before",
+        "rule": "One Category 1–4 standard-room award after each cardmember anniversary. Valid 12 months from issuance; checkout must be before the expiration date. Actual award dates are not the annual-fee date.",
+        "source_url": "https://creditcards.chase.com/travel-credit-cards/world-of-hyatt-credit-card"
+      }
     },
     {
       "id": "discoverist-status",

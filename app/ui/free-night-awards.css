@@ -1,0 +1,38 @@
+.fna-panel { margin-top: 20px; padding: 20px; border: 1px solid #d7ddd7; border-radius: 14px; background: #f7f9f6; color: #20342b; }
+.fna-panel > header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.fna-panel h4 { margin: 6px 0; font-size: 16px; line-height: 1.4; }
+.fna-panel > header > strong { font-size: 14px; }
+.fna-kicker { color: #456451; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+.fna-muted { color: #56655c; font-size: 12px; line-height: 1.6; }
+.fna-panel a, .fna-modal a { color: #23553a; text-decoration: underline; }
+.fna-award { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; margin: 12px 0; padding: 14px; border: 1px solid #d7ddd7; border-radius: 10px; background: #fff; }
+.fna-award strong, .fna-award small { display: block; }
+.fna-award strong { font-size: 14px; overflow-wrap: anywhere; }
+.fna-award small { margin-top: 5px; color: #56655c; font-size: 12px; line-height: 1.6; }
+.fna-award > span { font-size: 12px; font-weight: 650; }
+.fna-actions { display: flex; flex-wrap: wrap; gap: 8px; grid-column: 1 / -1; }
+.fna-panel button { min-height: 40px; padding: 8px 12px; border: 1px solid #b8c9bd; border-radius: 8px; background: #fff; color: #23553a; font-size: 12px; font-weight: 650; cursor: pointer; }
+.fna-actions button:first-child { background: #eaf1eb; }
+.fna-terms, .fna-history { margin-top: 14px; font-size: 12px; line-height: 1.6; }
+.fna-panel summary, .fna-modal summary { cursor: pointer; }
+.fna-dialog { position: fixed; z-index: 90; inset: 0; width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; border: 0; padding: 16px; color: #20342b; background: transparent; }
+.fna-dialog[open] { display: grid; place-items: center; }
+.fna-dialog::backdrop { background: #14221dc2; backdrop-filter: blur(5px); }
+.fna-modal { width: min(100%, 440px); max-height: 90dvh; overflow-y: auto; padding: 24px; border: 1px solid #d7ddd7; border-radius: 16px; background: #fff; box-shadow: 0 20px 80px #10201740; }
+.fna-modal > header { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+.fna-modal h3 { margin: 0; font-size: 24px; line-height: 1.3; }
+.fna-modal p { font-size: 13px; line-height: 1.6; }
+.fna-modal form { display: grid; gap: 14px; }
+.fna-modal label { display: grid; gap: 7px; margin: 10px 0; font-size: 13px; }
+.fna-modal input, .fna-modal select { min-width: 0; width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid #b8c9bd; border-radius: 8px; color: #20342b; background: #fff; font: inherit; }
+.fna-modal small { color: #56655c; font-size: 11px; line-height: 1.5; }
+.fna-modal details { font-size: 12px; }
+.fna-modal label.fna-checkbox { display: flex; align-items: center; gap: 8px; }
+.fna-modal .fna-checkbox input { min-height: 20px; width: 20px; }
+.fna-modal button { min-height: 44px; padding: 8px 14px; border: 1px solid #b8c9bd; border-radius: 8px; color: #23553a; background: #fff; font: inherit; cursor: pointer; }
+.fna-modal > header button { min-width: 40px; padding: 5px; font-size: 22px; }
+.fna-modal footer { display: flex; gap: 10px; justify-content: flex-end; }
+.fna-modal button[type=submit] { color: #fff; background: #23553a; }
+.fna-modal button:disabled { cursor: wait; opacity: .65; }
+.fna-modal [role=alert] { color: #92362f; }
+@media (max-width: 520px) { .fna-panel { padding: 16px; } .fna-award { grid-template-columns: 1fr; } .fna-award > span, .fna-actions { grid-column: 1; } .fna-dialog[open] { place-items: end center; } .fna-modal { padding: 20px; } }

@@ -137,7 +137,7 @@
       "id": "1-free-night-award-up-to-35-000-points",
       "title": "1 Free Night Award up to 35,000 points",
       "kind": "certificate",
-      "tracking_type": "reference",
+      "tracking_type": "award",
       "amount_usd": null,
       "cadence": "anniversary",
       "interval_years": null,
@@ -148,13 +148,49 @@
       "valid_to": null,
       "source_url": "https://creditcards.chase.com/travel-credit-cards/marriott-bonvoy/boundless",
       "valuation": {
-        "method": "excluded",
-        "value_usd": 0,
-        "basis": "Free-night redemption varies by property and is not counted automatically",
-        "source_url": "https://creditcards.chase.com/travel-credit-cards/marriott-bonvoy/boundless",
-        "as_of": "2026-08-28"
+        "method": "market_estimate",
+        "value_usd": 192,
+        "basis": "Certificate-specific reasonable redemption estimate adjusted for restrictions; not a statistical average or guaranteed cash savings. Counts only after an actual stay.",
+        "source_url": "https://frequentmiler.com/what-are-hotel-free-night-certificates-worth/",
+        "as_of": "2026-10-02"
       },
-      "source_group": "annual_or_anniversary"
+      "source_group": "annual_or_anniversary",
+      "certificate_policy": {
+        "expires": true,
+        "expiry_months": 12,
+        "stay_deadline": "checkin_by",
+        "rule": "One annual 35,000-point free-night award after the account anniversary. Expires 12 months from deposit; redeem for a stay with check-in on or before expiry. Additional top-up points and resort fees are not certificate value.",
+        "source_url": "https://marriott.chase.com/faq"
+      }
+    },
+    {
+      "id": "earned-50k-free-night-awards",
+      "title": "50K bonus free-night awards",
+      "kind": "certificate",
+      "tracking_type": "award",
+      "amount_usd": null,
+      "cadence": "one_time",
+      "description": "Record 50,000-point certificates actually issued by a qualifying promotion. These are separate from the annual 35K anniversary award; no welcome offer or quantity is assumed.",
+      "enrollment_required": false,
+      "valid_from": null,
+      "valid_to": null,
+      "source_url": "https://www.marriott.com/loyalty/redeem/free-night-award-redemption.mi",
+      "certificate_policy": {
+        "annual_grant": false,
+        "expires": true,
+        "expiry_months": 12,
+        "stay_deadline": "checkin_by",
+        "rule": "50,000-point certificates are individual bonus awards, not annual 35K grants. Standard expiry is one year from issuance. Use the actual date in your Marriott account and check in on or before expiry; extra top-up points and resort fees do not add certificate value.",
+        "source_url": "https://help.marriott.com/s/article/marriott-free-night-award"
+      },
+      "valuation": {
+        "method": "market_estimate",
+        "value_usd": 274,
+        "basis": "Published certificate-specific reasonable redemption estimate for a 50K Marriott award; not a cash guarantee or statistical average. Counts only after an actual stay.",
+        "source_url": "https://frequentmiler.com/what-are-hotel-free-night-certificates-worth/",
+        "as_of": "2026-10-02"
+      },
+      "source_group": "earned_awards"
     },
     {
       "id": "15-elite-night-credits-annually",

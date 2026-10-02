@@ -208,6 +208,7 @@
     {
       "id": "priority-pass-access",
       "title": "Priority Pass access",
+      "net_value_policy": "excluded",
       "kind": "membership",
       "tracking_type": "enrollment",
       "amount_usd": null,

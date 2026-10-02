@@ -11,7 +11,7 @@ const fields = {
 } as const;
 const choices: Record<string, string[]> = {
   cadence: ["monthly", "quarterly", "semiannual", "annual", "anniversary", "one_time", "every_n_years"],
-  tracking_type: ["spend", "automatic", "enrollment", "reference"],
+  tracking_type: ["spend", "automatic", "enrollment", "reference", "award"],
   valuation_method: ["face_value", "points", "market_estimate", "excluded"],
   rate_type: ["points_multiplier", "cashback_percent", "text_only"],
 };

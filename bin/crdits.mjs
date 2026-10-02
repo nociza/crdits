@@ -50,6 +50,9 @@ Usage:
   crdits set-used --card ID_OR_SLUG --benefit ID --amount TOTAL --previous CURRENT_TOTAL --date YYYY-MM-DD --period PERIOD --request-id ID
     Bilt Cash: --redemption-method cash|points; correction: --revalue-existing --previous-value COUNTED_VALUE
   crdits due [--days 30] [--json]
+  crdits award save --card ID_OR_SLUG --benefit ID --issued-on YYYY-MM-DD --expires-on YYYY-MM-DD --request-id ID [--label NAME]
+    Use/correct: --id AWARD_ID --previous-revision N [--used-on STAY_DATE|unused] [--value-usd VALUE] [--voided]
+    Date unknown: --used-year YYYY --used-year-confidence confirmed|estimated [--note TEXT]
   crdits recommend <category> [--merchant NAME] [--amount 100] [--json]
   crdits use --card ID_OR_SLUG --benefit ID --amount USD [--date YYYY-MM-DD] [--period YYYY-MM|YYYY-QN|YYYY-HN] [--note TEXT]
   crdits benefit activate --card ID_OR_SLUG --benefit ID [--date YYYY-MM-DD] [--note TEXT]
@@ -107,6 +110,19 @@ async function main() {
   }
 
   if (command === "history") return output(await wallet.usageHistory(flags.card, flags.benefit), { json: true });
+
+  if (command === "award" && subcommand === "save") {
+    const input = { card: flags.card, benefit_id: flags.benefit, request_id: flags["request-id"] };
+    for (const key of ["issued-on", "expires-on", "label", "used-on", "used-year-confidence", "note"]) {
+      if (flags[key] !== undefined) input[key.replaceAll("-", "_")] = flags[key] === "unused" ? null : flags[key];
+    }
+    if (flags.id !== undefined) input.id = Number(flags.id);
+    if (flags["used-year"] !== undefined) input.used_year = flags["used-year"] === "unused" ? null : Number(flags["used-year"]);
+    if (flags["previous-revision"] !== undefined) input.expected_revision = Number(flags["previous-revision"]);
+    if (flags["value-usd"] !== undefined) input.value_usd = Number(flags["value-usd"]);
+    if (flags.voided !== undefined) input.voided = flags.voided === true;
+    return output(await wallet.saveAward(input), { json: true });
+  }
 
   if (command === "use" || command === "set-used") {
     const item = await wallet.addUsage({

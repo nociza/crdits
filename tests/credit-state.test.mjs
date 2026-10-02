@@ -22,7 +22,7 @@ test("catalog confirmation labels never call assumptions or legacy terms verifie
 });
 
 test("availability is not a warning and unrelated enrollment does not promote a card", () => {
-  assert.deepEqual(cardCreditState({ benefits: [credit] }), { available: 1, dateNeeded: 0, expiring: 0, label: "1 credit available", warning: false, visible: true });
+  assert.deepEqual(cardCreditState({ benefits: [credit] }), { available: 1, dateNeeded: 0, expiring: 0, awardAvailable: 0, awardsToTrack: 0, label: "1 credit available", warning: false, visible: true });
   const state = cardCreditState({ benefits: [{ ...credit, remaining_usd: 0, used_usd: 200 }, { ...credit, tracking_type: "enrollment" }] });
   assert.equal(state.visible, false);
   assert.equal(state.warning, false);

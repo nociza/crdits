@@ -88,6 +88,7 @@ async function route(request, response) {
   if (request.method === "POST" && url.pathname === "/v1/usage/period") return json(response, 200, await service.addUsage(await body(request), { replace: true }));
   if (request.method === "GET" && url.pathname === "/v1/usage/history") return json(response, 200, service.usageHistory(url.searchParams.get("card"), url.searchParams.get("benefit")));
   if (request.method === "POST" && url.pathname === "/v1/usage/evidence") return json(response, 200, await service.setPeriodEvidence(await body(request)));
+  if (request.method === "POST" && url.pathname === "/v1/awards") return json(response, 200, await service.saveAward(await body(request)));
   if (request.method === "POST" && url.pathname === "/v1/benefit-status") return json(response, 200, await service.setBenefitStatus(await body(request)));
   if (request.method === "POST" && url.pathname === "/v1/preferences") return json(response, 200, await service.setPreference(await body(request)));
   if (request.method === "POST" && url.pathname === "/v1/offers") return json(response, 201, service.addOffer(await body(request)));
