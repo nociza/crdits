@@ -29,7 +29,7 @@ Recommendations separate unconditional earn from `conditional_alternatives`. A m
 
 For Bilt Palladium catch-all recommendations, preserve the catalog's full condition: 3.33X means 2X base points plus 1.33X derived from earning 4% Bilt Cash and redeeming it at $30 per 1,000 housing points. Apply it only under the Flexible Bilt Cash option while housing unlock capacity remains—approximately the first 75% of monthly rent or mortgage in everyday spend. State that cap whenever Bilt wins; do not present 3.33X as unconditional or uncapped.
 
-Treat usage amounts as nominal units but report realized dollars using the same sourced catalog ratio as expected value. For example, using all $200 nominal Bilt Cash realizes $66.67 under the conservative one-third valuation; never convert that ledger entry back to $200 of realized card value.
+Treat usage amounts as nominal units and realized dollars as the pinned entry value. Bilt Cash has a separate coupon-accounting rule: exclude its rounded $0.33-per-dollar normal-rewards/points baseline. Cash/eligible hotel redemption is $1 gross but adds only $0.67 per nominal dollar toward the annual fee; $200 used as cash contributes $134. Points redemption consumes the balance but adds $0 to this tally. This is a CardCredits accounting convention, not a claim of unrestricted cash withdrawal. Keep the separate Bilt hotel benefit and the 3.33X purchase recommendation unchanged.
 
 Define projected net as realized value used in the current year minus annual fees. Never add unused expected credits to projected net; report expected remaining value separately.
 
@@ -49,6 +49,8 @@ crdits use --card CARD --benefit BENEFIT_ID --amount USD --date YYYY-MM-DD --not
 ```
 
 For “I used $X in Q2,” corrections, or clearing a mistaken total, read the period's current `used_usd` and use `set-used --previous CURRENT_TOTAL --amount NEW_TOTAL`. Pass a unique `--request-id` for a write and reuse it only when retrying that exact request after an uncertain response. Never retry a conflict by silently changing `--previous`; refresh and reconcile first. See [commands.md](references/commands.md). Corrections retain dated allocations and audit history; 0 clears a total without erasing that history.
+
+When `redemption_options` is present, confirm whether usage was cash/eligible credit or points unless the user already stated it. Pass `--redemption-method cash|points` on a new Bilt Cash use. Do not infer cash redemption from an unclassified historical entry. For an explicitly authorized correction of its type, read `used_value_usd` and use `set-used --redemption-method cash|points --revalue-existing --previous-value CURRENT_COUNTED_VALUE` with the usual prior total, period and unique request ID. This reclassifies the entire period total, preserving dates and retired entries. Ordinary total corrections preserve existing mixed types. A stale value is a conflict even if the nominal amount is unchanged.
 
 Monthly, quarterly, and semiannual credits are independent reset periods. Current and retrospective bookkeeping are both supported. Before recording one, inspect `summary --json`, select the exact current or past `periods` entry, and pass its key with `--period YYYY-MM`, `--period YYYY-QN`, or `--period YYYY-HN`. Ensure `--date` falls between that entry's `start` and `end`; the service rejects mismatched and future periods. Never carry usage across a reset boundary. If the user names a past period such as July, H1, or Q2 but does not know the exact date, use that period's end date only after explicitly noting that it is a period-end bookkeeping marker rather than a known transaction date.
 
@@ -87,7 +89,7 @@ Assign public valuations consistently:
 - lounge membership, subscription, status, elite-night credit, or unsupported certificate: `excluded` at $0;
 - another defensible public estimate: `market_estimate`, with a reproducible basis and source.
 
-When a reward multiplier combines currencies, store the component rates, conversion, eligibility condition, cap formula, source, and as-of date. Bilt Cash is a separate non-cash currency: for the conservative housing-points method, value each nominal $1 at one-third dollar using the 1-cent Bilt Points cash floor, even though Bilt advertises separate dollar-for-dollar partner redemptions.
+When a reward multiplier combines currencies, store the component rates, conversion, eligibility condition, cap formula, source, and as-of date. Keep gross redemption facts separate from a catalog `redemption_policy` used for coupon accounting. Bilt's rounded $0.33 baseline and $0.67 incremental cash value are the product's explicit accounting convention; the issuer source supports eligible dollar-for-dollar redemptions and housing-points conversion, not that fee-offset convention. Preserve this distinction and do not overwrite pinned historical values without an authorized, auditable correction.
 
 The CLI archives a replaced definition in the card's `history` before writing the new version. After any catalog mutation:
 

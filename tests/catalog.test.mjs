@@ -7,6 +7,23 @@ import { loadCatalog, parseBenefits, upsertBenefit, validateCard, writeCard } fr
 
 const repositoryCatalog = new URL("../catalog/cards/", import.meta.url);
 
+test("Bilt redemption policy survives community edits and rejects inconsistent incremental values", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "crdits-bilt-policy-"));
+  try {
+    const card = (await loadCatalog(repositoryCatalog.pathname)).find(c => c.slug === "bilt-palladium-card");
+    await writeCard(directory, card);
+    const original = card.benefits.find(b => b.id === "bilt-cash-annually");
+    let updated = await upsertBenefit(directory, card.slug, { id: original.id, title: "Annual Bilt Cash" });
+    assert.deepEqual(updated.benefits.find(b => b.id === original.id).redemption_policy, original.redemption_policy);
+    updated = await upsertBenefit(directory, card.slug, { id: original.id, amount_usd: 100 });
+    const edited = updated.benefits.find(b => b.id === original.id);
+    assert.equal(edited.valuation.value_usd, 67);
+    assert.deepEqual(validateCard(updated), []);
+    edited.redemption_policy.options[0].counted_unit_value_usd = 1;
+    assert.ok(validateCard(updated).some(error => /invalid redemption option/.test(error)));
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
 test("seed catalog is valid and preserves the eleven provided products", async () => {
   const cards = await loadCatalog(repositoryCatalog.pathname);
   assert.equal(cards.length, 11);

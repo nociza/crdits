@@ -76,7 +76,7 @@ test("recommends by reward value and ignores conditional rules without a merchan
   db.close();
 });
 
-test("Bilt Palladium uses the sourced 3.33X catch-all strategy and conservative Bilt Cash value", async () => {
+test("Bilt retains the 3.33X earning strategy and tallies only incremental annual Cash redemption value", async () => {
   const bilt = JSON.parse(await readFile(new URL("../catalog/cards/bilt-palladium-card.json", import.meta.url), "utf8"));
   const db = openDatabase(":memory:");
   const wallet = addWalletCard(db, { catalog_slug: bilt.slug, nickname: "My Bilt" });
@@ -92,18 +92,18 @@ test("Bilt Palladium uses the sourced 3.33X catch-all strategy and conservative 
   const dashboard = buildDashboard({ catalog: [bilt], db, asOf: "2026-08-28" });
   const annualBiltCash = dashboard.cards[0].benefits.find((benefit) => benefit.id === "bilt-cash-annually");
   assert.equal(annualBiltCash.amount_usd, 200);
-  assert.equal(annualBiltCash.catalog_value_usd, 66.67);
+  assert.equal(annualBiltCash.catalog_value_usd, 134);
   assert.equal(annualBiltCash.valuation_method, "market_estimate");
 
-  addUsage(db, { wallet_card_id: wallet.id, benefit_id: "bilt-cash-annually", amount_usd: 200, used_at: "2026-08-28" });
+  addUsage(db, { wallet_card_id: wallet.id, benefit_id: "bilt-cash-annually", amount_usd: 200, used_at: "2026-08-28", redemption_method: "cash", value_ratio: 0.67 });
   const usedDashboard = buildDashboard({ catalog: [bilt], db, asOf: "2026-08-28" });
   const usedBiltCash = usedDashboard.cards[0].benefits.find((benefit) => benefit.id === "bilt-cash-annually");
   assert.equal(usedBiltCash.remaining_usd, 0);
   assert.equal(usedBiltCash.expected_value_usd, 0);
-  assert.equal(usedDashboard.cards[0].logged_realized_ytd_usd, 66.67);
-  assert.equal(usedDashboard.cards[0].realized_ytd_usd, 66.67);
-  assert.equal(usedDashboard.cards[0].projected_net_usd, -428.33);
-  assert.equal(usedDashboard.metrics.projected_net_usd, -428.33);
+  assert.equal(usedDashboard.cards[0].logged_realized_ytd_usd, 134);
+  assert.equal(usedDashboard.cards[0].realized_ytd_usd, 134);
+  assert.equal(usedDashboard.cards[0].projected_net_usd, -361);
+  assert.equal(usedDashboard.metrics.projected_net_usd, -361);
   db.close();
 });
 

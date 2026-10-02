@@ -7,6 +7,62 @@ import { creditUsageTotal } from "../app/ui/credit-usage.ts";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
+test("Bilt cash and points consume the same balance but only cash adds incremental fee value", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-01" });
+  const wallet = await service.addWalletCard({ catalog_slug: "bilt-palladium-card" });
+  const input = { wallet_card_id: wallet.id, benefit_id: "bilt-cash-annually", used_at: "2026-08-28" };
+  await assert.rejects(service.addUsage({ ...input, amount_usd: 10 }), /redemption method/);
+  await assert.rejects(service.addUsage({ ...input, amount_usd: 10, redemption_method: "fake" }), /Invalid redemption/);
+  await service.addUsage({ ...input, amount_usd: 100, redemption_method: "points", value_ratio: 1 });
+  await service.addUsage({ ...input, amount_usd: 100, redemption_method: "cash", value_ratio: 1 });
+  let card = (await service.dashboard()).cards[0];
+  let benefit = card.benefits.find(item => item.id === input.benefit_id);
+  assert.equal(card.logged_realized_ytd_usd, 67);
+  assert.equal(benefit.used_value_usd, 67);
+  assert.equal(benefit.used_usd, 200);
+  assert.equal(benefit.remaining_usd, 0);
+  assert.equal(benefit.expected_value_usd, 0);
+  // A normal total correction keeps prior mixed redemption types and dates.
+  await service.addUsage({ ...input, amount_usd: 200, expected_total_usd: 200, request_id: "keep-mixed-2026" }, { replace: true });
+  assert.equal((await service.dashboard()).cards[0].logged_realized_ytd_usd, 67);
+  const correction = { ...input, amount_usd: 200, expected_total_usd: 200, expected_value_usd: 67, redemption_method: "cash", revalue_existing: true, request_id: "classify-cash-2026" };
+  const result = await service.addUsage(correction, { replace: true });
+  assert.equal(result.before_value_usd, 67);
+  assert.equal(result.after_value_usd, 134);
+  assert.deepEqual(await service.addUsage(correction, { replace: true }), result);
+  await assert.rejects(service.addUsage({ ...correction, redemption_method: "points" }, { replace: true }), /request_id/);
+  card = (await service.dashboard()).cards[0];
+  assert.equal(card.logged_realized_ytd_usd, 134);
+  assert.equal(card.projected_net_usd, -361);
+  const rows = service.db.prepare("SELECT * FROM benefit_usage WHERE voided_at IS NULL").all();
+  assert.equal(rows.reduce((total, row) => total + row.amount_usd, 0), 200);
+  assert.ok(rows.every(row => row.used_at === "2026-08-28" && row.redemption_method === "cash" && row.value_ratio === 0.67));
+  await assert.rejects(service.addUsage({ ...correction, redemption_method: "points", request_id: "stale-redemption-value" }, { replace: true }), /another session/);
+  await service.addUsage({ ...correction, expected_value_usd: 134, redemption_method: "points", request_id: "classify-points-2026" }, { replace: true });
+  assert.equal((await service.dashboard()).cards[0].logged_realized_ytd_usd, 0);
+  assert.equal(service.usageHistory(wallet.id, input.benefit_id)[0].redemption_method, "points");
+  await assert.rejects(service.addUsage({ ...input, amount_usd: 1, redemption_method: "cash" }), /cannot exceed/);
+  await assert.rejects(service.addUsage({ ...input, amount_usd: 0, revalue_existing: true, redemption_method: "cash" }), /Reclassification/);
+  service.db.close();
+});
+
+test("reclassifying historical Bilt Cash preserves the redemption date, old row and audit trail", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-01" });
+  const wallet = await service.addWalletCard({ catalog_slug: "bilt-palladium-card" });
+  service.db.prepare("INSERT INTO benefit_usage (wallet_card_id, benefit_id, amount_usd, used_at, value_ratio) VALUES (?, ?, 200, '2026-08-28', ?)").run(wallet.id, "bilt-cash-annually", 66.67 / 200);
+  const result = await service.addUsage({ wallet_card_id: wallet.id, benefit_id: "bilt-cash-annually", amount_usd: 200, expected_total_usd: 200, expected_value_usd: 66.67, used_at: "2026-10-01", redemption_method: "cash", revalue_existing: true, request_id: "historic-bilt-cash" }, { replace: true });
+  assert.equal(result.before_value_usd, 66.67);
+  assert.equal(result.after_value_usd, 134);
+  const rows = service.db.prepare("SELECT * FROM benefit_usage ORDER BY id").all();
+  assert.ok(rows[0].voided_at);
+  assert.equal(rows[0].value_ratio, 66.67 / 200);
+  assert.equal(rows[1].used_at, "2026-08-28");
+  assert.equal(rows[1].amount_usd, 200);
+  assert.equal(rows[1].value_ratio, 0.67);
+  assert.equal(rows[1].redemption_method, "cash");
+  service.db.close();
+});
+
 test("automatic anniversary value offsets the active membership year across January without doubling at renewal", async () => {
   const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-01" });
   const wallet = await service.addWalletCard({ catalog_slug: "capital-one-venture-x-rewards-credit-card", membership_year_start: "2025-11-03" });

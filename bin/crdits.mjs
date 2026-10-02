@@ -48,6 +48,7 @@ Usage:
   crdits summary [--year YYYY] [--json]
   crdits history --card WALLET_ID --benefit ID
   crdits set-used --card ID_OR_SLUG --benefit ID --amount TOTAL --previous CURRENT_TOTAL --date YYYY-MM-DD --period PERIOD --request-id ID
+    Bilt Cash: --redemption-method cash|points; correction: --revalue-existing --previous-value COUNTED_VALUE
   crdits due [--days 30] [--json]
   crdits recommend <category> [--merchant NAME] [--amount 100] [--json]
   crdits use --card ID_OR_SLUG --benefit ID --amount USD [--date YYYY-MM-DD] [--period YYYY-MM|YYYY-QN|YYYY-HN] [--note TEXT]
@@ -111,6 +112,9 @@ async function main() {
     const item = await wallet.addUsage({
       card: flags.card,
       benefit_id: flags.benefit,
+      redemption_method: flags["redemption-method"] || null,
+      revalue_existing: flags["revalue-existing"] === true,
+      expected_value_usd: flags["previous-value"],
       amount_usd: flags.amount,
       used_at: flags.date,
       period_key: flags.period,

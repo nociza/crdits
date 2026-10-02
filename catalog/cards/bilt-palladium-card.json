@@ -146,7 +146,7 @@
       "amount_usd": 200,
       "cadence": "annual",
       "interval_years": null,
-      "description": "$200 nominal Bilt Cash annually; valued conservatively through the housing-points redemption at one-third dollar per $1 Bilt Cash",
+      "description": "$200 nominal Bilt Cash each calendar year. Cash/eligible hotel redemptions have $1 gross value per dollar; points redemptions use the $0.33 accounting baseline. Only the additional $0.67 from cash redemption offsets the annual fee.",
       "eligibility": null,
       "enrollment_required": false,
       "valid_from": "2026-08-25",
@@ -154,14 +154,33 @@
       "source_url": "https://support.biltrewards.com/hc/en-us/articles/40132420650509-Bilt-Cash",
       "valuation": {
         "method": "market_estimate",
-        "value_usd": 66.67,
+        "value_usd": 134,
         "unit": "$1 nominal Bilt Cash",
-        "unit_value_usd": 0.333333,
-        "basis": "$1 Bilt Cash unlocks 33.333 Bilt Points at Bilt's $30-to-1,000 housing-points rate; valued at the 1-cent-per-point cash floor, the $200 annual allocation is worth $66.67. This intentionally excludes Bilt's separate dollar-for-dollar partner redemptions.",
+        "unit_value_usd": 0.67,
+        "basis": "CardCredits incremental-value accounting rule: $200 × ($1 cash/eligible credit redemption − $0.33 points baseline) = $134 toward the annual fee when redeemed as cash. Points redemption contributes $0 beyond normal rewards. The rounded 0.33/0.67 split is intentional; gross redemption value is separate from the coupon tally.",
         "source_url": "https://support.biltrewards.com/hc/en-us/articles/40132420650509-Bilt-Cash",
-        "as_of": "2026-08-28"
+        "as_of": "2026-10-01"
       },
-      "source_group": "recurring"
+      "source_group": "recurring",
+      "redemption_policy": {
+        "basis": "CardCredits accounting convention: exclude the rounded $0.33-per-dollar points/normal-rewards baseline from coupon and annual-fee tallies. This is not an issuer restriction or a cash withdrawal promise.",
+        "baseline_unit_value_usd": 0.33,
+        "expected_method": "cash",
+        "options": [
+          {
+            "id": "cash",
+            "label": "Cash / eligible hotel credit",
+            "gross_unit_value_usd": 1,
+            "counted_unit_value_usd": 0.67
+          },
+          {
+            "id": "points",
+            "label": "Points",
+            "gross_unit_value_usd": 0.33,
+            "counted_unit_value_usd": 0
+          }
+        ]
+      }
     },
     {
       "id": "annual-bilt-travel-hotel-credit",
@@ -221,7 +240,7 @@
   "notes": "Bilt Cash and hotel credits have distinct expiration/reset rules. The 3.33X catch-all model assumes Flexible Bilt Cash and housing-points redemption; it is capped by the holder's monthly housing payment and is not the Housing-only rewards option. Hotel credit requires eligible Bilt Travel bookings and minimum-stay terms; model each half-year as a separate benefit cycle",
   "valid_from": "2026-08-25",
   "valid_to": null,
-  "verified_at": "2026-08-28",
+  "verified_at": "2026-10-01",
   "sources": [
     {
       "kind": "primary",
@@ -284,6 +303,35 @@
           "value_usd": 200,
           "basis": "Issuer-stated $200 of Bilt Cash per calendar year",
           "source_url": "https://www.bilt.com/card/palladium",
+          "as_of": "2026-08-28"
+        },
+        "source_group": "recurring"
+      }
+    },
+    {
+      "type": "benefit",
+      "superseded_at": "2026-10-02T03:30:15Z",
+      "value": {
+        "id": "bilt-cash-annually",
+        "title": "Bilt Cash annually",
+        "kind": "statement_credit",
+        "tracking_type": "spend",
+        "amount_usd": 200,
+        "cadence": "annual",
+        "interval_years": null,
+        "description": "$200 nominal Bilt Cash annually; valued conservatively through the housing-points redemption at one-third dollar per $1 Bilt Cash",
+        "eligibility": null,
+        "enrollment_required": false,
+        "valid_from": "2026-08-25",
+        "valid_to": null,
+        "source_url": "https://support.biltrewards.com/hc/en-us/articles/40132420650509-Bilt-Cash",
+        "valuation": {
+          "method": "market_estimate",
+          "value_usd": 66.67,
+          "unit": "$1 nominal Bilt Cash",
+          "unit_value_usd": 0.333333,
+          "basis": "$1 Bilt Cash unlocks 33.333 Bilt Points at Bilt's $30-to-1,000 housing-points rate; valued at the 1-cent-per-point cash floor, the $200 annual allocation is worth $66.67. This intentionally excludes Bilt's separate dollar-for-dollar partner redemptions.",
+          "source_url": "https://support.biltrewards.com/hc/en-us/articles/40132420650509-Bilt-Cash",
           "as_of": "2026-08-28"
         },
         "source_group": "recurring"

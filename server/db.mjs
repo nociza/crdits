@@ -111,7 +111,7 @@ function migrate(db) {
     db.exec("ALTER TABLE wallet_cards ADD COLUMN membership_year_start TEXT");
   }
   const usageColumns = new Set(db.prepare("PRAGMA table_info(benefit_usage)").all().map(column => column.name));
-  for (const [name, type] of [["voided_at", "TEXT"], ["value_ratio", "REAL"], ["catalog_verified_at", "TEXT"]]) {
+  for (const [name, type] of [["voided_at", "TEXT"], ["value_ratio", "REAL"], ["catalog_verified_at", "TEXT"], ["redemption_method", "TEXT"]]) {
     if (!usageColumns.has(name)) db.exec(`ALTER TABLE benefit_usage ADD COLUMN ${name} ${type}`);
   }
   db.exec(`CREATE TABLE IF NOT EXISTS usage_changes (
@@ -302,6 +302,7 @@ export function listUsage(db, { start = null, end = null, walletCardId = null } 
     note: row.note,
     value_ratio: row.value_ratio,
     catalog_verified_at: row.catalog_verified_at,
+    redemption_method: row.redemption_method,
   }));
 }
 
@@ -311,10 +312,10 @@ export function addUsage(db, input) {
   if (!Number.isFinite(amount) || amount < 0) throw new Error("amount_usd must be a non-negative number");
   const usedAt = input.used_at || new Date().toISOString().slice(0, 10);
   const row = db.prepare(`
-    INSERT INTO benefit_usage (wallet_card_id, benefit_id, amount_usd, used_at, note, value_ratio, catalog_verified_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO benefit_usage (wallet_card_id, benefit_id, amount_usd, used_at, note, value_ratio, catalog_verified_at, redemption_method)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING *
-  `).get(input.wallet_card_id, input.benefit_id, amount, usedAt, input.note || null, input.value_ratio ?? null, input.catalog_verified_at ?? null);
+  `).get(input.wallet_card_id, input.benefit_id, amount, usedAt, input.note || null, input.value_ratio ?? null, input.catalog_verified_at ?? null, input.redemption_method || null);
   return {
     id: Number(row.id),
     wallet_card_id: Number(row.wallet_card_id),
@@ -322,6 +323,8 @@ export function addUsage(db, input) {
     amount_usd: Number(row.amount_usd),
     used_at: row.used_at,
     note: row.note,
+    redemption_method: row.redemption_method,
+    value_ratio: row.value_ratio,
   };
 }
 
@@ -332,7 +335,11 @@ export function writePeriodUsage(db, input, period, { limit, replace = false } =
   if (!Number.isFinite(amount) || amount < 0) throw new Error("amount_usd must be a non-negative number");
   if (replace && !Number.isFinite(Number(input.expected_total_usd))) throw new Error("expected_total_usd is required for a correction");
   if (input.request_id != null && (typeof input.request_id !== "string" || input.request_id.length < 8 || input.request_id.length > 128)) throw new Error("invalid request_id");
-  const payload = JSON.stringify({ card: input.wallet_card_id, benefit: input.benefit_id, period: period.key, amount, replace, date: input.used_at, note: input.note || null });
+  const payload = JSON.stringify({ card: input.wallet_card_id, benefit: input.benefit_id, period: period.key, amount, replace, date: input.used_at, note: input.note || null,
+    ...(input.redemption_method ? { redemption_method: input.redemption_method } : {}),
+    ...(input.revalue_existing ? { revalue_existing: true } : {}),
+    ...(input.revalue_existing ? { expected_value_usd: Number(input.expected_value_usd) } : {}),
+  });
   db.exec("BEGIN IMMEDIATE");
   try {
     const replay = input.request_id && db.prepare("SELECT payload, result FROM usage_changes WHERE request_id = ?").get(input.request_id);
@@ -343,8 +350,11 @@ export function writePeriodUsage(db, input, period, { limit, replace = false } =
     }
     const rows = listUsage(db, { start: period.start, end: period.end, walletCardId: input.wallet_card_id }).filter(row => row.benefit_id === input.benefit_id);
     const before = Math.round(rows.reduce((sum, row) => sum + row.amount_usd, 0) * 100) / 100;
+    const valueOf = entries => Math.round(entries.reduce((sum, row) => sum + row.amount_usd * (row.value_ratio ?? 0), 0) * 100) / 100;
     if (replace && Math.abs(before - Number(input.expected_total_usd)) > 0.005) throw new Error("This period changed in another session. Refresh before saving.");
+    if (input.revalue_existing && Math.abs(valueOf(rows) - Number(input.expected_value_usd)) > 0.005) throw new Error("Redemption value changed in another session. Refresh before saving.");
     const after = Math.round((replace ? amount : before + amount) * 100) / 100;
+    if (input.require_redemption_method && after > before && !input.redemption_method) throw new Error("Choose a redemption method for the amount used.");
     if (limit != null && after > limit + 0.005) throw new Error(`Period total cannot exceed the $${limit} credit`);
     if (replace) {
       db.prepare("UPDATE benefit_usage SET voided_at = CURRENT_TIMESTAMP WHERE wallet_card_id = ? AND benefit_id = ? AND used_at BETWEEN ? AND ? AND voided_at IS NULL").run(input.wallet_card_id, input.benefit_id, period.start, period.end);
@@ -357,13 +367,17 @@ export function writePeriodUsage(db, input, period, { limit, replace = false } =
       let unallocated = after;
       for (const row of rows.sort((a, b) => a.used_at.localeCompare(b.used_at) || a.id - b.id)) {
         const retained = Math.min(row.amount_usd, unallocated);
-        if (retained > 0) entry = addUsage(db, { ...row, amount_usd: retained });
+        if (retained > 0) entry = addUsage(db, { ...row, amount_usd: retained,
+          ...(input.revalue_existing ? { value_ratio: input.value_ratio, catalog_verified_at: input.catalog_verified_at, redemption_method: input.redemption_method, note: input.note || row.note } : {}),
+        });
         unallocated = Math.round((unallocated - retained) * 100) / 100;
       }
       if (unallocated > 0) entry = addUsage(db, { ...input, amount_usd: unallocated });
       entry = { ...input, id: entry?.id ?? null, amount_usd: after };
     } else entry = addUsage(db, { ...input, amount_usd: amount });
-    const result = { ...entry, period_key: period.key, total_usd: after };
+    const result = { ...entry, period_key: period.key, total_usd: after, before_value_usd: valueOf(rows),
+      after_value_usd: valueOf(listUsage(db, { start: period.start, end: period.end, walletCardId: input.wallet_card_id }).filter(row => row.benefit_id === input.benefit_id)),
+    };
     db.prepare("INSERT INTO usage_changes (request_id, wallet_card_id, benefit_id, period_key, before_usd, after_usd, payload, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(input.request_id || null, input.wallet_card_id, input.benefit_id, period.key, before, after, payload, JSON.stringify(result));
     db.exec("COMMIT");
     return result;
@@ -374,7 +388,10 @@ export function writePeriodUsage(db, input, period, { limit, replace = false } =
 }
 
 export function usageHistory(db, walletCardId, benefitId) {
-  return db.prepare("SELECT id, period_key, before_usd, after_usd, created_at FROM usage_changes WHERE wallet_card_id = ? AND benefit_id = ? ORDER BY id DESC LIMIT 100").all(walletCardId, benefitId);
+  return db.prepare("SELECT id, period_key, before_usd, after_usd, created_at, result FROM usage_changes WHERE wallet_card_id = ? AND benefit_id = ? ORDER BY id DESC LIMIT 100").all(walletCardId, benefitId).map(({ result, ...row }) => {
+    const saved = JSON.parse(result);
+    return { ...row, before_value_usd: saved.before_value_usd ?? null, after_value_usd: saved.after_value_usd ?? null, redemption_method: saved.redemption_method || null };
+  });
 }
 
 export function listPreferences(db) {

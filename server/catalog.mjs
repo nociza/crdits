@@ -332,6 +332,22 @@ export function validateCard(card) {
   }
   const benefitIds = new Set();
   for (const benefit of card?.benefits ?? []) {
+    if (benefit.redemption_policy) {
+      const policy = benefit.redemption_policy;
+      const options = policy.options;
+      if (benefit.tracking_type !== "spend" || !policy.basis || !Number.isFinite(policy.baseline_unit_value_usd) || policy.baseline_unit_value_usd < 0 || !Array.isArray(options) || !options.length || options.some(option => !option || typeof option !== "object")) {
+        errors.push(`benefit ${benefit.id} has an invalid redemption policy`);
+      } else {
+        const ids = new Set();
+        for (const option of options) {
+          const counted = Math.round(Math.max(0, option.gross_unit_value_usd - policy.baseline_unit_value_usd) * 100) / 100;
+          if (!option.id || ids.has(option.id) || !option.label || !Number.isFinite(option.gross_unit_value_usd) || option.gross_unit_value_usd < 0 || option.counted_unit_value_usd !== counted) errors.push(`benefit ${benefit.id} has an invalid redemption option`);
+          ids.add(option.id);
+        }
+        const expected = options.find(option => option.id === policy.expected_method);
+        if (!expected || Math.abs(Number(benefit.valuation?.value_usd) - Number(benefit.amount_usd) * expected.counted_unit_value_usd) > 0.005) errors.push(`benefit ${benefit.id} valuation must match its expected incremental redemption`);
+      }
+    }
     if (!benefit.id || benefitIds.has(benefit.id)) errors.push(`benefit id must be unique: ${benefit.id ?? "missing"}`);
     benefitIds.add(benefit.id);
     if (!benefit.title) errors.push(`benefit ${benefit.id ?? "unknown"} needs a title`);
@@ -442,6 +458,10 @@ export async function upsertBenefit(catalogDir, cardSlug, input) {
       valuation_source_url: existing.valuation?.source_url, valuation_as_of: existing.valuation?.as_of,
       valuation_point_value_cents: existing.valuation?.point_value_cents, ...input };
     if (input.valuation_method === "face_value" && Object.hasOwn(changes, "amount_usd") && !Object.hasOwn(changes, "valuation_value_usd")) input.valuation_value_usd = changes.amount_usd;
+    if (input.redemption_policy && Object.hasOwn(changes, "amount_usd") && !Object.hasOwn(changes, "valuation_value_usd")) {
+      const expected = input.redemption_policy.options.find(option => option.id === input.redemption_policy.expected_method);
+      input.valuation_value_usd = Number(changes.amount_usd) * expected.counted_unit_value_usd;
+    }
     const amount = numberOrNull(input.amount_usd);
     const pointsAmount = numberOrNull(input.points_amount);
     const trackingType = input.tracking_type || (input.enrollment_required ? "enrollment" : amount == null ? "reference" : "spend");

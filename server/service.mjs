@@ -59,7 +59,7 @@ export function createService(options = {}) {
           if (!benefit) continue;
           const preference = preferences.find(item => item.wallet_card_id === wallet.id && item.benefit_id === benefit.id) || {};
           const nominal = cycleAmount(benefit, card, preference);
-          const value = catalogValue(benefit, card, preference);
+          const value = benefit.redemption_policy ? 0 : catalogValue(benefit, card, preference);
           update.run(nominal > 0 && value != null ? value / nominal : 0, `migration:${card.verified_at || today()}`, entry.id);
         }
         db.exec("COMMIT");
@@ -124,7 +124,14 @@ export function createService(options = {}) {
       const preference = listPreferences(db).find(item => item.wallet_card_id === wallet.id && item.benefit_id === benefit.id) || {};
       const limit = cycleAmount(benefit, card, preference);
       const value = catalogValue(benefit, card, preference);
-      return writePeriodUsage(db, { ...input, used_at: usedAt, wallet_card_id: wallet.id, value_ratio: limit > 0 && value != null ? value / limit : 0, catalog_verified_at: card.verified_at }, period, { limit, replace });
+      const policy = benefit.redemption_policy;
+      const method = input.redemption_method || null;
+      if (method && !policy?.options.some(option => option.id === method)) throw new Error("Invalid redemption method for this benefit.");
+      if (input.revalue_existing != null && typeof input.revalue_existing !== "boolean") throw new Error("revalue_existing must be boolean");
+      if (input.revalue_existing && (!replace || !policy || !method)) throw new Error("Reclassification requires a period correction and a redemption method.");
+      if (input.revalue_existing && !Number.isFinite(Number(input.expected_value_usd))) throw new Error("expected_value_usd is required for reclassification");
+      const ratio = policy ? policy.options.find(option => option.id === method)?.counted_unit_value_usd ?? 0 : limit > 0 && value != null ? value / limit : 0;
+      return writePeriodUsage(db, { ...input, redemption_method: method, require_redemption_method: Boolean(policy), used_at: usedAt, wallet_card_id: wallet.id, value_ratio: ratio, catalog_verified_at: card.verified_at }, period, { limit, replace });
     },
 
     usageHistory(walletCardId, benefitId) {

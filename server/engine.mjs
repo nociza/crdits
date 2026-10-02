@@ -134,6 +134,10 @@ export function cycleAmount(benefit, card, preference) {
 }
 
 export function catalogValue(benefit, card, preference) {
+  if (benefit.redemption_policy) {
+    const option = benefit.redemption_policy.options.find(item => item.id === benefit.redemption_policy.expected_method);
+    return Number(cycleAmount(benefit, card, preference)) * option.counted_unit_value_usd;
+  }
   if (preference.face_value_override != null) return Number(preference.face_value_override);
   if (benefit.valuation?.method === "excluded") return null;
   if (benefit.valuation?.value_usd != null) return Number(benefit.valuation.value_usd);
@@ -165,6 +169,11 @@ function usageFor(usage, walletCardId, benefitId, start, end) {
   return usage
     .filter((item) => item.wallet_card_id === walletCardId && item.benefit_id === benefitId && item.used_at >= start && item.used_at <= end)
     .reduce((sum, item) => sum + item.amount_usd, 0);
+}
+
+function usedValueFor(usage, walletCardId, benefitId, start, end, fallbackRatio) {
+  return usage.filter(item => item.wallet_card_id === walletCardId && item.benefit_id === benefitId && item.used_at >= start && item.used_at <= end)
+    .reduce((sum, item) => sum + item.amount_usd * (item.value_ratio ?? fallbackRatio), 0);
 }
 
 function daysUntil(date, asOf) {
@@ -222,6 +231,8 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
       valuation_source_url: benefit.valuation?.source_url || null,
       valuation_as_of: benefit.valuation?.as_of || null,
       used_usd: 0,
+      used_value_usd: 0,
+      redemption_options: benefit.redemption_policy?.options || [],
       remaining_usd: behavior === "automatic" ? 0 : null,
       expected_value_usd: behavior === "automatic" && countsTowardValue(benefit) && catalog != null
         ? round(catalog * preference.probability * preference.personal_value_percent) : null,
@@ -266,6 +277,8 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
     valuation_source_url: benefit.valuation?.source_url || null,
     valuation_as_of: benefit.valuation?.as_of || null,
     used_usd: round(used),
+    used_value_usd: round(usedValueFor(usage, wallet.id, benefit.id, window.start, window.end, benefit.redemption_policy ? 0 : face > 0 ? (catalog ?? 0) / face : 0)),
+    redemption_options: benefit.redemption_policy?.options || [],
     remaining_usd: remaining == null ? null : round(remaining),
     expected_value_usd: expected == null ? null : round(expected),
     probability: preference.probability,
@@ -414,7 +427,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
         if (!benefit || trackingType(benefit) !== "spend") return sum;
         const preference = preferenceFor(preferenceMap, walletCard.id, benefit);
         const nominalValue = cycleAmount(benefit, card, preference);
-        const sourcedValue = catalogValue(benefit, card, preference);
+        const sourcedValue = benefit.redemption_policy ? 0 : catalogValue(benefit, card, preference);
         if (!(nominalValue > 0) || sourcedValue == null) return sum;
         return sum + Number(item.amount_usd) * Number(sourcedValue) / Number(nominalValue);
       }, 0);

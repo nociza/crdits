@@ -17,6 +17,8 @@ type Benefit = {
   amount_usd: number | null;
   points_amount: number | null;
   used_usd: number;
+  used_value_usd?: number;
+  redemption_options?: { id: string; label: string; gross_unit_value_usd: number; counted_unit_value_usd: number }[];
   remaining_usd: number | null;
   expected_value_usd: number | null;
   catalog_value_usd: number | null;
@@ -232,7 +234,7 @@ function UsageModal({ card, benefit, asOf, periodKey, onSubmit, onCancel }: {
   const [saveError, setSaveError] = useState<string | null>(null);
   const submitting = useRef(false);
   const [requestId] = useState(() => crypto.randomUUID());
-  const [history, setHistory] = useState<{ id: number; period_key: string; before_usd: number; after_usd: number; created_at: string }[] | null>(null);
+  const [history, setHistory] = useState<{ id: number; period_key: string; before_usd: number; after_usd: number; created_at: string; before_value_usd?: number | null; after_value_usd?: number | null; redemption_method?: string | null }[] | null>(null);
   const [historyError, setHistoryError] = useState(false);
   const amountInput = useRef<HTMLInputElement>(null);
 
@@ -273,8 +275,13 @@ function UsageModal({ card, benefit, asOf, periodKey, onSubmit, onCancel }: {
           <input name="period_key" type="hidden" value={selectedPeriod?.key || ""} />
           <input name="used_at" type="hidden" value={usedAt} />
           <input name="expected_total_usd" type="hidden" value={previousTotal} />
+          <input name="expected_value_usd" type="hidden" value={benefit.used_value_usd ?? 0} />
           <input name="request_id" type="hidden" value={requestId} />
           <input name="usage_mode" type="hidden" value={usageMode} />
+          {benefit.redemption_options?.length ? <label>Redeemed as<select key={usageMode} name="redemption_method" defaultValue={usageMode === "add" ? "cash" : ""} required={usageMode === "add"}>
+            {usageMode === "total" ? <option value="">Keep existing redemption types</option> : null}
+            {benefit.redemption_options.map(option => <option key={option.id} value={option.id}>{option.label} · +{usdPrecise.format(option.counted_unit_value_usd)} per $1 toward fee</option>)}
+          </select><small>Exclude the $0.33 points baseline: cash/hotel use adds $0.67 per $1; points add $0. Correcting a type applies it to the entire period total.</small></label> : null}
           <label>{usageMode === "add" ? "Amount used now" : "Total used this period"}<span><b>$</b><input key={usageMode} ref={amountInput} name="amount_usd" type="number" step="0.01" min={usageMode === "add" ? "0.01" : "0"} max={usageMode === "add" ? remaining : limit} defaultValue={usageMode === "add" ? undefined : selectedPeriod ? defaultAmount : previousTotal} required /></span></label>
           {benefit.requires_membership_year ? <label>Current membership year started<input name="membership_year_start" type="date" max={asOf} required /><small>Save this once to track the annual credit and its expiry.</small></label> : null}
           {!selectedPeriod && usageMode === "add" ? <button type="button" className="ghost" disabled={saving || remaining <= 0} onClick={() => {
@@ -288,7 +295,7 @@ function UsageModal({ card, benefit, asOf, periodKey, onSubmit, onCancel }: {
         {saveError && <p role="alert">{saveError}</p>}
         <details><summary>Correction history</summary>
           {!selectedPeriod ? <button type="button" className="ghost" disabled={saving} onClick={() => setUsageMode(usageMode === "add" ? "total" : "add")}>{usageMode === "add" ? "Correct period total" : "Back to logging an amount"}</button> : null}
-          {historyError ? <p role="status">History unavailable. Close and reopen to retry.</p> : history === null ? <p>Loading…</p> : history.length ? <ul>{history.map(item => <li key={item.id}>{item.period_key}: {usd.format(item.before_usd)} → {usd.format(item.after_usd)} · {item.created_at} UTC</li>)}</ul> : <p>No corrections yet. Earlier ledger entries are retained.</p>}
+          {historyError ? <p role="status">History unavailable. Close and reopen to retry.</p> : history === null ? <p>Loading…</p> : history.length ? <ul>{history.map(item => <li key={item.id}>{item.period_key}: {usd.format(item.before_usd)} → {usd.format(item.after_usd)}{benefit.redemption_options?.length && item.after_value_usd != null ? ` · fee value ${usdPrecise.format(item.before_value_usd ?? 0)} → ${usdPrecise.format(item.after_value_usd)}` : ""} · {item.created_at} UTC</li>)}</ul> : <p>No corrections yet. Earlier ledger entries are retained.</p>}
           <p>Enter 0 to clear a mistaken total. Corrections remain in your private audit trail.</p>
         </details>
       </section>
@@ -468,7 +475,10 @@ export function CrditsDashboard() {
         benefit_id: edit.benefit.id,
         amount_usd: total,
         expected_total_usd: Number(data.get("expected_total_usd")),
+        expected_value_usd: Number(data.get("expected_value_usd")),
         request_id: data.get("request_id"),
+        redemption_method: data.get("redemption_method") || null,
+        revalue_existing: data.get("usage_mode") === "total" && Boolean(data.get("redemption_method")),
         used_at: data.get("used_at"),
         period_key: data.get("period_key") || null,
         note: data.get("note") || null,
@@ -522,7 +532,7 @@ export function CrditsDashboard() {
           : benefit.tracking_type === "automatic"
             ? automaticLabel
             : benefit.tracking_type === "enrollment" ? enrollmentLabel : "Reference";
-      const valuationLabel = benefit.valuation_method === "face_value"
+      const valuationLabel = benefit.redemption_options?.length ? `${usd.format(benefit.catalog_value_usd ?? 0)} max incremental value` : benefit.valuation_method === "face_value"
         ? `${usd.format(benefit.catalog_value_usd ?? 0)} face value`
         : benefit.valuation_method === "points"
           ? `${usd.format(benefit.catalog_value_usd ?? 0)} sourced estimate`
@@ -533,7 +543,7 @@ export function CrditsDashboard() {
       return (
         <div className={`benefit tracking-${benefit.tracking_type} ${compact ? "compact-benefit" : ""}`} key={benefit.id}>
           <div className="benefit-title"><span className="benefit-kind">{benefit.tracking_type === "spend" ? benefit.cadence.replaceAll("_", " ") : benefit.tracking_type === "enrollment" ? "set once" : benefit.tracking_type}</span><strong>{benefit.title}</strong><small>{detail}</small></div>
-          <div className="benefit-value"><strong>{value}</strong>{benefit.tracking_type === "spend" ? <small>{usd.format(benefit.used_usd)} used</small> : <small className="behavior-label">{benefit.counts_toward_value ? "Included in value" : "Not deducted or counted"}</small>}</div>
+          <div className="benefit-value"><strong>{value}</strong>{benefit.tracking_type === "spend" ? <small>{usd.format(benefit.used_usd)} used{benefit.redemption_options?.length ? ` · ${usdPrecise.format(benefit.used_value_usd ?? 0)} toward fee` : ""}</small> : <small className="behavior-label">{benefit.counts_toward_value ? "Included in value" : "Not deducted or counted"}</small>}</div>
           {benefit.periods.length ? <CreditPeriods cadence={benefit.cadence} periods={benefit.periods} asOf={dashboard?.as_of || ""} onSelect={(period) => setEdit({ mode: "usage", card, benefit, periodKey: period.key })} /> : benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <Progress used={benefit.used_usd} total={benefit.amount_usd} /> : null}
           <div className="benefit-actions">
             {benefit.tracking_type === "spend" && !benefit.periods.length ? <button type="button" className="is-primary" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: null })}>Log use</button> : null}
