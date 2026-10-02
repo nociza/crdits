@@ -465,8 +465,8 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
           next_anniversary_on: benefit.certificate_policy.annual_grant !== false ? nextAnniversary(walletCard, asOf) : null,
           attention_reason: unknownExpiry ? "award_date_needed" : days != null && days <= threshold ? "expiring" : null,
         });
-        if (counted) remaining += certificate.remaining;
-        if (counted) { expected += certificate.expected; awardRealized += certificate.realized; }
+        // Certificate estimates stay in their own panel, never dollar-credit balances.
+        if (counted) awardRealized += certificate.realized;
         for (const award of available) {
           if (award.days_remaining == null || award.days_remaining > threshold) continue;
           reminders.push({ type: "award", severity: award.days_remaining <= 5 ? "urgent" : "upcoming",
@@ -601,7 +601,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
     metrics: {
       realized_ytd_usd: round(realizedYtd),
       credits_remaining_usd: round(creditsRemaining),
-      credits_available_now_usd: round(cards.reduce((sum, card) => sum + card.benefits.filter(benefit => benefit.counts_toward_value && (benefit.tracking_type === "spend" || benefit.tracking_type === "award")).reduce((total, benefit) => total + (benefit.remaining_usd || 0), 0), 0)),
+      credits_available_now_usd: round(cards.reduce((sum, card) => sum + card.benefits.filter(benefit => benefit.counts_toward_value && benefit.tracking_type === "spend").reduce((total, benefit) => total + (benefit.remaining_usd || 0), 0), 0)),
       expected_remaining_usd: round(expectedRemaining),
       targeted_offers_usd: round(offersAvailable),
       annual_fees_usd: round(annualFees),

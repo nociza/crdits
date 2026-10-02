@@ -115,11 +115,11 @@ export function FreeNightAwards({ benefit, asOf, onSave }: {
     return <div key={award.id} className={`fna-award is-${award.status}`}>
       <div><strong>{award.label}</strong><small>{award.status === "used" ? `Used ${award.used_on || `in ${award.used_year} (${award.used_year_confidence === "estimated" ? "year estimated; " : ""}date unknown)`} · ${money.format(award.value_usd)} counted` : award.status === "expired" ? `Expired ${award.expires_on} · $0 counted` : award.status === "unknown_expiry" ? "Expiry date needed · $0 counted" : award.expires_on ? `${award.days_remaining} days left · expires ${award.expires_on} · not yet counted` : "No expiration · counted in year issued"}</small>{award.note ? <small>{award.note}</small> : null}</div>
       <span>{money.format(award.value_usd)} {award.value_basis === "user_override" ? "recorded" : "est."}</span>
-      <div className="fna-actions">{award.status === "available" ? <button type="button" onClick={() => setEditor({ mode: "use", award })}>Use free night</button> : null}<button type="button" onClick={() => setEditor({ mode: "edit", award })}>{award.status === "expired" ? "Edit / log past stay" : "Edit"}</button></div>
+      <div className="fna-actions">{award.status === "available" ? <button type="button" className="fna-use" onClick={() => setEditor({ mode: "use", award })}>Use free night</button> : null}<button type="button" onClick={() => setEditor({ mode: "edit", award })}>{award.status === "expired" ? "Edit / log past stay" : "Edit"}</button></div>
     </div>;
   }
   return <section className="fna-panel" aria-label={benefit.title}>
-    <header><div><span className="fna-kicker">Free-night award</span><h4>{benefit.title}</h4></div><strong title={benefit.valuation_basis || undefined}>{money.format(benefit.catalog_value_usd || 0)} estimated / night</strong></header>
+    <header><div><span className="fna-kicker">Free-night award</span><h4>{benefit.title}</h4></div><div className="fna-summary"><strong title={benefit.valuation_basis || undefined}>{money.format(benefit.catalog_value_usd || 0)} estimated / night</strong><small>{live.length} available · separate from credit balances</small></div></header>
     <p className="fna-muted">{benefit.certificate_policy?.expires ? `${benefit.certificate_policy.expiry_months} months from issuance · counts only when used` : "No expiration · counts when issued"}{benefit.valuation_source_url ? <> · <a href={benefit.valuation_source_url} target="_blank" rel="noreferrer">Valuation ↗</a></> : null}</p>
     {benefit.next_anniversary_on ? <p className="fna-muted">Next card anniversary: {benefit.next_anniversary_on}. Award issuance can follow later; this is not an expiry date.</p> : null}
     {live.map(row)}

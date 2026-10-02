@@ -183,7 +183,9 @@ value; an optional value adjustment excludes extra points, fees and unrelated
 savings. Expiring awards contribute $0 to net until used. Non-expiring awards
 count once in their issuance year without a use log, never again at redemption.
 There are currently no non-expiring certificates in the owned-card catalog.
-Available recorded awards enter remaining/potential value and expiry reminders;
+Available recorded awards keep their estimates and expiry reminders in the
+free-night panels, separate from annual remaining, potential credit value and
+available-now dollar-credit totals;
 unknown issuance never manufactures a balance or countdown. Hyatt stays must
 check out before expiry; Marriott check-in can be on expiry; Hilton stays must
 be completed by expiry. Booking alone is not a completed stay.

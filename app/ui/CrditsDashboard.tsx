@@ -690,7 +690,7 @@ export function CrditsDashboard() {
           </section>
 
           <section className="metrics" aria-label="Portfolio metrics">
-            <Metric label={`Remaining ${yearLabel}`} value={dashboard?.metrics.credits_remaining_usd ?? null} detail="Counted credits and awards; excludes expired balances and entry perks" />
+            <Metric label={`Remaining ${yearLabel}`} value={dashboard?.metrics.credits_remaining_usd ?? null} detail="Unspent counted credits; free nights tracked separately" />
             <Metric label={`Used / credited ${yearLabel}`} value={dashboard?.metrics.realized_ytd_usd ?? null} detail="Used credits and hotel nights plus automatic rewards; excludes lounge, CLEAR and entry perks" tone="good" />
             <Metric label={`Net value ${yearLabel}`} value={dashboard?.metrics.projected_net_usd ?? null} detail={dashboard ? `Used value minus ${usd.format(dashboard.metrics.annual_fees_usd)} in annual fees` : "Waiting for the private ledger"} tone={dashboard ? dashboard.metrics.projected_net_usd >= 0 ? "good" : "warn" : "neutral"} />
           </section>

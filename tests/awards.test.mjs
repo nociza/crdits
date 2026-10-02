@@ -42,6 +42,9 @@ for (const [slug, estimate, deadline] of hotelCards) {
       assert.equal(state.used_value_usd, 0);
       assert.equal(held.cards[0].award_realized_ytd_usd, 0);
       assert.equal(state.expected_value_usd, estimate);
+      assert.equal(held.cards[0].remaining_usd, empty.cards[0].remaining_usd);
+      assert.equal(held.cards[0].expected_remaining_usd, empty.cards[0].expected_remaining_usd);
+      for (const field of ['credits_remaining_usd', 'credits_available_now_usd', 'expected_remaining_usd']) assert.equal(held.metrics[field], empty.metrics[field]);
       assert.equal(held.cards[0].projected_net_usd, empty.cards[0].projected_net_usd);
       const redeemed = await service.saveAward({ wallet_card_id: wallet.id, benefit_id: benefit.id, id: award.id, expected_revision: award.revision, used_on: '2026-07-10', request_id: `redeem-${slug}` });
       const used = await service.dashboard();

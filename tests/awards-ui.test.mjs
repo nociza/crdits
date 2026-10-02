@@ -6,6 +6,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
 
 const source = await readFile(new URL('../app/ui/FreeNightAwards.tsx', import.meta.url), 'utf8');
+const styles = await readFile(new URL('../app/ui/free-night-awards.css', import.meta.url), 'utf8');
+
+
 const compiled = ts.transpileModule(source.replace('import "./free-night-awards.css";', ''), {
   compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText.replace(/from ["'](react(?:\/jsx-runtime)?)["']/g, (_, name) => `from ${JSON.stringify(import.meta.resolve(name))}`);
@@ -14,6 +17,16 @@ const benefit = { id: 'example', title: 'Example free night', catalog_value_usd:
   certificate_policy: { expires: true, expiry_months: 12, rule: 'Stay before expiry', source_url: 'https://example.test/terms', stay_deadline: 'checkout_before' }, awards: [] };
 const render = data => renderToStaticMarkup(createElement(FreeNightAwards, { benefit: data, asOf: '2026-10-02', onSave: async () => {} }));
 const award = { id: 1, label: 'Annual free night', issued_on: '2026-01-01', expires_on: '2027-01-01', used_on: null, value_usd: 240, revision: 1, status: 'available', days_remaining: 91 };
+
+test('free-night surfaces and dialogs inherit host theme with visible primary and keyboard actions', () => {
+  assert.match(styles, /--fna-surface: var\(--surface, var\(--panel\)\)/);
+  assert.match(styles, /--fna-text: var\(--text, var\(--ink\)\)/);
+  assert.doesNotMatch(styles, /background:\s*(?:#fff\b|#f7f9f6\b|white\b)/i);
+  assert.match(styles, /focus-visible/);
+  assert.match(styles, /\.fna-actions \.fna-use/);
+  assert.match(source, /className="fna-use"/);
+  assert.match(render({ ...benefit, awards: [award] }), /1 available · separate from credit balances/);
+});
 
 test('free-night panel shows source, actual-expiry policy, and no invented balance for unrecorded awards', () => {
   const html = render(benefit);

@@ -12,7 +12,7 @@ type Credit = {
 };
 
 export function availableCreditValue(card: { benefits: Credit[] }) {
-  return card.benefits.filter(benefit => benefit.counts_toward_value && (benefit.tracking_type === "spend" || benefit.tracking_type === "award"))
+  return card.benefits.filter(benefit => benefit.counts_toward_value && benefit.tracking_type === "spend")
     .reduce((total, benefit) => total + (benefit.remaining_usd || 0), 0);
 }
 
