@@ -23,6 +23,7 @@ async function request(path: string, init?: RequestInit) {
 }
 export function CatalogEditor({ cards, onSaved }: Props) {
   const [slug, setSlug] = useState(cards[0]?.slug || "");
+  const selectedSlug = slug || cards[0]?.slug || "";
   const [kind, setKind] = useState<keyof typeof fields>("benefit");
   const [catalog, setCatalog] = useState<CatalogCard | null>(null);
   const [id, setId] = useState("");
@@ -33,9 +34,9 @@ export function CatalogEditor({ cards, onSaved }: Props) {
   const [message, setMessage] = useState("");
   useEffect(() => {
     let active = true;
-    if (slug) request(`/v1/catalog/cards/${encodeURIComponent(slug)}`).then(card => { if (active) setCatalog(card); }).catch(error => { if (active) setMessage(error.message); });
+    if (selectedSlug) request(`/v1/catalog/cards/${encodeURIComponent(selectedSlug)}`).then(card => { if (active) setCatalog(card); }).catch(error => { if (active) setMessage(error.message); });
     return () => { active = false; };
-  }, [slug]);
+  }, [selectedSlug]);
   const records = kind === "benefit" ? catalog?.benefits || [] : kind === "reward" ? catalog?.reward_rules || [] : [];
   function select(recordId: string, mode = kind) {
     const record = mode === "facts" ? { ...catalog, ...catalog?.reward_currency } : (mode === "benefit" ? catalog?.benefits : catalog?.reward_rules)?.find(item => item.id === recordId);
@@ -48,7 +49,7 @@ export function CatalogEditor({ cards, onSaved }: Props) {
   return <article className="catalog-patch-editor">
     <h2>Edit catalog facts</h2>
     <p>Choose an existing definition to preserve its ID, terms and valuation. This editor writes public facts only.</p>
-    <label>Card<select value={slug} onChange={event => { setSlug(event.target.value); setCatalog(null); setId(""); setValues({}); setOriginal({}); setReview(false); }}>{cards.map(card => <option key={card.slug} value={card.slug}>{card.short_name}</option>)}</select></label>
+    <label>Card<select value={selectedSlug} onChange={event => { setSlug(event.target.value); setCatalog(null); setKind("benefit"); setId(""); setValues({}); setOriginal({}); setReview(false); setMessage(""); }}>{cards.map(card => <option key={card.slug} value={card.slug}>{card.short_name}</option>)}</select></label>
     <label>Update type<select value={kind} onChange={event => { const mode = event.target.value as keyof typeof fields; setKind(mode); select("", mode); }}><option value="benefit">Benefit</option><option value="reward">Reward rate</option><option value="facts">Fee / point value</option></select></label>
     {kind !== "facts" && <label>Definition<select value={id} onChange={event => select(event.target.value)}><option value="">New definition</option>{records.map(record => <option key={record.id} value={record.id}>{record.title || record.label} · {record.id}</option>)}</select></label>}
     <form onSubmit={async event => {
@@ -57,8 +58,8 @@ export function CatalogEditor({ cards, onSaved }: Props) {
       if (!review) { setReview(true); return; }
       setBusy(true); setMessage("");
       try {
-        await request(`/v1/catalog/cards/${encodeURIComponent(slug)}${kind === "facts" ? "" : kind === "benefit" ? "/benefits" : "/rewards"}`, { method: kind === "facts" ? "PATCH" : "POST", body: JSON.stringify({ ...(id ? { id } : {}), ...changes }) });
-        setCatalog(await request(`/v1/catalog/cards/${encodeURIComponent(slug)}`));
+        await request(`/v1/catalog/cards/${encodeURIComponent(selectedSlug)}${kind === "facts" ? "" : kind === "benefit" ? "/benefits" : "/rewards"}`, { method: kind === "facts" ? "PATCH" : "POST", body: JSON.stringify({ ...(id ? { id } : {}), ...changes }) });
+        setCatalog(await request(`/v1/catalog/cards/${encodeURIComponent(selectedSlug)}`));
         setOriginal(values); setReview(false);
         setMessage("Saved to the local catalog. Git commit/push is still pending; ask Teleclaw to review and publish these public changes.");
         await onSaved();

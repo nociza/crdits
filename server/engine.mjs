@@ -395,8 +395,10 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
       const savedStatus = statusMap.get(`${walletCard.id}:${benefit.id}`) || null;
       const state = currentCycleState(benefit, card, walletCard, preference, usage, savedStatus, asOf);
       if (state) {
-        benefitStates.push(state);
         const threshold = preference.reminder_days ?? reminderDays;
+        state.attention_reason = state.tracking_type === "spend" && state.requires_membership_year ? "date_needed"
+          : state.tracking_type === "spend" && state.remaining_usd > 0 && state.days_remaining != null && state.days_remaining <= threshold ? "expiring" : null;
+        benefitStates.push(state);
         if (state.tracking_type === "spend" && state.remaining_usd > 0 && state.days_remaining <= threshold) {
           reminders.push({
             type: "benefit",
@@ -436,7 +438,10 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
     const annualFee = walletCard.annual_fee_override ?? card.annual_fee_usd ?? 0;
     const feeReminder = feeRenewalReminder(walletCard, card, asOf, reminderDays);
     if (feeReminder) reminders.push(feeReminder);
-    const actionableStates = benefitStates.filter((state) => state.is_actionable);
+    // Unspent credit is availability, not a problem. Unrecorded enrollment is
+    // optional setup and must not promote an otherwise fully used card.
+    const actionableStates = benefitStates.filter((state) => state.attention_reason);
+    const hasSpendableCredits = benefitStates.some(state => state.tracking_type === "spend" && (state.remaining_usd > 0 || state.requires_membership_year));
     const nextAction = actionableStates
       .map((state) => state.expires_on)
       .filter(Boolean)
@@ -460,6 +465,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
       projected_net_usd: round(realized - annualFee),
       actionable_benefits_count: actionableStates.length,
       needs_attention: actionableStates.length > 0,
+      has_spendable_credits: hasSpendableCredits,
       next_action_date: nextAction,
       benefits: benefitStates.sort((a, b) => {
         if (a.is_actionable !== b.is_actionable) return a.is_actionable ? -1 : 1;
@@ -469,6 +475,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
   }
 
   cards.sort((a, b) => {
+    if (a.has_spendable_credits !== b.has_spendable_credits) return a.has_spendable_credits ? -1 : 1;
     if (a.needs_attention !== b.needs_attention) return a.needs_attention ? -1 : 1;
     const dateOrder = (a.next_action_date || "9999-12-31").localeCompare(b.next_action_date || "9999-12-31");
     return dateOrder || a.nickname.localeCompare(b.nickname);
@@ -522,6 +529,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
       issuer: card.issuer,
       annual_fee_usd: card.annual_fee_usd,
       point_value_cents: card.reward_currency?.point_value_cents ?? null,
+      reward_rate_type: card.base_reward?.rate_type || "text_only",
       verification_status: card.verification_status,
       verified_at: card.verified_at,
       image_url: card.image_url || null,

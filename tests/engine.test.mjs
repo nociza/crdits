@@ -59,6 +59,39 @@ test("catalog values are used at 100% without asking for personal assumptions", 
   db.close();
 });
 
+test("credit availability, expiry warnings and enrollment setup remain independent", () => {
+  const db = openDatabase(":memory:");
+  const available = { ...card, slug: "available-card", benefits: [{ ...card.benefits[0], cadence: "annual" }] };
+  const used = { ...available, slug: "used-card", benefits: [...available.benefits, { id: "pass", title: "Pass", tracking_type: "enrollment", kind: "membership", cadence: "one_time" }] };
+  const missing = { ...available, slug: "missing-date", benefits: [{ ...available.benefits[0], cadence: "anniversary" }] };
+  addWalletCard(db, { catalog_slug: available.slug, nickname: "Available" });
+  const usedWallet = addWalletCard(db, { catalog_slug: used.slug, nickname: "Used" });
+  addWalletCard(db, { catalog_slug: missing.slug, nickname: "Missing" });
+  addUsage(db, { wallet_card_id: usedWallet.id, benefit_id: "dining-credit", amount_usd: 25, used_at: "2026-08-01" });
+  let dashboard = buildDashboard({ catalog: [available, used, missing], db, asOf: "2026-10-02" });
+  const normal = dashboard.cards.find(item => item.catalog_slug === available.slug);
+  const quiet = dashboard.cards.find(item => item.catalog_slug === used.slug);
+  const setup = dashboard.cards.find(item => item.catalog_slug === missing.slug);
+  assert.equal(normal.has_spendable_credits, true);
+  assert.equal(normal.needs_attention, false);
+  assert.equal(normal.benefits[0].attention_reason, null);
+  assert.equal(quiet.has_spendable_credits, false);
+  assert.equal(quiet.needs_attention, false);
+  assert.equal(quiet.benefits.find(item => item.id === "pass").is_actionable, true);
+  assert.equal(setup.needs_attention, true);
+  assert.equal(setup.benefits[0].attention_reason, "date_needed");
+  assert.equal(dashboard.cards.at(-1).catalog_slug, used.slug);
+  dashboard = buildDashboard({ catalog: [available], db, asOf: "2026-12-20" });
+  assert.equal(dashboard.cards[0].needs_attention, true);
+  assert.equal(dashboard.cards[0].benefits[0].attention_reason, "expiring");
+  assert.equal(dashboard.reminders.length, 1);
+  setPreference(db, { wallet_card_id: normal.id, benefit_id: "dining-credit", reminder_days: 5 });
+  dashboard = buildDashboard({ catalog: [available], db, asOf: "2026-12-20" });
+  assert.equal(dashboard.cards[0].needs_attention, false);
+  assert.equal(dashboard.reminders.length, 0);
+  db.close();
+});
+
 test("recommends by reward value and ignores conditional rules without a merchant", () => {
   const db = openDatabase(":memory:");
   addWalletCard(db, { catalog_slug: card.slug, nickname: "My Test" });

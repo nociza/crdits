@@ -118,9 +118,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .card-art b { color: var(--acid); font-size: 26px; }
 .card-art.compact { width: 100%; max-width: 150px; margin-bottom: 11px; border-radius: 7px; box-shadow: 0 8px 18px rgba(0,0,0,.16); }
 .catalog-list .card-art.compact { width: 54px; margin: 0; }
-.card-topline { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
+.card-topline { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
 .card-topline span { text-transform: uppercase; color: var(--green); font: 700 10px var(--font-geist-mono), monospace; letter-spacing: .12em; }
-.card-topline small { max-width: 55%; padding: 5px 8px; border-radius: 999px; color: var(--muted); background: #ecebe3; font-size: 12px; font-weight: 700; text-align: right; white-space: nowrap; }
+.card-topline small { max-width: 100%; padding: 5px 8px; border-radius: 999px; color: var(--muted); background: #ecebe3; font-size: 12px; font-weight: 700; text-align: left; line-height: 1.4; }
 .card-topline small.needs-attention { color: #7f211b; background: #f6d7d2; }
 .card-topline small.is-caught-up { color: var(--green-dark); background: rgba(184,225,203,.48); }
 .wallet-card h2 { margin: 20px 0 4px; font-size: 28px; letter-spacing: -.05em; }
@@ -344,7 +344,7 @@ footer small { justify-self: end; }
 .credit-period { min-height: 72px; padding: 10px 11px; }
 .credit-period small { font-size: 12px; }
 .credit-period strong { margin-top: 6px; font-size: 12px; }
-.benefit-actions { gap: 8px; }
+.benefit-actions { gap: 8px; flex-wrap: wrap; }
 .benefit-actions button { min-height: 36px; padding: 8px 11px; font-size: 12px; }
 .inline-editor { gap: 11px; padding: 15px; }
 .inline-editor button { min-height: 40px; }
