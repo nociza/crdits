@@ -1,6 +1,7 @@
 // One policy for overview badges, wallet ordering, and available actions.
 type Credit = {
   tracking_type: string;
+  counts_toward_value?: boolean;
   remaining_usd: number | null;
   used_usd: number;
   requires_membership_year: boolean;
@@ -9,6 +10,11 @@ type Credit = {
   awards?: { status: string }[];
   annual_award?: boolean;
 };
+
+export function availableCreditValue(card: { benefits: Credit[] }) {
+  return card.benefits.filter(benefit => benefit.counts_toward_value && (benefit.tracking_type === "spend" || benefit.tracking_type === "award"))
+    .reduce((total, benefit) => total + (benefit.remaining_usd || 0), 0);
+}
 
 export function creditActions(benefit: Credit) {
   const spend = benefit.tracking_type === "spend";

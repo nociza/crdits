@@ -67,6 +67,9 @@ recorded total, and cannot silently clear existing usage.
 
 “Net value this year” means used/credited value minus annual fees. Remaining
 this year includes future reset periods and is not an available-now balance.
+Priority Pass, CLEAR and Global Entry/TSA PreCheck are excluded from net,
+potential value, annual remaining and available-now totals. Their individual
+benefit balances and usage history remain trackable without contributing value.
 New ledger entries store their valuation ratio; legacy entries are pinned once
 at migration-time catalog values, not asserted historical redemption prices.
 Historical fees and benefits remain limited by the definitions actually recorded

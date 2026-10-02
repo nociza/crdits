@@ -3,7 +3,7 @@
 import { CatalogEditor } from "./CatalogEditor";
 import { FreeNightAwards, type FreeNightAward } from "./FreeNightAwards";
 import { creditUsageTotal } from "./credit-usage";
-import { cardCreditState, catalogStatus, creditActions, creditViewUrl, periodEvidenceState } from "./credit-state";
+import { availableCreditValue, cardCreditState, catalogStatus, creditActions, creditViewUrl, periodEvidenceState } from "./credit-state";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -614,7 +614,7 @@ export function CrditsDashboard() {
             {actions.edit ? <button type="button" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: null, initialMode: "total" })}>Edit usage</button> : null}
             {actions.setDate ? <button type="button" onClick={() => setCardEdit(card.id)}>Set anniversary</button> : null}
             {benefit.tracking_type === "enrollment" && benefit.status !== "active" ? <button type="button" onClick={() => void activateBenefit(card, benefit)}>Record as active</button> : null}
-            <span className="catalog-valuation" title={benefit.valuation_basis || undefined}>{valuationLabel}{benefit.tracking_type === "spend" && !benefit.counts_toward_value ? " · excluded from net value" : ""}{benefit.valuation_source_url ? <a href={benefit.valuation_source_url} target="_blank" rel="noreferrer">Source ↗</a> : null}</span>
+            <span className="catalog-valuation" title={benefit.valuation_basis || undefined}>{valuationLabel}{benefit.tracking_type === "spend" && !benefit.counts_toward_value ? " · excluded from net and potential value" : ""}{benefit.valuation_source_url ? <a href={benefit.valuation_source_url} target="_blank" rel="noreferrer">Source ↗</a> : null}</span>
           </div>
         </div>
       );
@@ -690,7 +690,7 @@ export function CrditsDashboard() {
           </section>
 
           <section className="metrics" aria-label="Portfolio metrics">
-            <Metric label={`Remaining ${yearLabel}`} value={dashboard?.metrics.credits_remaining_usd ?? null} detail="Unspent current and upcoming periods; excludes expired balances" />
+            <Metric label={`Remaining ${yearLabel}`} value={dashboard?.metrics.credits_remaining_usd ?? null} detail="Counted credits and awards; excludes expired balances and entry perks" />
             <Metric label={`Used / credited ${yearLabel}`} value={dashboard?.metrics.realized_ytd_usd ?? null} detail="Used credits and hotel nights plus automatic rewards; excludes lounge, CLEAR and entry perks" tone="good" />
             <Metric label={`Net value ${yearLabel}`} value={dashboard?.metrics.projected_net_usd ?? null} detail={dashboard ? `Used value minus ${usd.format(dashboard.metrics.annual_fees_usd)} in annual fees` : "Waiting for the private ledger"} tone={dashboard ? dashboard.metrics.projected_net_usd >= 0 ? "good" : "warn" : "neutral"} />
           </section>
@@ -740,7 +740,7 @@ export function CrditsDashboard() {
             <div className="review-heading"><div><p className="eyebrow">YOUR WALLET</p><h2>Available credits</h2><span>Credits you can use now. Only expiring balances and missing dates need attention.</span></div><button onClick={() => changeTab("wallet")}>Open wallet →</button></div>
             <div className="review-cards">
               {availableCards.map((card) => (
-                <button key={card.id} onClick={() => openCard(card.id)}><CardArtwork card={card} compact /><span><small>{card.issuer}</small><strong>{card.nickname}</strong><em>{cardCreditState(card).label}</em></span><b>{usd.format(card.benefits.filter((benefit) => benefit.tracking_type === "spend").reduce((total, benefit) => total + (benefit.remaining_usd || 0), 0))}<small>available now</small></b><i>→</i></button>
+                <button key={card.id} onClick={() => openCard(card.id)}><CardArtwork card={card} compact /><span><small>{card.issuer}</small><strong>{card.nickname}</strong><em>{cardCreditState(card).label}</em></span><b>{usd.format(availableCreditValue(card))}<small>available now</small></b><i>→</i></button>
               ))}
             </div>
             {dashboard && !availableCards.length ? <p>No credits available right now. Past usage and included perks are in your wallet.</p> : null}

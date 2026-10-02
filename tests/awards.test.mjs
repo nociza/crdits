@@ -5,7 +5,7 @@ import { mkdtemp, cp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import { createService } from '../server/service.mjs';
 import { loadCatalog, upsertBenefit, validateCard } from '../server/catalog.mjs';
-import { addUsage, addWalletCard, openDatabase } from '../server/db.mjs';
+import { addUsage, addWalletCard, openDatabase, setPreference } from '../server/db.mjs';
 import { buildDashboard } from '../server/engine.mjs';
 import { writeAward } from '../server/awards.mjs';
 import { createApiClient } from '../integrations/client.mjs';
@@ -83,6 +83,39 @@ test('CLEAR, entry and Priority Pass never enter net, including previously pinne
       assert.ok(!benefit.expected_value_usd);
     }
     assert.deepEqual(db.prepare('SELECT * FROM benefit_usage ORDER BY id').all(), before);
+  } finally { db.close(); }
+});
+
+test('entry perks are absent from all remaining and potential totals while face balances and history survive', async () => {
+  const catalog = await loadCatalog(path.join(root, 'catalog/cards'));
+  const db = openDatabase(':memory:');
+  try {
+    for (const slug of ['hilton-honors-american-express-aspire-card', 'capital-one-venture-x-rewards-credit-card', 'chase-sapphire-preferred', 'bilt-palladium-card']) {
+      const definition = catalog.find(card => card.slug === slug);
+      const wallet = addWalletCard(db, { catalog_slug: slug, membership_year_start: '2026-01-01' });
+      for (const benefit of definition.benefits.filter(item => item.net_value_policy === 'excluded')) {
+        setPreference(db, {wallet_card_id: wallet.id, benefit_id: benefit.id, probability: 1, personal_value_percent: 1, face_value_override: 500});
+        const row = addUsage(db, {wallet_card_id: wallet.id, benefit_id: benefit.id, amount_usd: 25, used_at: '2026-02-01'});
+        db.prepare('UPDATE benefit_usage SET value_ratio=1 WHERE id=?').run(row.id);
+      }
+    }
+    const rows = db.prepare('SELECT * FROM benefit_usage ORDER BY id').all();
+    const withoutPerks = catalog.map(card => ({...card, benefits: card.benefits.filter(benefit => benefit.net_value_policy !== 'excluded')}));
+    for (const asOf of ['2026-02-02', '2026-10-02', '2026-12-31']) {
+      const dashboard = buildDashboard({catalog, db, asOf});
+      const control = buildDashboard({catalog: withoutPerks, db, asOf});
+      for (const field of ['credits_remaining_usd', 'credits_available_now_usd', 'expected_remaining_usd']) assert.equal(dashboard.metrics[field], control.metrics[field], field);
+      for (const card of dashboard.cards) {
+        const reference = control.cards.find(item => item.id === card.id);
+        assert.equal(card.remaining_usd, reference.remaining_usd);
+        assert.equal(card.expected_remaining_usd, reference.expected_remaining_usd);
+        for (const benefit of card.benefits.filter(item => item.counts_toward_value === false && item.tracking_type === 'spend')) {
+          assert.equal(benefit.remaining_usd, 500 - benefit.used_usd);
+          assert.ok(!benefit.expected_value_usd);
+        }
+      }
+    }
+    assert.deepEqual(db.prepare('SELECT * FROM benefit_usage ORDER BY id').all(), rows);
   } finally { db.close(); }
 });
 

@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cardCreditState, catalogStatus, creditActions, creditViewUrl, periodEvidenceState } from "../app/ui/credit-state.ts";
+import { availableCreditValue, cardCreditState, catalogStatus, creditActions, creditViewUrl, periodEvidenceState } from "../app/ui/credit-state.ts";
+
+test("available-now value excludes entry perks and includes recorded free nights", () => {
+  const benefit = {tracking_type: "spend", remaining_usd: 100, used_usd: 0, requires_membership_year: false, periods: []};
+  assert.equal(availableCreditValue({benefits: [
+    {...benefit, counts_toward_value: false, remaining_usd: 219},
+    {...benefit, counts_toward_value: true},
+    {...benefit, tracking_type: "award", counts_toward_value: true, remaining_usd: 274},
+    {...benefit, tracking_type: "enrollment", counts_toward_value: false, remaining_usd: 399},
+  ]}), 374);
+});
 
 const credit = { tracking_type: "spend", remaining_usd: 200, used_usd: 0, requires_membership_year: false, attention_reason: null, periods: [] };
 
