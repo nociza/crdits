@@ -76,6 +76,9 @@ export function createService(options = {}) {
 
     async dashboard({ year } = {}) {
       const currentYear = Number(today().slice(0, 4));
+      if (year == null || year === "rolling") {
+        return { ...buildDashboard({ catalog: await catalog(), db, asOf: today(), reportingMode: "rolling" }), today: today(), selected_year: null };
+      }
       const selectedYear = year == null ? currentYear : Number(year);
       if (!Number.isInteger(selectedYear) || selectedYear < 2000 || selectedYear > currentYear) throw new Error("year must be between 2000 and the current year");
       return { ...buildDashboard({ catalog: await catalog(), db, asOf: selectedYear === currentYear ? today() : `${selectedYear}-12-31`, includeClosed: selectedYear < currentYear }), today: today(), selected_year: selectedYear };

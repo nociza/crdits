@@ -451,4 +451,8 @@ dialog:not([open]) { display: none !important; }
 .catalog-patch-editor button, .offer-actions button { padding: 10px 14px; min-height: 44px; border: 1px solid #c5c5c0; border-radius: 8px; color: #222; background: #fff; }
 .offer-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 :focus-visible { outline: 2px solid #35695f; outline-offset: 3px; }
-.year-selector { display: flex; align-items: center; gap: 12px; margin-block: 14px; }
+.year-selector { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-block: 14px; }
+.year-selector select { max-width: 100%; }
+.credit-periods.is-quarterly { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.credit-periods.is-semiannual { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 700px) { .credit-periods.is-quarterly { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

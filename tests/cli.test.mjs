@@ -16,7 +16,7 @@ test("CLI passes cash/points and audited reclassification fields to the shared s
     return JSON.parse(result.stdout);
   };
   try {
-    const wallet = run("wallet", "add", "--catalog-slug", "bilt-palladium-card");
+    const wallet = run("wallet", "add", "--catalog-slug", "bilt-palladium-card", "--membership-year-start", "2026-01-01");
     const common = ["--card", String(wallet.id), "--benefit", "bilt-cash-annually", "--date", "2026-08-28"];
     run("use", ...common, "--amount", "100", "--redemption-method", "points");
     run("use", ...common, "--amount", "100", "--redemption-method", "cash");
@@ -37,7 +37,7 @@ test("CLI records private free nights with unknown issuance and preserves defaul
     return JSON.parse(result.stdout);
   };
   try {
-    const wallet = run("wallet", "add", "--catalog-slug", "marriott-bonvoy-boundless-credit-card");
+    const wallet = run("wallet", "add", "--catalog-slug", "marriott-bonvoy-boundless-credit-card", "--membership-year-start", "2026-01-01");
     const base = ["--card", String(wallet.id), "--benefit", "earned-50k-free-night-awards"];
     const award = run("award", "save", ...base, "--expires-on", "2027-06-01", "--request-id", "cli-issued-award-example");
     assert.equal(award.issued_on, null);

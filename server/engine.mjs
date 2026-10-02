@@ -78,6 +78,19 @@ function membershipAnchor(walletCard) {
   return walletCard.membership_year_start || walletCard.renewal_date || walletCard.opened_on || null;
 }
 
+// The portfolio is a sum of independently active card periods, not their
+// intersection and not a future renewal. Never invent a missing anchor.
+export function cardReportingPeriod(walletCard, asOf) {
+  const anchor = membershipAnchor(walletCard);
+  if (!anchor) return null;
+  const date = utcDate(anchor);
+  const today = utcDate(asOf);
+  let year = today.getUTCFullYear();
+  let start = clampDay(year, date.getUTCMonth(), date.getUTCDate());
+  if (start > today) start = clampDay(--year, date.getUTCMonth(), date.getUTCDate());
+  return { start: iso(start), end: iso(addDays(clampDay(year + 1, date.getUTCMonth(), date.getUTCDate()), -1)) };
+}
+
 export function enumerateCycles(benefit, walletCard, rangeStartInput, rangeEndInput) {
   const rangeStart = utcDate(rangeStartInput);
   const rangeEnd = utcDate(rangeEndInput);
@@ -215,7 +228,7 @@ function resetPeriodStatus({ remaining, used, start, end, asOf }) {
   return used > 0 ? "partial" : "available";
 }
 
-function resetPeriodTimeline(benefit, card, wallet, preference, usage, evidence, asOf) {
+function resetPeriodTimeline(benefit, card, wallet, preference, usage, evidence, asOf, range) {
   if (trackingType(benefit) !== "spend" || !isResetCadence(benefit.cadence)) return [];
   const face = cycleAmount(benefit, card, preference);
   if (face == null) return [];
@@ -224,14 +237,14 @@ function resetPeriodTimeline(benefit, card, wallet, preference, usage, evidence,
   // year. Ordinary recurring credits continue to show only the selected year.
   const windows = benefit.periods
     ? enumerateCycles(benefit, wallet, benefit.valid_from, benefit.valid_to)
-    : enumerateCycles(benefit, wallet, `${year}-01-01`, `${year}-12-31`);
+    : enumerateCycles(benefit, wallet, range?.start || `${year}-01-01`, range?.end || `${year}-12-31`);
   return windows.map((window) => {
     const used = usageFor(usage, wallet.id, benefit.id, window.start, window.end);
     const remaining = Math.max(0, Number(face) - used);
     const isCurrent = window.start <= asOf && window.end >= asOf;
     return {
       key: window.key,
-      label: window.label || RESET_CADENCE_LABELS[benefit.cadence](window),
+      label: window.label || `${RESET_CADENCE_LABELS[benefit.cadence](window)}${range && range.start.slice(0, 4) !== range.end.slice(0, 4) ? ` ${window.start.slice(0, 4)}` : ""}`,
       start: window.start,
       end: window.end,
       amount_usd: round(face),
@@ -244,7 +257,7 @@ function resetPeriodTimeline(benefit, card, wallet, preference, usage, evidence,
   });
 }
 
-function currentCycleState(benefit, card, wallet, preference, usage, evidence, savedStatus, asOf) {
+function currentCycleState(benefit, card, wallet, preference, usage, evidence, savedStatus, asOf, range) {
   const behavior = trackingType(benefit);
   const face = cycleAmount(benefit, card, preference);
   const catalog = catalogValue(benefit, card, preference);
@@ -329,21 +342,20 @@ function currentCycleState(benefit, card, wallet, preference, usage, evidence, s
     activated_on: savedStatus?.activated_on || null,
     requires_membership_year: false,
     counts_toward_value: countsTowardValue(benefit),
-    periods: resetPeriodTimeline(benefit, card, wallet, preference, usage, evidence, asOf),
+    periods: resetPeriodTimeline(benefit, card, wallet, preference, usage, evidence, asOf, range),
     is_actionable: (behavior === "spend" && remaining > 0) || (behavior === "enrollment" && status !== "active"),
   };
 }
 
-function annualProjection(benefit, card, wallet, preference, usage, year, asOf) {
-  const yearStart = `${year}-01-01`;
-  const yearEnd = `${year}-12-31`;
+function creditProjection(benefit, card, wallet, preference, usage, range, asOf) {
+  if (!range) return { remaining: 0, expected: 0 };
   if (trackingType(benefit) !== "spend" || !countsTowardValue(benefit)) return { remaining: 0, expected: 0 };
   const face = cycleAmount(benefit, card, preference);
   const catalog = catalogValue(benefit, card, preference);
   if (face == null) return { remaining: 0, expected: 0 };
   let remaining = 0;
   let expected = 0;
-  for (const window of enumerateCycles(benefit, wallet, yearStart, yearEnd)) {
+  for (const window of enumerateCycles(benefit, wallet, range.start, range.end)) {
     if (window.end < asOf) continue;
     const used = usageFor(usage, wallet.id, benefit.id, window.start, window.end);
     const cycleRemaining = Math.max(0, Number(face) - used);
@@ -354,10 +366,20 @@ function annualProjection(benefit, card, wallet, preference, usage, year, asOf) 
   return { remaining, expected };
 }
 
-function automaticProjection(benefit, card, wallet, preference, year, asOf) {
+function automaticProjection(benefit, card, wallet, preference, year, asOf, rollingRange = undefined) {
   if (trackingType(benefit) !== "automatic" || !countsTowardValue(benefit)) return { realized: 0, expected: 0 };
   const catalog = catalogValue(benefit, card, preference);
   if (catalog == null) return { realized: 0, expected: 0 };
+  if (rollingRange !== undefined) {
+    if (!rollingRange) return { realized: 0, expected: 0 };
+    const value = Number(catalog) * preference.probability * preference.personal_value_percent;
+    const windows = enumerateCycles(benefit, wallet, rollingRange.start, rollingRange.end)
+      .filter(window => window.start >= rollingRange.start && window.start <= rollingRange.end);
+    return {
+      realized: windows.filter(window => window.start <= asOf).length * value,
+      expected: windows.filter(window => window.start > asOf).length * value,
+    };
+  }
   const yearStart = `${year}-01-01`;
   const yearEnd = `${year}-12-31`;
   // An annual automatic grant does not need a usage entry or a made-up award
@@ -413,7 +435,8 @@ function feeRenewalReminder(wallet, card, asOf, threshold) {
   };
 }
 
-export function buildDashboard({ catalog, db, asOf = new Date().toISOString().slice(0, 10), reminderDays = 30, includeClosed = false }) {
+export function buildDashboard({ catalog, db, asOf = new Date().toISOString().slice(0, 10), reminderDays = 30, includeClosed = false, reportingMode = "calendar" }) {
+  if (!["calendar", "rolling"].includes(reportingMode)) throw new Error("Unknown reporting mode");
   const wallet = listWalletCards(db, { includeClosed });
   const usage = listUsage(db);
   const awards = listAwards(db);
@@ -432,6 +455,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
   for (const walletCard of wallet) {
     const card = catalogMap.get(walletCard.catalog_slug);
     if (!card) continue;
+    const reportingPeriod = reportingMode === "rolling" ? cardReportingPeriod(walletCard, asOf) : { start: yearStart, end: `${year}-12-31` };
     let remaining = 0;
     let expected = 0;
     let automaticRealized = 0;
@@ -442,7 +466,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
       const preference = preferenceFor(preferenceMap, walletCard.id, definition);
       const benefit = resolveBenefitSchedule(definition, preference);
       if (trackingType(benefit) === "award") {
-        const certificate = awardState(awards.filter(item => item.wallet_card_id === walletCard.id && item.benefit_id === benefit.id), asOf, preference);
+        const certificate = awardState(awards.filter(item => item.wallet_card_id === walletCard.id && item.benefit_id === benefit.id), asOf, preference, reportingMode === "rolling" ? reportingPeriod : undefined);
         const available = certificate.awards.filter(item => item.status === "available");
         const unknownExpiry = certificate.awards.some(item => item.status === "unknown_expiry");
         const expiresOn = available.map(item => item.expires_on).filter(Boolean).sort()[0] || null;
@@ -478,7 +502,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
         continue;
       }
       const savedStatus = statusMap.get(`${walletCard.id}:${benefit.id}`) || null;
-      const state = currentCycleState(benefit, card, walletCard, preference, usage, evidence, savedStatus, asOf);
+      const state = currentCycleState(benefit, card, walletCard, preference, usage, evidence, savedStatus, asOf, reportingMode === "rolling" ? reportingPeriod : undefined);
       if (state) {
         const threshold = preference.reminder_days ?? reminderDays;
         state.attention_reason = state.tracking_type === "spend" && state.requires_membership_year ? "date_needed"
@@ -498,16 +522,20 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
           });
         }
       }
-      const projection = annualProjection(benefit, card, walletCard, preference, usage, year, asOf);
+      const projection = creditProjection(benefit, card, walletCard, preference, usage, reportingPeriod, asOf);
       remaining += projection.remaining;
       expected += projection.expected;
-      const automatic = automaticProjection(benefit, card, walletCard, preference, year, asOf);
+      if (!reportingPeriod && state?.tracking_type === "spend" && state.counts_toward_value) {
+        remaining += state.remaining_usd || 0;
+        expected += state.expected_value_usd || 0;
+      }
+      const automatic = automaticProjection(benefit, card, walletCard, preference, year, asOf, reportingMode === "rolling" ? reportingPeriod : undefined);
       automaticRealized += automatic.realized;
       automaticExpected += automatic.expected;
     }
     const benefitMap = new Map(card.benefits.map((benefit) => [benefit.id, benefit]));
     const loggedRealized = usage
-      .filter((item) => item.wallet_card_id === walletCard.id && item.used_at >= yearStart && item.used_at <= asOf)
+      .filter((item) => reportingPeriod && item.wallet_card_id === walletCard.id && item.used_at >= reportingPeriod.start && item.used_at <= asOf)
       .reduce((sum, item) => {
         const benefit = benefitMap.get(item.benefit_id);
         // The current exclusion policy wins even over a previously pinned
@@ -534,6 +562,8 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
       .map((state) => state.expires_on)
       .filter(Boolean)
       .sort()[0] || null;
+    const availableNow = benefitStates.filter(benefit => benefit.counts_toward_value && benefit.tracking_type === "spend")
+      .reduce((sum, benefit) => sum + (benefit.remaining_usd || 0), 0);
     cards.push({
       ...walletCard,
       name: card.name,
@@ -542,6 +572,8 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
       image_url: card.image_url || null,
       image_alt: card.image_alt || `${card.name} card`,
       annual_fee_usd: round(annualFee),
+      reporting_period: reportingPeriod,
+      period_date_needed: !reportingPeriod,
       reward_currency: card.reward_currency,
       verification_status: card.verification_status,
       offer_ecosystem: card.offer_ecosystem,
@@ -550,8 +582,10 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
       award_realized_ytd_usd: round(awardRealized),
       realized_ytd_usd: round(realized),
       remaining_usd: round(remaining),
+      available_now_usd: round(availableNow),
+      upcoming_credits_usd: round(Math.max(0, remaining - availableNow)),
       expected_remaining_usd: round(expected),
-      projected_net_usd: round(realized - annualFee),
+      projected_net_usd: reportingPeriod ? round(realized - annualFee) : null,
       actionable_benefits_count: actionableStates.length,
       needs_attention: actionableStates.length > 0,
       has_spendable_credits: hasSpendableCredits,
@@ -592,17 +626,20 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
   const realizedYtd = cards.reduce((sum, card) => sum + card.realized_ytd_usd, 0);
   const creditsRemaining = cards.reduce((sum, card) => sum + card.remaining_usd, 0);
   const expectedRemaining = cards.reduce((sum, card) => sum + card.expected_remaining_usd, 0);
-  const annualFees = cards.reduce((sum, card) => sum + card.annual_fee_usd, 0);
+  const annualFees = cards.filter(card => card.reporting_period).reduce((sum, card) => sum + card.annual_fee_usd, 0);
   const offersAvailable = offers.reduce((sum, offer) => sum + (offer.reward_amount_usd || 0), 0);
   const projectedNet = realizedYtd - annualFees;
 
   return {
     as_of: asOf,
+    reporting_mode: reportingMode,
+    period_date_needed_count: cards.filter(card => card.period_date_needed).length,
     metrics: {
       realized_ytd_usd: round(realizedYtd),
       credits_remaining_usd: round(creditsRemaining),
       credits_available_now_usd: round(cards.reduce((sum, card) => sum + card.benefits.filter(benefit => benefit.counts_toward_value && benefit.tracking_type === "spend").reduce((total, benefit) => total + (benefit.remaining_usd || 0), 0), 0)),
       expected_remaining_usd: round(expectedRemaining),
+      upcoming_credits_usd: round(cards.reduce((sum, card) => sum + card.upcoming_credits_usd, 0)),
       targeted_offers_usd: round(offersAvailable),
       annual_fees_usd: round(annualFees),
       projected_net_usd: round(projectedNet),

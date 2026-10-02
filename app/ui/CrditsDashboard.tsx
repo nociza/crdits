@@ -1,5 +1,6 @@
 "use client";
 import { EntryPerks } from "./EntryPerks";
+import { ReportingPeriodSelect, type ReportingPeriod } from "./ReportingPeriodSelect";
 
 import { CatalogEditor } from "./CatalogEditor";
 import { FreeNightAwards, type FreeNightAward } from "./FreeNightAwards";
@@ -76,12 +77,14 @@ type WalletCard = {
   image_url: string | null;
   image_alt: string;
   annual_fee_usd: number;
+  reporting_period: { start: string; end: string } | null;
+  upcoming_credits_usd: number;
   verification_status: string;
   reward_currency: { name: string | null; point_value_cents: number | null };
   realized_ytd_usd: number;
   remaining_usd: number;
   expected_remaining_usd: number;
-  projected_net_usd: number;
+  projected_net_usd: number | null;
   actionable_benefits_count: number;
   needs_attention: boolean;
   next_action_date: string | null;
@@ -127,9 +130,12 @@ type Offer = {
 
 type Dashboard = {
   as_of: string;
+  period_date_needed_count: number;
   metrics: {
     realized_ytd_usd: number;
     credits_remaining_usd: number;
+    credits_available_now_usd: number;
+    upcoming_credits_usd: number;
     expected_remaining_usd: number;
     targeted_offers_usd: number;
     annual_fees_usd: number;
@@ -351,7 +357,7 @@ function CardArtwork({ card, compact = false }: { card: Pick<WalletCard, "name" 
 
 export function CrditsDashboard() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [year, setYear] = useState<ReportingPeriod>("rolling");
   const latestRequest = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -381,7 +387,7 @@ export function CrditsDashboard() {
     return () => window.clearTimeout(timer);
   }, [reload]);
 
-  const reminders = year === new Date().getFullYear() ? dashboard?.reminders ?? [] : [];
+  const reminders = year === "rolling" || year === new Date().getFullYear() ? dashboard?.reminders ?? [] : [];
   const urgent = reminders.filter((item) => item.severity === "urgent");
   useEffect(() => {
     const refresh = () => { if (!document.hidden) void reload(); };
@@ -426,6 +432,7 @@ export function CrditsDashboard() {
       const view = query.get("tab");
       if (view === "overview" || view === "wallet" || view === "catalog") setTab(view);
       const savedYear = Number(query.get("year"));
+      if (query.get("year") === "rolling") setYear("rolling");
       if (savedYear >= 2020 && savedYear <= new Date().getFullYear() && Number.isInteger(savedYear)) setYear(savedYear);
       if (view !== "wallet" || !cardId) return;
       window.setTimeout(() => {
@@ -440,7 +447,7 @@ export function CrditsDashboard() {
   const walletById = useMemo(() => new Map((dashboard?.cards ?? []).map((card) => [card.id, card])), [dashboard]);
   const availableCards = dashboard?.cards.filter((card) => cardCreditState(card).visible) ?? [];
   const otherCards = dashboard?.cards.filter((card) => !cardCreditState(card).visible) ?? [];
-  const yearLabel = year === new Date().getFullYear() ? "this year" : String(year);
+  const yearLabel = year === "rolling" ? "this rolling period" : `in calendar ${year}`;
 
   async function mutate(message: string, work: () => Promise<unknown>) {
     try {
@@ -631,9 +638,9 @@ export function CrditsDashboard() {
             <h2>{card.nickname}{card.last_four ? <em>•• {card.last_four}</em> : null}</h2>
             <p>{card.name}</p>
           </div>
-          <div className="card-net"><small>Used value minus fee</small><strong className={card.projected_net_usd >= 0 ? "positive" : "negative"}>{card.projected_net_usd >= 0 ? "+" : ""}{usd.format(card.projected_net_usd)}</strong></div>
-          <div className="card-values"><span><small>Potential value left</small><strong>{usd.format(card.expected_remaining_usd)}</strong></span><span><small>Annual fee</small><strong>{usd.format(card.annual_fee_usd)}</strong></span></div>
-          <div className="membership-year"><span><small>Membership year</small><strong>{card.membership_year_start || "Not set"}</strong></span><button type="button" onClick={() => setCardEdit(cardEdit === card.id ? null : card.id)}>{card.membership_year_start ? "Change" : "Set date"}</button></div>
+          <div className="card-net"><small>Period used value minus fee</small><strong className={card.projected_net_usd != null && card.projected_net_usd >= 0 ? "positive" : "negative"}>{card.projected_net_usd == null ? "Set renewal date" : `${card.projected_net_usd >= 0 ? "+" : ""}${usd.format(card.projected_net_usd)}`}</strong></div>
+          <div className="card-values"><span><small>Potential left in period</small><strong>{usd.format(card.expected_remaining_usd)}</strong>{card.upcoming_credits_usd > 0 ? <small>{usd.format(card.upcoming_credits_usd)} upcoming</small> : null}</span><span><small>Annual fee</small><strong>{usd.format(card.annual_fee_usd)}</strong></span></div>
+          <div className="membership-year"><span><small>{year === "rolling" ? "This card’s rolling period" : "Calendar bookkeeping period"}</small><strong>{card.reporting_period ? `${card.reporting_period.start} – ${card.reporting_period.end}` : "Renewal date needed"}</strong></span><button type="button" onClick={() => setCardEdit(cardEdit === card.id ? null : card.id)}>{card.membership_year_start ? "Change" : "Set date"}</button></div>
           {cardEdit === card.id ? <form className="inline-editor membership-editor" onSubmit={(event) => saveMembershipYear(event, card)}><label className="wide">Start date from annual-fee record<input name="membership_year_start" type="date" defaultValue={card.membership_year_start || ""} required /></label><button>Save date</button><button type="button" className="ghost" onClick={() => setCardEdit(null)}>Cancel</button></form> : null}
         </aside>
         <section className="wallet-card-body">
@@ -667,7 +674,8 @@ export function CrditsDashboard() {
 
       {notice ? <button className="notice" onClick={() => setNotice(null)}>{notice}<span>×</span></button> : null}
 
-      <label className="year-selector">Bookkeeping year <select aria-label="Bookkeeping year" value={year} onChange={event => { const next = Number(event.target.value); setYear(next); setEdit(null); history.replaceState(null, "", creditViewUrl(tab, next)); }}>{Array.from({ length: new Date().getFullYear() - 2019 }, (_, index) => new Date().getFullYear() - index).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+      <ReportingPeriodSelect className="year-selector" value={year} onChange={next => { setYear(next); setEdit(null); history.replaceState(null, "", creditViewUrl(tab, next)); }} />
+      {year === "rolling" ? <p className="muted">Each card uses its own active renewal period. Credits keep their issuer reset dates; the next card renewal is not counted.{dashboard?.period_date_needed_count ? ` ${dashboard.period_date_needed_count} card(s) need a renewal date before their used value and fee can enter period net.` : ""}</p> : null}
       {error ? (
         <section className="empty-state">
           <small>LOCAL API UNAVAILABLE</small>
@@ -686,15 +694,15 @@ export function CrditsDashboard() {
               <p className="hero-copy">See what is available, what needs attention, and which card to use next. Personal activity stays in your private ledger.</p>
             </div>
             <div className="net-orb">
-              <span>Remaining {yearLabel}</span>
-              <strong>{dashboard ? usd.format(dashboard.metrics.credits_remaining_usd) : "—"}</strong>
+              <span>Available now</span>
+              <strong>{dashboard ? usd.format(dashboard.metrics.credits_available_now_usd) : "—"}</strong>
               <small>{reminders.length} reminder{reminders.length === 1 ? "" : "s"} · {availableCards.length} card{availableCards.length === 1 ? "" : "s"} with credits</small>
             </div>
           </section>
 
           <section className="metrics" aria-label="Portfolio metrics">
-            <Metric label={`Remaining ${yearLabel}`} value={dashboard?.metrics.credits_remaining_usd ?? null} detail="Unspent counted credits; free nights tracked separately" />
-            <Metric label={`Used / credited ${yearLabel}`} value={dashboard?.metrics.realized_ytd_usd ?? null} detail="Used credits and hotel nights plus automatic rewards; excludes lounge, CLEAR and entry perks" tone="good" />
+            <Metric label="Available now" value={dashboard?.metrics.credits_available_now_usd ?? null} detail={dashboard ? `${usd.format(dashboard.metrics.upcoming_credits_usd)} upcoming within these periods; free nights tracked separately` : "Unspent active credits only"} />
+            <Metric label={`Used / credited ${yearLabel}`} value={dashboard?.metrics.realized_ytd_usd ?? null} detail="Period usage and hotel nights plus automatic rewards; excludes lounge, CLEAR and entry perks" tone="good" />
             <Metric label={`Net value ${yearLabel}`} value={dashboard?.metrics.projected_net_usd ?? null} detail={dashboard ? `Used value minus ${usd.format(dashboard.metrics.annual_fees_usd)} in annual fees` : "Waiting for the private ledger"} tone={dashboard ? dashboard.metrics.projected_net_usd >= 0 ? "good" : "warn" : "neutral"} />
           </section>
 
@@ -706,7 +714,7 @@ export function CrditsDashboard() {
               </div>
               <div className="reminder-list">
                 {loading ? <p className="muted">Reading the local ledger…</p> : null}
-                {!loading && !reminders.length ? <p className="muted">{year === new Date().getFullYear() ? "Nothing expires inside your reminder window." : "Historical view. Live reminders are shown for the current year."}</p> : null}
+                {!loading && !reminders.length ? <p className="muted">{(year === "rolling" || year === new Date().getFullYear()) ? "Nothing expires inside your reminder window." : "Historical view. Live reminders are shown in the active-period view."}</p> : null}
                 {reminders.slice(0, 6).map((item) => (
                   <div className={`reminder ${item.severity}`} key={`${item.type}-${item.wallet_card_id}-${item.expires_on}-${item.title}`}>
                     <span className="date-tile"><b>{new Date(`${item.expires_on}T00:00:00`).toLocaleDateString("en-US", { month: "short" })}</b><strong>{item.expires_on.slice(-2)}</strong></span>

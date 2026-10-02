@@ -8,6 +8,8 @@ export type FreeNightAward = {
   used_on: string | null; value_usd: number; revision: number;
   expires?: number | boolean;
   used_year?: number | null;
+  counted_in_period?: boolean;
+  period_allocation_needed?: boolean;
   used_year_confidence?: "confirmed" | "estimated";
   note?: string | null;
   value_basis?: "catalog_estimate" | "user_override";
@@ -113,7 +115,7 @@ export function FreeNightAwards({ benefit, asOf, onSave }: {
   const history = awards.filter(award => award.status === "used" || award.status === "expired");
   function row(award: FreeNightAward) {
     return <div key={award.id} className={`fna-award is-${award.status}`}>
-      <div><strong>{award.label}</strong><small>{award.status === "used" ? `Used ${award.used_on || `in ${award.used_year} (${award.used_year_confidence === "estimated" ? "year estimated; " : ""}date unknown)`} · ${money.format(award.value_usd)} counted` : award.status === "expired" ? `Expired ${award.expires_on} · $0 counted` : award.status === "unknown_expiry" ? "Expiry date needed · $0 counted" : award.expires_on ? `${award.days_remaining} days left · expires ${award.expires_on} · not yet counted` : "No expiration · counted in year issued"}</small>{award.note ? <small>{award.note}</small> : null}</div>
+      <div><strong>{award.label}</strong><small>{award.status === "used" ? `Used ${award.used_on || `in ${award.used_year} (${award.used_year_confidence === "estimated" ? "year estimated; " : ""}date unknown)`} · ${award.counted_in_period === false ? "$0 in this period" : `${money.format(award.value_usd)} counted`}` : award.status === "expired" ? `Expired ${award.expires_on} · $0 counted` : award.status === "unknown_expiry" ? "Expiry date needed · $0 counted" : award.expires_on ? `${award.days_remaining} days left · expires ${award.expires_on} · not yet counted` : "No expiration · counted in period issued"}</small>{award.period_allocation_needed ? <small>Stay date needed to assign this value to a renewal period.</small> : null}{award.note ? <small>{award.note}</small> : null}</div>
       <span>{money.format(award.value_usd)} {award.value_basis === "user_override" ? "recorded" : "est."}</span>
       <div className="fna-actions">{award.status === "available" ? <button type="button" className="fna-use" onClick={() => setEditor({ mode: "use", award })}>Use free night</button> : null}<button type="button" onClick={() => setEditor({ mode: "edit", award })}>{award.status === "expired" ? "Edit / log past stay" : "Edit"}</button></div>
     </div>;

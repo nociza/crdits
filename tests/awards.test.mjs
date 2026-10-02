@@ -1,3 +1,4 @@
+// Calendar-specific regressions stay explicit; rolling behavior is covered in rolling.test.mjs.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import path from 'node:path';
@@ -28,7 +29,7 @@ for (const [slug, estimate, deadline] of hotelCards) {
       assert.equal(benefit.valuation.method, 'market_estimate');
       assert.equal(benefit.certificate_policy.expiry_months, 12);
       assert.equal(benefit.certificate_policy.stay_deadline, deadline);
-      const empty = await service.dashboard();
+      const empty = await service.dashboard({ year: 2026 });
       assert.equal(empty.cards[0].award_realized_ytd_usd, 0);
       assert.equal(empty.cards[0].benefits.find(item => item.id === benefit.id).expires_on, null);
       assert.equal(cardCreditState(empty.cards[0]).visible, true);
@@ -36,7 +37,7 @@ for (const [slug, estimate, deadline] of hotelCards) {
       const award = await service.saveAward(input);
       assert.deepEqual(await service.saveAward(input), award);
       assert.equal(award.value_usd, estimate);
-      const held = await service.dashboard();
+      const held = await service.dashboard({ year: 2026 });
       const state = held.cards[0].benefits.find(item => item.id === benefit.id);
       assert.equal(state.expires_on, '2027-05-19');
       assert.equal(state.used_value_usd, 0);
@@ -47,17 +48,17 @@ for (const [slug, estimate, deadline] of hotelCards) {
       for (const field of ['credits_remaining_usd', 'credits_available_now_usd', 'expected_remaining_usd']) assert.equal(held.metrics[field], empty.metrics[field]);
       assert.equal(held.cards[0].projected_net_usd, empty.cards[0].projected_net_usd);
       const redeemed = await service.saveAward({ wallet_card_id: wallet.id, benefit_id: benefit.id, id: award.id, expected_revision: award.revision, used_on: '2026-07-10', request_id: `redeem-${slug}` });
-      const used = await service.dashboard();
+      const used = await service.dashboard({ year: 2026 });
       assert.equal(used.cards[0].award_realized_ytd_usd, estimate);
       assert.equal(used.cards[0].projected_net_usd, empty.cards[0].projected_net_usd + estimate);
       assert.equal(used.cards[0].benefits.find(item => item.id === benefit.id).remaining_usd, 0);
       const undo = await service.saveAward({ wallet_card_id: wallet.id, benefit_id: benefit.id, id: award.id, expected_revision: redeemed.revision, used_on: null, request_id: `undo-${slug}` });
-      assert.equal((await service.dashboard()).cards[0].award_realized_ytd_usd, 0);
+      assert.equal((await service.dashboard({ year: 2026 })).cards[0].award_realized_ytd_usd, 0);
       await service.saveAward({ wallet_card_id: wallet.id, benefit_id: benefit.id, id: award.id, expected_revision: undo.revision, voided: true, request_id: `remove-${slug}` });
       assert.equal(service.db.prepare('SELECT count(*) AS n FROM benefit_awards').get().n, 1);
       assert.equal(service.db.prepare('SELECT count(*) AS n FROM award_changes').get().n, 4);
       assert.equal(service.db.prepare('SELECT count(*) AS n FROM benefit_usage').get().n, 0);
-      assert.equal((await service.dashboard()).cards[0].award_realized_ytd_usd, 0);
+      assert.equal((await service.dashboard({ year: 2026 })).cards[0].award_realized_ytd_usd, 0);
     } finally { service.db.close(); }
   });
 }
@@ -141,7 +142,7 @@ test('award writes fail closed on invalid dates, mismatched ownership, stale edi
     await assert.rejects(service.addUsage({ wallet_card_id: wallet.id, benefit_id: benefit.id, amount_usd: 240, used_at: '2026-02-04' }), /does not use the spend ledger/);
     assert.equal(service.db.prepare('SELECT count(*) AS n FROM benefit_awards').get().n, 1);
     assert.equal(service.db.prepare('SELECT count(*) AS n FROM award_changes').get().n, 1);
-    assert.equal((await service.dashboard()).cards.find(item => item.id === wallet.id).award_realized_ytd_usd, 0);
+    assert.equal((await service.dashboard({ year: 2026 })).cards.find(item => item.id === wallet.id).award_realized_ytd_usd, 0);
   } finally { service.db.close(); }
 });
 
@@ -151,11 +152,11 @@ test('expired awards are zero until a retrospective actual stay is recorded; yea
     const wallet = await service.addWalletCard({ catalog_slug: 'world-of-hyatt-credit-card' });
     const benefit = (await service.catalogCard(wallet.catalog_slug)).benefits.find(item => item.tracking_type === 'award');
     const award = await service.saveAward({ wallet_card_id: wallet.id, benefit_id: benefit.id, issued_on: '2025-03-04', expires_on: '2026-03-04', request_id: 'past-issued-example' });
-    assert.equal((await service.dashboard()).cards[0].benefits.find(item => item.id === benefit.id).awards[0].status, 'expired');
-    assert.equal((await service.dashboard()).cards[0].award_realized_ytd_usd, 0);
+    assert.equal((await service.dashboard({ year: 2026 })).cards[0].benefits.find(item => item.id === benefit.id).awards[0].status, 'expired');
+    assert.equal((await service.dashboard({ year: 2026 })).cards[0].award_realized_ytd_usd, 0);
     await assert.rejects(service.saveAward({ wallet_card_id: wallet.id, benefit_id: benefit.id, id: award.id, expected_revision: 1, used_on: '2026-03-04', request_id: 'hyatt-expiration-day' }), /expiration deadline/);
     await service.saveAward({ wallet_card_id: wallet.id, benefit_id: benefit.id, id: award.id, expected_revision: 1, used_on: '2025-11-12', request_id: 'past-actual-stay' });
-    assert.equal((await service.dashboard()).cards[0].award_realized_ytd_usd, 0);
+    assert.equal((await service.dashboard({ year: 2026 })).cards[0].award_realized_ytd_usd, 0);
     assert.equal((await service.dashboard({ year: 2025 })).cards[0].award_realized_ytd_usd, 240);
     assert.equal((await service.reminders()).reminders.filter(item => item.type === 'award').length, 0);
   } finally { service.db.close(); }
@@ -170,12 +171,12 @@ test('award reminders use real expiry, and cancelled use preserves history', asy
     const reminder = (await service.reminders()).reminders.find(item => item.type === 'award');
     assert.equal(reminder.expires_on, '2026-10-09');
     assert.equal(reminder.award_id, award.id);
-    assert.equal(cardCreditState((await service.dashboard()).cards[0]).warning, true);
+    assert.equal(cardCreditState((await service.dashboard({ year: 2026 })).cards[0]).warning, true);
     const used = await service.saveAward({ wallet_card_id: wallet.id, benefit_id: benefit.id, id: award.id, expected_revision: 1, used_on: '2026-10-02', value_usd: 155, request_id: 'actual-value-award' });
     assert.equal((await service.reminders()).reminders.filter(item => item.type === 'award').length, 0);
-    assert.equal((await service.dashboard()).cards[0].award_realized_ytd_usd, 155);
+    assert.equal((await service.dashboard({ year: 2026 })).cards[0].award_realized_ytd_usd, 155);
     await service.saveAward({ wallet_card_id: wallet.id, benefit_id: benefit.id, id: award.id, expected_revision: used.revision, used_on: null, request_id: 'cancel-actual-award' });
-    assert.equal((await service.dashboard()).cards[0].award_realized_ytd_usd, 0);
+    assert.equal((await service.dashboard({ year: 2026 })).cards[0].award_realized_ytd_usd, 0);
     assert.equal((await service.reminders()).reminders.filter(item => item.type === 'award').length, 1);
     const audit = service.db.prepare('SELECT before_json FROM award_changes ORDER BY id DESC LIMIT 1').get();
     assert.equal(JSON.parse(audit.before_json).used_on, '2026-10-02');
@@ -214,7 +215,7 @@ test('community edits preserve certificate terms and do not reprice saved awards
     assert.deepEqual(updated.benefits.find(item => item.id === benefit.id).certificate_policy, benefit.certificate_policy);
     const used = await service.saveAward({ wallet_card_id: wallet.id, benefit_id: benefit.id, id: award.id, expected_revision: 1, used_on: '2026-07-08', request_id: 'after-catalog-change' });
     assert.equal(used.value_usd, 240);
-    assert.equal((await service.dashboard()).cards[0].award_realized_ytd_usd, 240);
+    assert.equal((await service.dashboard({ year: 2026 })).cards[0].award_realized_ytd_usd, 240);
     const malformed = structuredClone(updated);
     malformed.benefits.find(item => item.id === benefit.id).certificate_policy.expires = 'no';
     assert.match(validateCard(malformed).join(' '), /certificate terms/);
@@ -250,7 +251,7 @@ test('known expiry with unknown issuance is tracked without inventing a historic
     const wallet = await service.addWalletCard({ catalog_slug: 'marriott-bonvoy-boundless-credit-card' });
     const benefitId = 'earned-50k-free-night-awards';
     for (let index = 0; index < 3; index++) await service.saveAward({ wallet_card_id: wallet.id, benefit_id: benefitId, label: `Bonus night ${index + 1}`, expires_on: '2027-07-08', request_id: `synthetic-promo-${index}` });
-    const current = (await service.dashboard()).cards[0];
+    const current = (await service.dashboard({ year: 2026 })).cards[0];
     const benefit = current.benefits.find(item => item.id === benefitId);
     assert.equal(benefit.annual_award, false);
     assert.equal(benefit.awards.length, 3);
@@ -267,7 +268,7 @@ test('the next hotel anniversary is a calendar marker, never an invented issued 
   const service = createService({ root, dbPath: ':memory:', asOf: '2026-10-02' });
   try {
     await service.addWalletCard({ catalog_slug: 'world-of-hyatt-credit-card', membership_year_start: '2025-10-22' });
-    const benefit = (await service.dashboard()).cards[0].benefits.find(item => item.tracking_type === 'award');
+    const benefit = (await service.dashboard({ year: 2026 })).cards[0].benefits.find(item => item.tracking_type === 'award');
     assert.equal(benefit.next_anniversary_on, '2026-10-22');
     assert.equal(benefit.expires_on, null);
     assert.equal(benefit.awards.length, 0);
@@ -287,7 +288,7 @@ test('year-only completed stays preserve unknown dates and tentative year alloca
     assert.equal(award.used_on, null);
     assert.equal(award.expires, 1);
     assert.equal(award.used_year_confidence, 'estimated');
-    assert.equal((await service.dashboard()).cards[0].award_realized_ytd_usd, 0);
+    assert.equal((await service.dashboard({ year: 2026 })).cards[0].award_realized_ytd_usd, 0);
     const historical = await service.dashboard({ year: 2025 });
     assert.equal(historical.cards[0].award_realized_ytd_usd, 240);
     assert.equal(historical.cards[0].benefits.find(item => item.id === benefit.id).awards[0].status, 'used');
@@ -297,7 +298,7 @@ test('year-only completed stays preserve unknown dates and tentative year alloca
     const cleared = await service.saveAward({ ...base, id: award.id, expected_revision: 1, used_year: null, used_on: null, request_id: 'clear-year-only-example' });
     assert.equal(cleared.used_year, null);
     assert.equal((await service.dashboard({ year: 2025 })).cards[0].award_realized_ytd_usd, 0);
-    const current = (await service.dashboard()).cards[0];
+    const current = (await service.dashboard({ year: 2026 })).cards[0];
     assert.equal(current.award_realized_ytd_usd, 0);
     assert.equal(current.benefits.find(item => item.id === benefit.id).awards[0].status, 'unknown_expiry');
     assert.equal(current.benefits.find(item => item.id === benefit.id).remaining_usd, 0);

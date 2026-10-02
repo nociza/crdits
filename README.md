@@ -90,6 +90,30 @@ local public-catalog patch. A local save is not a Git push: publication remains
 an explicit reviewed repository operation. Used/archived offers leave the active
 recommendation and reminder set and can be edited or restored from history.
 
+## Reporting periods
+
+The website and `crdits summary` default to **This rolling period**: each card's
+active renewal-to-renewal span, summed across the wallet. This is not a single
+calendar year, trailing 365 days, or the intersection of all cards' dates.
+Each card displays its exact range. Used value is booked by transaction/stay
+date within that range, with one annual fee per known card period. Missing
+renewal dates show an unknown card net and exclude both its usage and fee from
+portfolio net until the date is set; its active credit balances remain visible.
+
+“Available now” means unspent active credit windows. Upcoming credits are shown
+separately and include only windows starting before that card's next renewal;
+they never include the next anniversary grant. Issuer monthly, quarterly,
+semiannual, calendar-annual, and finite offer windows are not shifted or
+prorated. Timelines span the card period with years on cross-year labels.
+Free nights remain separate; an ambiguous year-only stay needs a date before
+it can be assigned to a renewal period. Existing entries are never rewritten.
+
+Calendar years remain an explicit bookkeeping option (`crdits summary --year
+2026`). API `year=rolling` or no year selects renewal periods, and a numeric
+year preserves calendar reporting. For compatibility, legacy `*_ytd_usd` fields
+carry the selected reporting period's used values; `reporting_mode` and each
+card's `reporting_period` identify their boundaries.
+
 ## Agent skill
 
 Install the repository skill into Codex and Claude Code with a safe symlink:

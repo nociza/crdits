@@ -1,3 +1,4 @@
+// Calendar-specific regressions stay explicit; rolling behavior is covered in rolling.test.mjs.
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
@@ -54,7 +55,7 @@ test("only recorded card-credit amounts affect net value; evidence cannot overwr
     await service.addUsage({ ...base, used_at: date, amount_usd: 10 });
     await service.setPeriodEvidence({ ...base, used_at: date, period_key: periodKey, assessment: "used", note: "Owner-reported redemption; additional discounts excluded", expected_total_usd: 10, request_id: `used-example-${month}` });
   }
-  const dashboard = await service.dashboard();
+  const dashboard = await service.dashboard({ year: 2026 });
   assert.equal(dashboard.metrics.realized_ytd_usd, 40);
   assert.equal(dashboard.metrics.projected_net_usd, -55);
   const credit = dashboard.cards[0].benefits.find(item => item.id === benefitId);
@@ -64,7 +65,7 @@ test("only recorded card-credit amounts affect net value; evidence cannot overwr
   const conflict = { ...base, used_at: "2026-02-28", period_key: "2026-02", assessment: "not_used", note: "Cannot silently clear a ledger", request_id: "conflicting-report" };
   await assert.rejects(service.setPeriodEvidence({ ...conflict, expected_total_usd: 0 }), /another session/);
   await assert.rejects(service.setPeriodEvidence({ ...conflict, expected_total_usd: 10 }), /Recorded usage already exists/);
-  assert.equal((await service.dashboard()).metrics.realized_ytd_usd, 40);
+  assert.equal((await service.dashboard({ year: 2026 })).metrics.realized_ytd_usd, 40);
   assert.equal(service.db.prepare("SELECT count(*) AS n FROM benefit_evidence_changes").get().n, 6);
   service.db.close();
 });
@@ -79,7 +80,7 @@ test("offer selection persists privately, preserves preferences and leaves all l
   const saved = await service.setPreference({ wallet_card_id: wallet.id, benefit_id: benefitId, period_schedule_id: "new-2026-2027", expected_schedule_id: "existing-2026" });
   assert.equal(saved.probability, 0.75);
   assert.equal(saved.reminder_days, 14);
-  const current = (await service.dashboard()).cards[0];
+  const current = (await service.dashboard({ year: 2026 })).cards[0];
   assert.equal(current.projected_net_usd, -45);
   assert.equal(current.benefits.find(item => item.id === benefitId).used_usd, 50);
   assert.deepEqual(service.db.prepare("SELECT * FROM benefit_usage ORDER BY id").all(), before);
@@ -100,7 +101,7 @@ test("airline purchases cannot be logged as credit or outside the selected earni
   await assert.rejects(service.addUsage({ ...input, amount_usd: 50, used_at: "2027-01-01", period_key: "2027-new-airline" }), /future period/);
   await assert.rejects(service.addUsage({ ...input, amount_usd: 50, period_schedule_id: "existing-2026" }), /schedule changed/);
   await service.addUsage({ ...input, amount_usd: 50 });
-  assert.equal((await service.dashboard()).cards[0].logged_realized_ytd_usd, 50);
+  assert.equal((await service.dashboard({ year: 2026 })).cards[0].logged_realized_ytd_usd, 50);
   await assert.rejects(service.addUsage({ ...input, amount_usd: 1 }), /cannot exceed/);
   service.db.close();
 });
@@ -113,7 +114,7 @@ test("Bilt cash and points consume the same balance but only cash adds increment
   await assert.rejects(service.addUsage({ ...input, amount_usd: 10, redemption_method: "fake" }), /Invalid redemption/);
   await service.addUsage({ ...input, amount_usd: 100, redemption_method: "points", value_ratio: 1 });
   await service.addUsage({ ...input, amount_usd: 100, redemption_method: "cash", value_ratio: 1 });
-  let card = (await service.dashboard()).cards[0];
+  let card = (await service.dashboard({ year: 2026 })).cards[0];
   let benefit = card.benefits.find(item => item.id === input.benefit_id);
   assert.equal(card.logged_realized_ytd_usd, 67);
   assert.equal(benefit.used_value_usd, 67);
@@ -122,14 +123,14 @@ test("Bilt cash and points consume the same balance but only cash adds increment
   assert.equal(benefit.expected_value_usd, 0);
   // A normal total correction keeps prior mixed redemption types and dates.
   await service.addUsage({ ...input, amount_usd: 200, expected_total_usd: 200, request_id: "keep-mixed-2026" }, { replace: true });
-  assert.equal((await service.dashboard()).cards[0].logged_realized_ytd_usd, 67);
+  assert.equal((await service.dashboard({ year: 2026 })).cards[0].logged_realized_ytd_usd, 67);
   const correction = { ...input, amount_usd: 200, expected_total_usd: 200, expected_value_usd: 67, redemption_method: "cash", revalue_existing: true, request_id: "classify-cash-2026" };
   const result = await service.addUsage(correction, { replace: true });
   assert.equal(result.before_value_usd, 67);
   assert.equal(result.after_value_usd, 134);
   assert.deepEqual(await service.addUsage(correction, { replace: true }), result);
   await assert.rejects(service.addUsage({ ...correction, redemption_method: "points" }, { replace: true }), /request_id/);
-  card = (await service.dashboard()).cards[0];
+  card = (await service.dashboard({ year: 2026 })).cards[0];
   assert.equal(card.logged_realized_ytd_usd, 134);
   assert.equal(card.projected_net_usd, -361);
   const rows = service.db.prepare("SELECT * FROM benefit_usage WHERE voided_at IS NULL").all();
@@ -137,7 +138,7 @@ test("Bilt cash and points consume the same balance but only cash adds increment
   assert.ok(rows.every(row => row.used_at === "2026-08-28" && row.redemption_method === "cash" && row.value_ratio === 0.67));
   await assert.rejects(service.addUsage({ ...correction, redemption_method: "points", request_id: "stale-redemption-value" }, { replace: true }), /another session/);
   await service.addUsage({ ...correction, expected_value_usd: 134, redemption_method: "points", request_id: "classify-points-2026" }, { replace: true });
-  assert.equal((await service.dashboard()).cards[0].logged_realized_ytd_usd, 0);
+  assert.equal((await service.dashboard({ year: 2026 })).cards[0].logged_realized_ytd_usd, 0);
   assert.equal(service.usageHistory(wallet.id, input.benefit_id)[0].redemption_method, "points");
   await assert.rejects(service.addUsage({ ...input, amount_usd: 1, redemption_method: "cash" }), /cannot exceed/);
   await assert.rejects(service.addUsage({ ...input, amount_usd: 0, revalue_existing: true, redemption_method: "cash" }), /Reclassification/);
@@ -164,7 +165,7 @@ test("reclassifying historical Bilt Cash preserves the redemption date, old row 
 test("automatic anniversary value offsets the active membership year across January without doubling at renewal", async () => {
   const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-01" });
   const wallet = await service.addWalletCard({ catalog_slug: "capital-one-venture-x-rewards-credit-card", membership_year_start: "2025-11-03" });
-  const card = (await service.dashboard()).cards[0];
+  const card = (await service.dashboard({ year: 2026 })).cards[0];
   assert.equal(card.automatic_realized_ytd_usd, 100);
   assert.equal(card.logged_realized_ytd_usd, 0);
   assert.equal(card.projected_net_usd, -295);
@@ -188,7 +189,7 @@ test("November anniversary expires November 2 and partial/full logs reset on Nov
   const service = createService({ root, dbPath: ":memory:", asOf: "2026-11-02" });
   const wallet = await service.addWalletCard({ catalog_slug: "capital-one-venture-x-rewards-credit-card", membership_year_start: "2025-11-03" });
   const benefitId = "annual-capital-one-travel-credit";
-  const travel = () => service.dashboard().then(data => data.cards[0].benefits.find(item => item.id === benefitId));
+  const travel = () => service.dashboard({ year: 2026 }).then(data => data.cards[0].benefits.find(item => item.id === benefitId));
   let benefit = await travel();
   assert.equal(benefit.expires_on, "2026-11-02");
   for (const [amount, expected] of [[125, 125], [50, 175], [125, 300]]) {
@@ -213,7 +214,7 @@ test("November anniversary expires November 2 and partial/full logs reset on Nov
 test("Venture X counts the automatic $100 bonus and caps the loggable $300 anniversary credit", async () => {
   const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-01" });
   const wallet = await service.addWalletCard({ catalog_slug: "capital-one-venture-x-rewards-credit-card", nickname: "Venture X" });
-  let result = (await service.dashboard()).cards[0];
+  let result = (await service.dashboard({ year: 2026 })).cards[0];
   assert.equal(result.automatic_realized_ytd_usd, 100);
   assert.equal(result.projected_net_usd, -295);
   assert.equal(result.benefits.find(b => b.id === "10-000-anniversary-miles-each-year").is_actionable, false);
@@ -222,12 +223,12 @@ test("Venture X counts the automatic $100 bonus and caps the loggable $300 anniv
   service.updateWalletCard(wallet.id, { membership_year_start: "2026-05-01", opened_on: "2024-05-01" });
   const input = { wallet_card_id: wallet.id, benefit_id: "annual-capital-one-travel-credit", used_at: "2026-10-01", amount_usd: 125 };
   await service.addUsage(input);
-  result = (await service.dashboard()).cards[0];
+  result = (await service.dashboard({ year: 2026 })).cards[0];
   assert.equal(result.benefits.find(b => b.id === input.benefit_id).remaining_usd, 175);
   assert.equal(result.automatic_realized_ytd_usd, 100);
   await service.addUsage({ ...input, amount_usd: 175 });
   await assert.rejects(service.addUsage({ ...input, amount_usd: 1 }), /cannot exceed/);
-  result = (await service.dashboard()).cards[0];
+  result = (await service.dashboard({ year: 2026 })).cards[0];
   assert.equal(result.logged_realized_ytd_usd, 300);
   assert.equal(result.realized_ytd_usd, 400);
   assert.equal(result.projected_net_usd, 5);
@@ -239,7 +240,7 @@ test("Venture X counts the automatic $100 bonus and caps the loggable $300 anniv
 test("Venture X anniversary miles begin at the first anniversary when opening date is known", async () => {
   const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-01" });
   await service.addWalletCard({ catalog_slug: "capital-one-venture-x-rewards-credit-card", opened_on: "2026-05-01" });
-  const card = (await service.dashboard()).cards[0];
+  const card = (await service.dashboard({ year: 2026 })).cards[0];
   assert.equal(card.automatic_realized_ytd_usd, 0);
   assert.equal(card.projected_net_usd, -395);
   assert.equal(card.benefits.some(b => b.id === "10-000-anniversary-miles-each-year"), false);
@@ -256,7 +257,7 @@ test("period corrections are capped, duplicate-safe, concurrency checked and aud
   await assert.rejects(service.addUsage({ ...input, amount_usd: 20, request_id: "test-request-2", expected_total_usd: 0 }, { replace: true }), /another session/);
   await service.addUsage({ ...input, amount_usd: 20, request_id: "test-request-3", expected_total_usd: 50 }, { replace: true });
   await service.addUsage({ ...input, amount_usd: 0, request_id: "test-request-4", expected_total_usd: 20 }, { replace: true });
-  assert.equal((await service.dashboard()).cards[0].logged_realized_ytd_usd, 0);
+  assert.equal((await service.dashboard({ year: 2026 })).cards[0].logged_realized_ytd_usd, 0);
   const history = service.usageHistory(wallet.id, "flight-credit");
   assert.deepEqual(history.map(row => [row.before_usd, row.after_usd]), [[20, 0], [50, 20], [0, 50]]);
   assert.equal(service.db.prepare("SELECT count(*) AS n FROM benefit_usage WHERE voided_at IS NOT NULL").get().n, 2);
@@ -297,7 +298,7 @@ test("retrospective split-credit usage is constrained to its named period", asyn
     note: "Retrospective bookkeeping",
   });
 
-  const dashboard = await service.dashboard();
+  const dashboard = await service.dashboard({ year: 2026 });
   const flightCredit = dashboard.cards[0].benefits.find((benefit) => benefit.id === "flight-credit");
   assert.equal(flightCredit.periods.find((period) => period.key === "2026-Q2").status, "used");
   assert.equal(flightCredit.periods.find((period) => period.key === "2026-Q3").used_usd, 0);
@@ -340,7 +341,7 @@ test("seed recurring credits expose complete current-year history", async () => 
     nickname: "Bilt",
   });
   const benefitId = "doordash-grocery-daily-essentials-benefit-while-eligible-dashpass-terms-apply";
-  const dashboard = await service.dashboard();
+  const dashboard = await service.dashboard({ year: 2026 });
   const sapphire = dashboard.cards.find((item) => item.id === wallet.id);
   const bilt = dashboard.cards.find((item) => item.id === biltWallet.id);
   const benefit = sapphire.benefits.find((item) => item.id === benefitId);
@@ -367,7 +368,7 @@ test("retrospective monthly usage is constrained to its named month", async () =
     period_key: "2026-07",
   });
 
-  const dashboard = await service.dashboard();
+  const dashboard = await service.dashboard({ year: 2026 });
   const benefit = dashboard.cards[0].benefits.find((item) => item.id === benefitId);
   assert.equal(benefit.periods.find((period) => period.key === "2026-07").status, "used");
   assert.equal(benefit.periods.find((period) => period.key === "2026-08").used_usd, 0);

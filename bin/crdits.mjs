@@ -45,7 +45,7 @@ function help() {
   console.log(`crdits — local credit-card value ledger
 
 Usage:
-  crdits summary [--year YYYY] [--json]
+  crdits summary [--year rolling|YYYY] [--json]
   crdits history --card WALLET_ID --benefit ID
   crdits set-used --card ID_OR_SLUG --benefit ID --amount TOTAL --previous CURRENT_TOTAL --date YYYY-MM-DD --period PERIOD --request-id ID
     Bilt Cash: --redemption-method cash|points; correction: --revalue-existing --previous-value COUNTED_VALUE
@@ -81,11 +81,13 @@ async function main() {
     const dashboard = await wallet.dashboard({ year: flags.year });
     if (json) return output(dashboard, { json });
     console.log(`As of ${dashboard.as_of}`);
-    console.log(`Realized YTD:       ${money(dashboard.metrics.realized_ytd_usd)}`);
-    console.log(`Credits remaining:  ${money(dashboard.metrics.credits_remaining_usd)}`);
+    console.log(`Reporting:          ${dashboard.reporting_mode === "rolling" ? "Active renewal period of each card" : `Calendar ${dashboard.selected_year}`}`);
+    console.log(`Used / credited:    ${money(dashboard.metrics.realized_ytd_usd)}`);
+    console.log(`Available now:      ${money(dashboard.metrics.credits_available_now_usd)}`);
+    console.log(`Upcoming in period: ${money(dashboard.metrics.upcoming_credits_usd)}`);
     console.log(`Expected remaining: ${money(dashboard.metrics.expected_remaining_usd)}`);
     console.log(`Annual fees:        ${money(dashboard.metrics.annual_fees_usd)}`);
-    console.log(`Net value this year: ${money(dashboard.metrics.projected_net_usd)} (used/credited value minus annual fees)`);
+    console.log(`Net value:          ${money(dashboard.metrics.projected_net_usd)} (period used/credited value minus annual fees)`);
     return;
   }
 

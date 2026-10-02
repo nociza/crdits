@@ -60,7 +60,7 @@ export function cardCreditState(card: { benefits: Credit[] }) {
   return { available, dateNeeded, expiring, awardAvailable, awardsToTrack, label, warning: expiryNeeded || dateNeeded > 0 || expiring > 0 || awardExpiring > 0, visible: expiryNeeded || available > 0 || dateNeeded > 0 || awardAvailable > 0 || awardsToTrack > 0 };
 }
 
-export function creditViewUrl(tab: "overview" | "wallet" | "catalog", year: number, cardId?: number) {
+export function creditViewUrl(tab: "overview" | "wallet" | "catalog", year: number | "rolling", cardId?: number) {
   const query = new URLSearchParams({ tab, year: String(year) });
   if (tab === "wallet" && cardId) query.set("card", String(cardId));
   return `?${query}`;

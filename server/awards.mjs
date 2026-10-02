@@ -121,10 +121,10 @@ export function writeAward(db, input, benefit, today) {
   }
 }
 
-export function awardState(records, asOf, preference) {
-  const yearStart = `${asOf.slice(0, 4)}-01-01`;
+export function awardState(records, asOf, preference, reportingPeriod = undefined) {
+  const yearStart = reportingPeriod?.start || `${asOf.slice(0, 4)}-01-01`;
   const year = Number(asOf.slice(0, 4));
-  const awards = records.filter(item => (item.issued_on || item.recorded_on) <= asOf || (item.used_year != null && item.used_year <= year)).map(item => {
+  let awards = records.filter(item => (item.issued_on || item.recorded_on) <= asOf || (item.used_year != null && item.used_year <= year)).map(item => {
     const used = item.used_on ? item.used_on <= asOf : item.used_year != null && item.used_year <= year;
     const deadline = item.expires_on;
     const expired = deadline && (item.stay_deadline === 'checkout_before' ? deadline <= asOf : deadline < asOf);
@@ -132,10 +132,27 @@ export function awardState(records, asOf, preference) {
       status: used ? 'used' : expired ? 'expired' : item.expires && !deadline ? 'unknown_expiry' : 'available',
       days_remaining: deadline ? Math.ceil((Date.parse(deadline) - Date.parse(asOf)) / 86400000) : null };
   }).filter(item => item.status === 'available' || item.status === 'unknown_expiry' || item.used_year >= year || (item.expires_on || item.issued_on) >= yearStart);
+  const counted = item => {
+    if (reportingPeriod === undefined) return item.expires
+      ? item.status === 'used' && item.used_year === year : item.issued_on >= yearStart;
+    if (!reportingPeriod) return false;
+    const end = asOf < reportingPeriod.end ? asOf : reportingPeriod.end;
+    if (!item.expires) return item.issued_on >= reportingPeriod.start && item.issued_on <= end;
+    if (item.status !== 'used') return false;
+    if (item.used_on) return item.used_on >= reportingPeriod.start && item.used_on <= end;
+    // A year-only stay may straddle renewal. Count it only when the entire
+    // possible stay interval fits; never invent a date or count it twice.
+    const earliest = `${item.used_year}-01-01`;
+    const latest = [`${item.used_year}-12-31`, item.recorded_on, asOf].sort()[0];
+    return earliest >= reportingPeriod.start && latest <= end;
+  };
+  awards = awards.map(item => ({ ...item, counted_in_period: counted(item),
+    period_allocation_needed: Boolean(reportingPeriod && item.status === 'used' && !item.used_on && !counted(item)
+      && `${item.used_year}-01-01` <= reportingPeriod.end
+      && [`${item.used_year}-12-31`, item.recorded_on, asOf].sort()[0] >= reportingPeriod.start),
+  }));
   const available = awards.filter(item => item.status === 'available');
-  const realized = awards.filter(item => item.expires
-    ? item.status === 'used' && item.used_year === year
-    : item.issued_on >= yearStart).reduce((sum, item) => sum + item.value_usd, 0);
+  const realized = awards.filter(counted).reduce((sum, item) => sum + item.value_usd, 0);
   const remaining = available.filter(item => item.expires).reduce((sum, item) => sum + item.value_usd, 0);
   return { awards, realized, remaining, expected: remaining * preference.probability * preference.personal_value_percent };
 }
