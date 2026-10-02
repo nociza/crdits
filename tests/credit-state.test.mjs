@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { availableCreditValue, cardCreditState, catalogStatus, creditActions, creditViewUrl, isEntryPerk, periodEvidenceState } from "../app/ui/credit-state.ts";
+import { availableCreditValue, cardCreditState, catalogStatus, creditActions, creditViewUrl, isEntryPerk, periodEvidenceState, periodStatusLabel } from "../app/ui/credit-state.ts";
+
+test("active credit periods say Used or Need to use, including partial usage", () => {
+  const period = {is_current: true, status: "available", remaining_usd: 50};
+  assert.equal(periodStatusLabel(period), "Need to use");
+  assert.equal(periodStatusLabel({...period, status: "partial", remaining_usd: 20}), "Need to use");
+  assert.equal(periodStatusLabel({...period, status: "used", remaining_usd: 0}), "Used");
+  assert.equal(periodStatusLabel({...period, remaining_usd: 0}), "Used");
+  for (const status of ["upcoming", "expired", "partial", "used"]) {
+    assert.equal(periodStatusLabel({...period, is_current: false, status}), status);
+  }
+});
 
 test("entry perks group independently and never promote a card or inflate available-credit badges", () => {
   for (const id of ["priority-pass-access", "clear-credit-per-calendar-year", "global-entry-tsa-precheck-credit-per-eligible-period"]) {

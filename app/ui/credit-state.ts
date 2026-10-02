@@ -39,6 +39,11 @@ export function periodEvidenceState(period: { used_usd: number; evidence?: { ass
   return { label: period.evidence.assessment === "likely_used" ? "Likely used" : "Reported used", detail: "Not counted", unconfirmed: true };
 }
 
+export function periodStatusLabel(period: { is_current: boolean; status: string; remaining_usd: number }) {
+  if (!period.is_current) return period.status;
+  return period.status === "used" || period.remaining_usd <= 0 ? "Used" : "Need to use";
+}
+
 export function cardCreditState(card: { benefits: Credit[] }) {
   const credits = card.benefits.filter(benefit => benefit.tracking_type === "spend" && !isEntryPerk(benefit));
   const available = credits.filter(benefit => (benefit.remaining_usd ?? 0) > 0).length;

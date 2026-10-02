@@ -4,7 +4,7 @@ import { EntryPerks } from "./EntryPerks";
 import { CatalogEditor } from "./CatalogEditor";
 import { FreeNightAwards, type FreeNightAward } from "./FreeNightAwards";
 import { creditUsageTotal } from "./credit-usage";
-import { availableCreditValue, cardCreditState, catalogStatus, creditActions, creditViewUrl, isEntryPerk, periodEvidenceState } from "./credit-state";
+import { availableCreditValue, cardCreditState, catalogStatus, creditActions, creditViewUrl, isEntryPerk, periodEvidenceState, periodStatusLabel } from "./credit-state";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -222,7 +222,7 @@ function CreditPeriods({ cadence, periods, asOf, qualifying = false, onSelect }:
                 : `${usd.format(period.remaining_usd)} ${qualifying ? "to earn" : "left"}`);
         return (
           <button type="button" className={`credit-period is-${period.status} ${period.is_current ? "is-current" : ""} ${assessment?.unconfirmed ? "is-unconfirmed" : ""}`} key={period.key} aria-current={period.is_current ? "true" : undefined} disabled={!selectable} onClick={() => onSelect(period)} title={`${selectable ? `${period.used_usd > 0 ? "Edit" : "Log"} ${period.label} usage` : `Upcoming period: ${period.start} through ${period.end}`}${period.evidence ? ` · Reported evidence: ${period.evidence.note}` : ""}`}>
-            <small>{period.label}</small>{cadence === "custom" ? <span className="period-dates">{period.start} – {period.end}</span> : null}<strong>{detail}</strong><i>{assessment?.detail || (period.is_current ? period.status === "used" ? "Used · current" : "Current" : period.status)}</i>
+            <small>{period.label}</small>{cadence === "custom" ? <span className="period-dates">{period.start} – {period.end}</span> : null}<strong>{detail}</strong><i>{assessment?.detail || periodStatusLabel(period)}</i>
           </button>
         );
       })}
