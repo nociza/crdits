@@ -110,6 +110,8 @@ function migrate(db) {
   if (!walletColumns.has("membership_year_start")) {
     db.exec("ALTER TABLE wallet_cards ADD COLUMN membership_year_start TEXT");
   }
+  const preferenceColumns = new Set(db.prepare("PRAGMA table_info(benefit_preferences)").all().map(column => column.name));
+  if (!preferenceColumns.has("period_schedule_id")) db.exec("ALTER TABLE benefit_preferences ADD COLUMN period_schedule_id TEXT");
   const usageColumns = new Set(db.prepare("PRAGMA table_info(benefit_usage)").all().map(column => column.name));
   for (const [name, type] of [["voided_at", "TEXT"], ["value_ratio", "REAL"], ["catalog_verified_at", "TEXT"], ["redemption_method", "TEXT"]]) {
     if (!usageColumns.has(name)) db.exec(`ALTER TABLE benefit_usage ADD COLUMN ${name} ${type}`);
@@ -402,25 +404,29 @@ export function listPreferences(db) {
     personal_value_percent: Number(row.personal_value_percent),
     face_value_override: row.face_value_override == null ? null : Number(row.face_value_override),
     reminder_days: row.reminder_days == null ? null : Number(row.reminder_days),
+    period_schedule_id: row.period_schedule_id || null,
   }));
 }
 
 export function setPreference(db, input) {
+  const current = listPreferences(db).find(item => item.wallet_card_id === Number(input.wallet_card_id) && item.benefit_id === input.benefit_id);
+  input = { ...current, ...input };
   const probability = input.probability == null ? 0.8 : Number(input.probability);
   const personal = input.personal_value_percent == null ? 1 : Number(input.personal_value_percent);
-  if (probability < 0 || probability > 1 || personal < 0 || personal > 1) {
+  if (!Number.isFinite(probability) || !Number.isFinite(personal) || probability < 0 || probability > 1 || personal < 0 || personal > 1) {
     throw new Error("probability and personal_value_percent must be between 0 and 1");
   }
   db.prepare(`
     INSERT INTO benefit_preferences (
       wallet_card_id, benefit_id, probability, personal_value_percent,
-      face_value_override, reminder_days, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      face_value_override, reminder_days, period_schedule_id, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(wallet_card_id, benefit_id) DO UPDATE SET
       probability = excluded.probability,
       personal_value_percent = excluded.personal_value_percent,
       face_value_override = excluded.face_value_override,
       reminder_days = excluded.reminder_days,
+      period_schedule_id = excluded.period_schedule_id,
       updated_at = CURRENT_TIMESTAMP
   `).run(
     input.wallet_card_id,
@@ -429,6 +435,7 @@ export function setPreference(db, input) {
     personal,
     input.face_value_override ?? null,
     input.reminder_days ?? null,
+    input.period_schedule_id || null,
   );
   return { ...input, probability, personal_value_percent: personal };
 }

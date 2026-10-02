@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { addUsage, addWalletCard, openDatabase, setBenefitStatus, setPreference, updateWalletCard } from "../server/db.mjs";
-import { buildDashboard, enumerateCycles, recommendCard } from "../server/engine.mjs";
+import { buildDashboard, enumerateCycles, recommendCard, resolveBenefitSchedule } from "../server/engine.mjs";
 
 const card = {
   schema_version: 1,
@@ -18,6 +18,49 @@ const card = {
   sources: [],
   history: [],
 };
+
+test("finite airline promotions use exact windows and never recur or double-count cohorts", async () => {
+  const marriott = JSON.parse(await readFile(new URL("../catalog/cards/marriott-bonvoy-boundless-credit-card.json", import.meta.url), "utf8"));
+  const definition = marriott.benefits[0];
+  const benefit = resolveBenefitSchedule(definition, { period_schedule_id: "new-2026-2027" });
+  const db = openDatabase(":memory:");
+  const wallet = addWalletCard(db, { catalog_slug: marriott.slug, membership_year_start: "2026-02-01" });
+  setPreference(db, { wallet_card_id: wallet.id, benefit_id: definition.id, period_schedule_id: "new-2026-2027", probability: 1 });
+  assert.deepEqual(enumerateCycles(benefit, wallet, "2026-01-01", "2027-12-31").map(({ start, end }) => [start, end]), [["2026-06-04", "2026-12-31"], ["2027-01-01", "2027-06-30"]]);
+  assert.deepEqual(enumerateCycles(benefit, wallet, "2026-06-03", "2026-06-03"), []);
+  const current = buildDashboard({ catalog: [marriott], db, asOf: "2026-10-02" }).cards[0];
+  const credit = current.benefits.find(item => item.id === definition.id);
+  assert.equal(credit.qualifying_spend.amount_usd, 250);
+  assert.equal(credit.cycle_start, "2026-06-04");
+  assert.equal(credit.remaining_usd, 50);
+  assert.equal(credit.periods.length, 2);
+  assert.equal(credit.periods[1].status, "upcoming");
+  assert.equal(current.remaining_usd, 50); // next year's $50 is not this year's balance
+  assert.equal(current.expected_remaining_usd, 50);
+  assert.equal(current.projected_net_usd, -95);
+  const next = buildDashboard({ catalog: [marriott], db, asOf: "2027-01-01" }).cards[0];
+  assert.equal(next.remaining_usd, 50);
+  assert.equal(next.benefits.find(item => item.id === definition.id).periods[0].status, "expired");
+  assert.equal(buildDashboard({ catalog: [marriott], db, asOf: "2027-07-01" }).cards[0].remaining_usd, 0);
+  assert.equal(buildDashboard({ catalog: [marriott], db, asOf: "2028-01-01" }).cards[0].remaining_usd, 0);
+  assert.throws(() => resolveBenefitSchedule(definition, { period_schedule_id: "invalid" }), /Unknown offer schedule/);
+  db.close();
+});
+
+test("the existing-cardmember offer keeps both 2026 halves and ends December 31", async () => {
+  const marriott = JSON.parse(await readFile(new URL("../catalog/cards/marriott-bonvoy-boundless-credit-card.json", import.meta.url), "utf8"));
+  const db = openDatabase(":memory:");
+  const wallet = addWalletCard(db, { catalog_slug: marriott.slug });
+  addUsage(db, { wallet_card_id: wallet.id, benefit_id: marriott.benefits[0].id, amount_usd: 50, used_at: "2026-06-30" });
+  const current = buildDashboard({ catalog: [marriott], db, asOf: "2026-10-02" }).cards[0];
+  assert.equal(current.projected_net_usd, -45);
+  assert.equal(current.remaining_usd, 50);
+  const credit = current.benefits.find(item => item.id === marriott.benefits[0].id);
+  assert.equal(credit.period_schedule_id, "existing-2026");
+  assert.deepEqual(credit.periods.map(item => [item.key, item.used_usd]), [["2026-H1", 50], ["2026-H2", 0]]);
+  assert.equal(buildDashboard({ catalog: [marriott], db, asOf: "2027-01-01" }).cards[0].remaining_usd, 0);
+  db.close();
+});
 
 test("enumerates monthly and quarterly cycles deterministically", () => {
   const wallet = { opened_on: "2026-01-10", renewal_date: null };

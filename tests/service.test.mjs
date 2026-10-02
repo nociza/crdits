@@ -7,6 +7,42 @@ import { creditUsageTotal } from "../app/ui/credit-usage.ts";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
+test("offer selection persists privately, preserves preferences and leaves all ledger entries untouched", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-02" });
+  const wallet = await service.addWalletCard({ catalog_slug: "marriott-bonvoy-boundless-credit-card" });
+  const benefitId = "temporary-airline-statement-credit-promotion-up-to-100-total";
+  await service.addUsage({ wallet_card_id: wallet.id, benefit_id: benefitId, amount_usd: 50, used_at: "2026-06-30", note: "Prior credit" });
+  const before = service.db.prepare("SELECT * FROM benefit_usage ORDER BY id").all();
+  await service.setPreference({ wallet_card_id: wallet.id, benefit_id: benefitId, probability: 0.75, reminder_days: 14 });
+  const saved = await service.setPreference({ wallet_card_id: wallet.id, benefit_id: benefitId, period_schedule_id: "new-2026-2027", expected_schedule_id: "existing-2026" });
+  assert.equal(saved.probability, 0.75);
+  assert.equal(saved.reminder_days, 14);
+  const current = (await service.dashboard()).cards[0];
+  assert.equal(current.projected_net_usd, -45);
+  assert.equal(current.benefits.find(item => item.id === benefitId).used_usd, 50);
+  assert.deepEqual(service.db.prepare("SELECT * FROM benefit_usage ORDER BY id").all(), before);
+  await assert.rejects(service.setPreference({ wallet_card_id: wallet.id, benefit_id: benefitId, period_schedule_id: "existing-2026", expected_schedule_id: "existing-2026" }), /another session/);
+  await assert.rejects(service.setPreference({ wallet_card_id: wallet.id, benefit_id: benefitId, period_schedule_id: "fake" }), /Invalid offer schedule/);
+  await assert.rejects(service.setPreference({ wallet_card_id: wallet.id, benefit_id: "fake", probability: 1 }), /benefit not found/);
+  service.db.close();
+});
+
+test("airline purchases cannot be logged as credit or outside the selected earning window", async () => {
+  const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-02" });
+  const wallet = await service.addWalletCard({ catalog_slug: "marriott-bonvoy-boundless-credit-card" });
+  const benefitId = "temporary-airline-statement-credit-promotion-up-to-100-total";
+  await service.setPreference({ wallet_card_id: wallet.id, benefit_id: benefitId, period_schedule_id: "new-2026-2027" });
+  const input = { wallet_card_id: wallet.id, benefit_id: benefitId, used_at: "2026-08-31", period_key: "2026-new-airline", period_schedule_id: "new-2026-2027" };
+  await assert.rejects(service.addUsage({ ...input, amount_usd: 185.60 }), /cannot exceed/);
+  await assert.rejects(service.addUsage({ ...input, amount_usd: 50, used_at: "2026-06-03" }), /does not fall inside/);
+  await assert.rejects(service.addUsage({ ...input, amount_usd: 50, used_at: "2027-01-01", period_key: "2027-new-airline" }), /future period/);
+  await assert.rejects(service.addUsage({ ...input, amount_usd: 50, period_schedule_id: "existing-2026" }), /schedule changed/);
+  await service.addUsage({ ...input, amount_usd: 50 });
+  assert.equal((await service.dashboard()).cards[0].logged_realized_ytd_usd, 50);
+  await assert.rejects(service.addUsage({ ...input, amount_usd: 1 }), /cannot exceed/);
+  service.db.close();
+});
+
 test("Bilt cash and points consume the same balance but only cash adds incremental fee value", async () => {
   const service = createService({ root, dbPath: ":memory:", asOf: "2026-10-01" });
   const wallet = await service.addWalletCard({ catalog_slug: "bilt-palladium-card" });

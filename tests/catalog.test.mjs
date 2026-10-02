@@ -7,6 +7,35 @@ import { loadCatalog, parseBenefits, upsertBenefit, validateCard, writeCard } fr
 
 const repositoryCatalog = new URL("../catalog/cards/", import.meta.url);
 
+test("Marriott publishes mutually exclusive airline offers with a $250 threshold", async () => {
+  const marriott = (await loadCatalog(repositoryCatalog.pathname)).find(card => card.slug === "marriott-bonvoy-boundless-credit-card");
+  const benefit = marriott.benefits[0];
+  assert.equal(benefit.qualifying_spend.amount_usd, 250);
+  assert.equal(benefit.amount_usd, 50);
+  assert.equal(benefit.default_schedule_id, "existing-2026");
+  assert.deepEqual(benefit.period_schedules[1].periods.map(({ start, end }) => [start, end]), [["2026-06-04", "2026-12-31"], ["2027-01-01", "2027-06-30"]]);
+  const broken = structuredClone(marriott);
+  broken.benefits[0].period_schedules[1].periods[1].start = "2026-12-31";
+  assert.ok(validateCard(broken).some(error => /overlapping periods/.test(error)));
+  broken.benefits[0].period_schedules[1].periods[1].start = "2027-02-30";
+  assert.ok(validateCard(broken).some(error => /invalid or overlapping/.test(error)));
+  broken.benefits[0].default_schedule_id = "missing";
+  assert.ok(validateCard(broken).some(error => /default_schedule_id/.test(error)));
+});
+
+test("community edits preserve the spending requirement and exact offer windows", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "crdits-offer-terms-"));
+  try {
+    const card = (await loadCatalog(repositoryCatalog.pathname)).find(c => c.slug === "marriott-bonvoy-boundless-credit-card");
+    await writeCard(directory, card);
+    const original = card.benefits[0];
+    const updated = await upsertBenefit(directory, card.slug, { id: original.id, title: "Airline statement credit" });
+    assert.deepEqual(updated.benefits[0].period_schedules, original.period_schedules);
+    assert.deepEqual(updated.benefits[0].qualifying_spend, original.qualifying_spend);
+    assert.equal(updated.benefits[0].default_schedule_id, original.default_schedule_id);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
 test("Bilt redemption policy survives community edits and rejects inconsistent incremental values", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "crdits-bilt-policy-"));
   try {

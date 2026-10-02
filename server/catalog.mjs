@@ -332,6 +332,34 @@ export function validateCard(card) {
   }
   const benefitIds = new Set();
   for (const benefit of card?.benefits ?? []) {
+    if (benefit.qualifying_spend && (!Number.isFinite(benefit.qualifying_spend.amount_usd) || benefit.qualifying_spend.amount_usd <= 0 || !benefit.qualifying_spend.description)) {
+      errors.push(`benefit ${benefit.id} needs a positive qualifying spend amount and description`);
+    }
+    if (benefit.period_schedules != null) {
+      const schedules = benefit.period_schedules;
+      if (!Array.isArray(schedules) || !schedules.length) {
+        errors.push(`benefit ${benefit.id} needs nonempty period schedules`);
+      } else {
+        const scheduleIds = new Set();
+        const validDate = value => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+        for (const schedule of schedules) {
+          if (!schedule?.id || scheduleIds.has(schedule.id) || !schedule.label || !schedule.eligibility || !schedule.enrollment) errors.push(`benefit ${benefit.id} has an invalid period schedule`);
+          scheduleIds.add(schedule?.id);
+          if (!Array.isArray(schedule?.periods) || !schedule.periods.length) {
+            errors.push(`benefit ${benefit.id} schedule needs explicit periods`);
+            continue;
+          }
+          const keys = new Set();
+          let previousEnd = null;
+          for (const period of schedule.periods) {
+            if (!period?.key || keys.has(period.key) || !period.label || !validDate(period.start) || !validDate(period.end) || period.start > period.end || (previousEnd && period.start <= previousEnd)) errors.push(`benefit ${benefit.id} schedule has invalid or overlapping periods`);
+            keys.add(period?.key);
+            previousEnd = period?.end;
+          }
+        }
+        if (!scheduleIds.has(benefit.default_schedule_id)) errors.push(`benefit ${benefit.id} needs a valid default_schedule_id`);
+      }
+    }
     if (benefit.redemption_policy) {
       const policy = benefit.redemption_policy;
       const options = policy.options;
@@ -479,6 +507,8 @@ export async function upsertBenefit(catalogDir, cardSlug, input) {
       ...existing,
       id,
       title: input.title,
+      ...(Object.hasOwn(input, "qualifying_spend") ? { qualifying_spend: input.qualifying_spend } : {}),
+      ...(Object.hasOwn(input, "period_schedules") ? { period_schedules: input.period_schedules, default_schedule_id: input.default_schedule_id } : {}),
       kind: input.kind || "statement_credit",
       tracking_type: trackingType,
       amount_usd: amount,

@@ -84,13 +84,41 @@
   "benefits": [
     {
       "id": "temporary-airline-statement-credit-promotion-up-to-100-total",
-      "title": "Temporary airline statement-credit promotion: up to $100 total",
+      "title": "Airline offer: spend $250, earn $50",
       "kind": "statement_credit",
       "tracking_type": "spend",
       "amount_usd": 50,
       "cadence": "semiannual",
       "interval_years": null,
-      "description": "2026 airline statement-credit promotion for existing eligible cardmembers: two $50 credits after qualifying airline spend, one in each half of 2026",
+      "description": "Earn a $50 statement credit after $250 in eligible purchases made directly with airlines in each offer window. Spending resets between windows; unused spending does not carry over. Record only the statement credit received, not the airline purchase amount.",
+      "qualifying_spend": {
+        "amount_usd": 250,
+        "description": "Eligible purchases made directly with airlines; refunds and cancellations reduce qualifying spending.",
+        "posting_delay": "Allow 6–8 weeks after qualifying for the statement credit to post."
+      },
+      "default_schedule_id": "existing-2026",
+      "period_schedules": [
+        {
+          "id": "existing-2026",
+          "label": "Existing-cardmember 2026 offer",
+          "eligibility": "Eligible existing cardmembers as of January 7, 2026; one-time enrollment required.",
+          "enrollment": "Enroll once at chase.com/mybonus/marriott-airline-credit-c.",
+          "periods": [
+            { "key": "2026-H1", "label": "2026 H1", "start": "2026-01-01", "end": "2026-06-30" },
+            { "key": "2026-H2", "label": "2026 H2", "start": "2026-07-01", "end": "2026-12-31" }
+          ]
+        },
+        {
+          "id": "new-2026-2027",
+          "label": "June 2026–June 2027 offer",
+          "eligibility": "New cardmembers applying June 4–December 31, 2026. Use the offer shown on your Chase account; the annual-fee date does not determine eligibility.",
+          "enrollment": "Automatically enrolled upon card activation for this new-cardmember offer.",
+          "periods": [
+            { "key": "2026-new-airline", "label": "2026 offer", "start": "2026-06-04", "end": "2026-12-31" },
+            { "key": "2027-new-airline", "label": "2027 offer", "start": "2027-01-01", "end": "2027-06-30" }
+          ]
+        }
+      ],
       "eligibility": null,
       "enrollment_required": false,
       "valid_from": "2026-01-01",
@@ -99,9 +127,9 @@
       "valuation": {
         "method": "face_value",
         "value_usd": 50,
-        "basis": "Issuer-stated $50 maximum per 2026 semiannual airline-credit period for existing eligible cardmembers",
+        "basis": "Issuer-stated $50 maximum after $250 qualifying airline spend in each selected offer window; $100 maximum across the two windows",
         "source_url": "https://creditcards.chase.com/travel-credit-cards/marriott-bonvoy/boundless",
-        "as_of": "2026-08-28"
+        "as_of": "2026-10-02"
       },
       "source_group": "recurring"
     },
@@ -184,10 +212,10 @@
     "Marriott status/elite-night benefits",
     "travel protections subject to guide to benefits"
   ],
-  "notes": "The airline-credit promotion differs for existing and new cardmembers. This catalog entry models the two 2026 semiannual $50 credits for existing eligible cardmembers; other cohorts require a separately effective-dated definition.",
+  "notes": "The airline offer has two eligibility cohorts, not a permanently recurring $100 annual credit. Choose the offer schedule shown by Chase. Each window separately requires $250 spent directly with airlines to earn $50; the two cohorts are alternatives and must never be added together.",
   "valid_from": "2026-08-25",
   "valid_to": null,
-  "verified_at": "2026-08-28",
+  "verified_at": "2026-10-02",
   "sources": [
     {
       "kind": "primary",

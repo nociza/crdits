@@ -14,6 +14,11 @@ type Benefit = {
   kind: string;
   cadence: string;
   description: string | null;
+  qualifying_spend?: { amount_usd: number; description: string; posting_delay?: string } | null;
+  period_schedule_id?: string | null;
+  period_schedule_options?: { id: string; label: string }[];
+  eligibility?: string | null;
+  enrollment?: string | null;
   tracking_type: "spend" | "automatic" | "enrollment" | "reference";
   amount_usd: number | null;
   points_amount: number | null;
@@ -193,7 +198,7 @@ function Progress({ used, total }: { used: number; total: number | null }) {
   return <span className="progress-track" aria-label={`${Math.round(percent)} percent used`}><i style={{ width: `${percent}%` }} /></span>;
 }
 
-function CreditPeriods({ cadence, periods, asOf, onSelect }: { cadence: string; periods: BenefitPeriod[]; asOf: string; onSelect: (period: BenefitPeriod) => void }) {
+function CreditPeriods({ cadence, periods, asOf, qualifying = false, onSelect }: { cadence: string; periods: BenefitPeriod[]; asOf: string; qualifying?: boolean; onSelect: (period: BenefitPeriod) => void }) {
   return (
     <div className={`credit-periods has-${periods.length} is-${cadence}`} aria-label="Credit periods">
       {periods.map((period) => {
@@ -206,14 +211,33 @@ function CreditPeriods({ cadence, periods, asOf, onSelect }: { cadence: string; 
               ? "Ended"
               : period.status === "upcoming"
                 ? `${usd.format(period.amount_usd)} next`
-                : `${usd.format(period.remaining_usd)} left`;
+                : `${usd.format(period.remaining_usd)} ${qualifying ? "to earn" : "left"}`;
         return (
           <button type="button" className={`credit-period is-${period.status} ${period.is_current ? "is-current" : ""}`} key={period.key} aria-current={period.is_current ? "true" : undefined} disabled={!selectable} onClick={() => onSelect(period)} title={selectable ? `${period.used_usd > 0 ? "Edit" : "Log"} ${period.label} usage` : `Upcoming period: ${period.start} through ${period.end}`}>
-            <small>{period.label}</small><strong>{detail}</strong><i>{period.is_current ? period.status === "used" ? "Used · current" : "Current" : period.status}</i>
+            <small>{period.label}</small>{cadence === "custom" ? <span className="period-dates">{period.start} – {period.end}</span> : null}<strong>{detail}</strong><i>{period.is_current ? period.status === "used" ? "Used · current" : "Current" : period.status}</i>
           </button>
         );
       })}
     </div>
+  );
+}
+
+function OfferTerms({ benefit, onSubmit }: { benefit: Benefit; onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void> }) {
+  if (!benefit.period_schedule_options?.length) return null;
+  return (
+    <details className="offer-terms">
+      <summary>Offer terms &amp; timeline</summary>
+      <p>{benefit.eligibility} {benefit.enrollment}</p>
+      <form onSubmit={onSubmit}>
+        <label>Offer shown by Chase
+          <select name="period_schedule_id" key={benefit.period_schedule_id} defaultValue={benefit.period_schedule_id || ""}>
+            {benefit.period_schedule_options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <button type="submit">Save timeline</button>
+      </form>
+      <small>Only one offer is counted. Changing the timeline does not move or delete past entries.</small>
+    </details>
   );
 }
 
@@ -269,6 +293,7 @@ function UsageModal({ card, benefit, asOf, periodKey, initialMode, onSubmit, onC
         <p>{benefit.title}</p>
         {selectedPeriod ? <small>{selectedPeriod.start} – {selectedPeriod.end} · {usd.format(selectedPeriod.remaining_usd)} left</small> : null}
         {!selectedPeriod ? <small>{usd.format(previousTotal)} used · {usd.format(remaining)} left{benefit.expires_on ? ` · expires ${benefit.expires_on}` : ""}</small> : null}
+        {benefit.qualifying_spend ? <p className="credit-earning-rule">Spend {usd.format(benefit.qualifying_spend.amount_usd)} directly with airlines in this window to earn {usd.format(limit)}. Enter the statement credit received, not the purchase amount. {benefit.qualifying_spend.posting_delay}</p> : null}
         <form onSubmit={async (event) => {
           event.preventDefault();
           if (submitting.current) return;
@@ -286,7 +311,7 @@ function UsageModal({ card, benefit, asOf, periodKey, initialMode, onSubmit, onC
             {usageMode === "total" ? <option value="">Keep existing redemption types</option> : null}
             {benefit.redemption_options.map(option => <option key={option.id} value={option.id}>{option.label} · +{usdPrecise.format(option.counted_unit_value_usd)} per $1 toward fee</option>)}
           </select><small>Exclude the $0.33 points baseline: cash/hotel use adds $0.67 per $1; points add $0. Correcting a type applies it to the entire period total.</small></label> : null}
-          <label>{usageMode === "add" ? "Amount used now" : "Total used this period"}<span><b>$</b><input key={usageMode} ref={amountInput} name="amount_usd" type="number" step="0.01" min={usageMode === "add" ? "0.01" : "0"} max={usageMode === "add" ? remaining : limit} defaultValue={usageMode === "add" ? undefined : selectedPeriod ? defaultAmount : previousTotal} required /></span></label>
+          <label>{benefit.qualifying_spend ? "Statement credit received" : usageMode === "add" ? "Amount used now" : "Total used this period"}<span><b>$</b><input key={usageMode} ref={amountInput} name="amount_usd" type="number" step="0.01" min={usageMode === "add" ? "0.01" : "0"} max={usageMode === "add" ? remaining : limit} defaultValue={usageMode === "add" ? undefined : selectedPeriod ? defaultAmount : previousTotal} required /></span></label>
           {benefit.requires_membership_year ? <label>Current membership year started<input name="membership_year_start" type="date" max={asOf} required /><small>Save this once to track the annual credit and its expiry.</small></label> : null}
           {!selectedPeriod && usageMode === "add" ? <button type="button" className="ghost" disabled={saving || remaining <= 0} onClick={() => {
             const input = amountInput.current;
@@ -496,6 +521,7 @@ export function CrditsDashboard() {
         revalue_existing: data.get("usage_mode") === "total" && Boolean(data.get("redemption_method")),
         used_at: data.get("used_at"),
         period_key: data.get("period_key") || null,
+        period_schedule_id: edit.benefit.period_schedule_id || null,
         note: data.get("note") || null,
       }) });
       setEdit(null);
@@ -510,6 +536,17 @@ export function CrditsDashboard() {
         benefit_id: benefit.id,
         status: "active",
         activated_on: dashboard?.as_of,
+      }) });
+    });
+  }
+
+  async function saveOfferSchedule(event: FormEvent<HTMLFormElement>, card: WalletCard, benefit: Benefit) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    await mutate("Offer timeline saved. Existing credit entries keep their original dates and values.", async () => {
+      await api("/v1/preferences", { method: "POST", body: JSON.stringify({
+        wallet_card_id: card.id, benefit_id: benefit.id,
+        period_schedule_id: data.get("period_schedule_id"), expected_schedule_id: benefit.period_schedule_id,
       }) });
     });
   }
@@ -540,12 +577,12 @@ export function CrditsDashboard() {
       const detail = benefit.requires_membership_year
         ? benefit.tracking_type === "automatic" ? "Annual automatic value · anniversary date not set" : "Set the anniversary date to calculate the available balance and expiry"
         : benefit.tracking_type === "spend"
-          ? benefit.periods.length ? RESET_CADENCE_DETAILS[benefit.cadence] : `${benefit.cadence.replaceAll("_", " ")} · expires ${benefit.expires_on}`
+          ? benefit.qualifying_spend ? `Spend ${usd.format(benefit.qualifying_spend.amount_usd)} directly with airlines in each window to earn ${usd.format(benefit.amount_usd ?? 0)}. Spending does not carry over.` : benefit.periods.length ? RESET_CADENCE_DETAILS[benefit.cadence] : `${benefit.cadence.replaceAll("_", " ")} · expires ${benefit.expires_on}`
           : benefit.description;
       const value = benefit.requires_membership_year && benefit.tracking_type === "spend"
         ? `${usd.format(benefit.amount_usd ?? 0)} annual · date needed`
         : benefit.tracking_type === "spend"
-          ? `${usd.format(benefit.remaining_usd ?? 0)} left`
+          ? benefit.qualifying_spend && (benefit.remaining_usd ?? 0) > 0 ? `${usd.format(benefit.remaining_usd ?? 0)} to earn` : `${usd.format(benefit.remaining_usd ?? 0)} left`
           : benefit.tracking_type === "automatic"
             ? automaticLabel
             : benefit.tracking_type === "enrollment" ? enrollmentLabel : "Reference";
@@ -559,9 +596,10 @@ export function CrditsDashboard() {
 
       return (
         <div className={`benefit tracking-${benefit.tracking_type} ${compact ? "compact-benefit" : ""}`} key={benefit.id}>
-          <div className="benefit-title"><span className="benefit-kind">{benefit.tracking_type === "spend" ? benefit.cadence.replaceAll("_", " ") : benefit.tracking_type === "enrollment" ? "set once" : benefit.tracking_type}</span><strong>{benefit.title}</strong><small>{detail}</small></div>
-          <div className="benefit-value"><strong>{value}</strong>{benefit.tracking_type === "spend" ? <small>{usd.format(benefit.used_usd)} used{benefit.redemption_options?.length ? ` · ${usdPrecise.format(benefit.used_value_usd ?? 0)} toward fee` : ""}</small> : <small className="behavior-label">{benefit.counts_toward_value ? "Included in value" : "Not deducted or counted"}</small>}</div>
-          {benefit.periods.length ? <CreditPeriods cadence={benefit.cadence} periods={benefit.periods} asOf={dashboard?.as_of || ""} onSelect={(period) => setEdit({ mode: "usage", card, benefit, periodKey: period.key })} /> : benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <Progress used={benefit.used_usd} total={benefit.amount_usd} /> : null}
+          <div className="benefit-title"><span className="benefit-kind">{benefit.cadence === "custom" ? "limited-time offer" : benefit.tracking_type === "spend" ? benefit.cadence.replaceAll("_", " ") : benefit.tracking_type === "enrollment" ? "set once" : benefit.tracking_type}</span><strong>{benefit.title}</strong><small>{detail}</small></div>
+          <div className="benefit-value"><strong>{value}</strong>{benefit.tracking_type === "spend" ? <small>{usd.format(benefit.used_usd)} {benefit.qualifying_spend ? "received" : "used"}{benefit.redemption_options?.length ? ` · ${usdPrecise.format(benefit.used_value_usd ?? 0)} toward fee` : ""}</small> : <small className="behavior-label">{benefit.counts_toward_value ? "Included in value" : "Not deducted or counted"}</small>}</div>
+          {benefit.periods.length ? <CreditPeriods cadence={benefit.cadence} periods={benefit.periods} qualifying={Boolean(benefit.qualifying_spend)} asOf={dashboard?.as_of || ""} onSelect={(period) => setEdit({ mode: "usage", card, benefit, periodKey: period.key })} /> : benefit.tracking_type === "spend" && !benefit.requires_membership_year ? <Progress used={benefit.used_usd} total={benefit.amount_usd} /> : null}
+          <OfferTerms benefit={benefit} onSubmit={event => saveOfferSchedule(event, card, benefit)} />
           <div className="benefit-actions">
             {actions.log ? <button type="button" className="is-primary" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: null })}>Log use</button> : null}
             {actions.edit ? <button type="button" onClick={() => setEdit({ mode: "usage", card, benefit, periodKey: null, initialMode: "total" })}>Edit usage</button> : null}

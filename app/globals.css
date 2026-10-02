@@ -166,6 +166,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .credit-period.is-partial:not(.is-current) { border-color: rgba(217,131,36,.3); background: rgba(217,131,36,.08); }
 .credit-period.is-expired { opacity: .55; }
 .credit-period.is-upcoming { border-style: dashed; background: transparent; }
+.credit-period .period-dates { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.offer-terms { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.offer-terms summary { cursor: pointer; }
+.offer-terms p { line-height: 1.6; }
+.offer-terms form { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.offer-terms label { display: grid; gap: 5px; }
+.offer-terms select, .offer-terms button { max-width: 100%; min-height: 36px; border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; color: inherit; background: var(--panel); font-size: 12px; }
 .benefit-actions { grid-column: 1 / -1; display: flex; gap: 7px; }
 .benefit-actions button { min-height: 31px; border: 1px solid var(--line); background: transparent; border-radius: 7px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
 .benefit-actions button.is-primary { border-color: var(--green); color: white; background: var(--green); font-weight: 700; }

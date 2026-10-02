@@ -24,7 +24,7 @@ import {
   usageHistory,
   updateOffer,
 } from "./db.mjs";
-import { buildDashboard, enumerateCycles, recommendCard, cycleAmount, catalogValue } from "./engine.mjs";
+import { buildDashboard, enumerateCycles, recommendCard, cycleAmount, catalogValue, resolveBenefitSchedule } from "./engine.mjs";
 import { readFile, readdir } from "node:fs/promises";
 
 export function projectPaths(root = process.env.CRDITS_ROOT || process.cwd()) {
@@ -106,8 +106,11 @@ export function createService(options = {}) {
       const wallet = findWalletCard(db, input.wallet_card_id || input.card);
       if (!wallet) throw new Error("wallet card not found");
       const card = (await catalog()).find((item) => item.slug === wallet.catalog_slug);
-      const benefit = card?.benefits.find((item) => item.id === input.benefit_id);
-      if (!benefit) throw new Error("benefit not found for wallet card");
+      const definition = card?.benefits.find((item) => item.id === input.benefit_id);
+      if (!definition) throw new Error("benefit not found for wallet card");
+      const preference = listPreferences(db).find(item => item.wallet_card_id === wallet.id && item.benefit_id === definition.id) || {};
+      const benefit = resolveBenefitSchedule(definition, preference);
+      if (Object.hasOwn(input, "period_schedule_id") && input.period_schedule_id !== (benefit.period_schedule_id || null)) throw new Error("The offer schedule changed. Refresh before logging credit.");
       if ((benefit.tracking_type || "spend") !== "spend") throw new Error("this benefit does not use the spend ledger");
       const usedAt = input.used_at || today();
       const parsedUsedAt = new Date(`${usedAt}T00:00:00Z`);
@@ -121,7 +124,6 @@ export function createService(options = {}) {
       }
       const period = enumerateCycles(benefit, wallet, usedAt, usedAt)[0];
       if (!period) throw new Error("No eligible credit period for this date; check the card anniversary and benefit dates");
-      const preference = listPreferences(db).find(item => item.wallet_card_id === wallet.id && item.benefit_id === benefit.id) || {};
       const limit = cycleAmount(benefit, card, preference);
       const value = catalogValue(benefit, card, preference);
       const policy = benefit.redemption_policy;
@@ -154,10 +156,16 @@ export function createService(options = {}) {
       return setBenefitStatus(db, { ...input, wallet_card_id: wallet.id });
     },
 
-    setPreference(input) {
+    async setPreference(input) {
       const wallet = findWalletCard(db, input.wallet_card_id || input.card);
       if (!wallet) throw new Error("wallet card not found");
-      return setPreference(db, { ...input, wallet_card_id: wallet.id });
+      const card = (await catalog()).find(item => item.slug === wallet.catalog_slug);
+      const benefit = card?.benefits.find(item => item.id === input.benefit_id);
+      if (!benefit) throw new Error("benefit not found for wallet card");
+      if (Object.hasOwn(input, "period_schedule_id") && !benefit.period_schedules?.some(item => item.id === input.period_schedule_id)) throw new Error("Invalid offer schedule for this benefit");
+      const current = listPreferences(db).find(item => item.wallet_card_id === wallet.id && item.benefit_id === benefit.id);
+      if (Object.hasOwn(input, "expected_schedule_id") && input.expected_schedule_id !== (current?.period_schedule_id || benefit.default_schedule_id)) throw new Error("The offer schedule changed in another session. Refresh before saving.");
+      return setPreference(db, { probability: 1, personal_value_percent: 1, ...current, ...input, wallet_card_id: wallet.id });
     },
 
     addOffer(input) {

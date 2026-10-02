@@ -45,6 +45,16 @@ duplicate-safe and rejects stale totals. `history --card ID --benefit ID` return
 the correction trail. Original entries are retained, and anniversary corrections
 preserve their allocation across calendar years.
 
+Spend-to-earn offers distinguish purchase spending from the statement credit
+received. Marriott's airline offer requires **$250 spent directly with airlines
+per window to earn $50**. Log the credit received, never the airline ticket
+amount. The catalog publishes both Chase eligibility cohorts; the wallet's
+chosen timeline is private in SQLite. Open **Offer terms & timeline** to choose
+the schedule shown on your account. Finite offers show their exact date ranges,
+including a next-year window, and never recur after the promotion ends. Changing
+the schedule preserves existing usage dates and values and counts only one
+cohort. A future-year window is displayed but is not added to this year's total.
+
 “Net value this year” means used/credited value minus annual fees. Remaining
 this year includes future reset periods and is not an available-now balance.
 New ledger entries store their valuation ratio; legacy entries are pinned once

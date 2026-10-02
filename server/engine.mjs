@@ -16,7 +16,28 @@ const RESET_CADENCE_LABELS = {
 };
 
 export function isResetCadence(cadence) {
-  return Object.hasOwn(RESET_CADENCE_LABELS, cadence);
+  return cadence === "custom" || Object.hasOwn(RESET_CADENCE_LABELS, cadence);
+}
+
+// Shared terms remain in Git; the account's selected offer lives in SQLite.
+// Resolving exactly one schedule prevents mutually exclusive promotions from
+// being counted twice, without rewriting any historical usage entries.
+export function resolveBenefitSchedule(benefit, preference = {}) {
+  if (!benefit.period_schedules) return benefit;
+  const id = preference.period_schedule_id || benefit.default_schedule_id;
+  const schedule = benefit.period_schedules.find(item => item.id === id);
+  if (!schedule) throw new Error(`Unknown offer schedule for ${benefit.id}: ${id}`);
+  return {
+    ...benefit,
+    cadence: "custom",
+    periods: schedule.periods,
+    valid_from: schedule.periods[0].start,
+    valid_to: schedule.periods.at(-1).end,
+    period_schedule_id: id,
+    period_schedule_options: benefit.period_schedules.map(({ id, label }) => ({ id, label })),
+    eligibility: schedule.eligibility,
+    enrollment: schedule.enrollment,
+  };
 }
 
 function iso(date) {
@@ -59,12 +80,17 @@ export function enumerateCycles(benefit, walletCard, rangeStartInput, rangeEndIn
   const rangeStart = utcDate(rangeStartInput);
   const rangeEnd = utcDate(rangeEndInput);
   const windows = [];
-  const push = (start, end, key) => {
+  const push = (start, end, key, label) => {
     if (!overlaps(start, end, rangeStart, rangeEnd)) return;
     if (!effectiveDuring(benefit, start, end)) return;
     if (walletCard.opened_on && end < utcDate(walletCard.opened_on)) return;
-    windows.push({ start: iso(start), end: iso(end), key });
+    windows.push({ start: iso(start), end: iso(end), key, ...(label ? { label } : {}) });
   };
+
+  if (benefit.periods) {
+    for (const period of benefit.periods) push(utcDate(period.start), utcDate(period.end), period.key, period.label);
+    return windows;
+  }
 
   const firstYear = rangeStart.getUTCFullYear() - 1;
   const lastYear = rangeEnd.getUTCFullYear() + 1;
@@ -192,13 +218,18 @@ function resetPeriodTimeline(benefit, card, wallet, preference, usage, asOf) {
   const face = cycleAmount(benefit, card, preference);
   if (face == null) return [];
   const year = utcDate(asOf).getUTCFullYear();
-  return enumerateCycles(benefit, wallet, `${year}-01-01`, `${year}-12-31`).map((window) => {
+  // Finite promotions show both exact windows, including the next calendar
+  // year. Ordinary recurring credits continue to show only the selected year.
+  const windows = benefit.periods
+    ? enumerateCycles(benefit, wallet, benefit.valid_from, benefit.valid_to)
+    : enumerateCycles(benefit, wallet, `${year}-01-01`, `${year}-12-31`);
+  return windows.map((window) => {
     const used = usageFor(usage, wallet.id, benefit.id, window.start, window.end);
     const remaining = Math.max(0, Number(face) - used);
     const isCurrent = window.start <= asOf && window.end >= asOf;
     return {
       key: window.key,
-      label: RESET_CADENCE_LABELS[benefit.cadence](window),
+      label: window.label || RESET_CADENCE_LABELS[benefit.cadence](window),
       start: window.start,
       end: window.end,
       amount_usd: round(face),
@@ -268,6 +299,11 @@ function currentCycleState(benefit, card, wallet, preference, usage, savedStatus
     kind: benefit.kind,
     cadence: benefit.cadence,
     description: benefit.description,
+    qualifying_spend: benefit.qualifying_spend || null,
+    period_schedule_id: benefit.period_schedule_id || null,
+    period_schedule_options: benefit.period_schedule_options || [],
+    eligibility: benefit.eligibility || null,
+    enrollment: benefit.enrollment || null,
     tracking_type: behavior,
     amount_usd: face == null ? null : round(face),
     points_amount: benefit.points_amount == null ? null : Number(benefit.points_amount),
@@ -390,8 +426,9 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
     let automaticRealized = 0;
     let automaticExpected = 0;
     const benefitStates = [];
-    for (const benefit of card.benefits) {
-      const preference = preferenceFor(preferenceMap, walletCard.id, benefit);
+    for (const definition of card.benefits) {
+      const preference = preferenceFor(preferenceMap, walletCard.id, definition);
+      const benefit = resolveBenefitSchedule(definition, preference);
       const savedStatus = statusMap.get(`${walletCard.id}:${benefit.id}`) || null;
       const state = currentCycleState(benefit, card, walletCard, preference, usage, savedStatus, asOf);
       if (state) {
@@ -407,7 +444,7 @@ export function buildDashboard({ catalog, db, asOf = new Date().toISOString().sl
             card_name: card.name,
             benefit_id: state.id,
             title: `${state.title} expires in ${state.days_remaining} day${state.days_remaining === 1 ? "" : "s"}`,
-            detail: `$${round(state.remaining_usd, 0)} remaining`,
+            detail: state.qualifying_spend ? `Earn up to $${round(state.remaining_usd, 0)} after $${round(state.qualifying_spend.amount_usd, 0)} qualifying spend in this offer window` : `$${round(state.remaining_usd, 0)} remaining`,
             expires_on: state.expires_on,
             remaining_usd: state.remaining_usd,
           });
